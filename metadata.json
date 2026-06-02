@@ -1,0 +1,6 @@
+{
+  "name": "Skool Community & Course Platform",
+  "description": "A high-performance community, course, and gamification platform for creators to grow memberships, schedule events, build classrooms, and engage students.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
