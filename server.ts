@@ -65,14 +65,13 @@ app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === "production" ? {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://cdn.tailwindcss.com", "https://www.paypal.com"],
+      scriptSrc: ["'self'", "https://cdn.tailwindcss.com", "https://www.paypal.com", "https://*.youtube.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https://images.unsplash.com", "https://www.paypalobjects.com"],
+      imgSrc: ["'self'", "data:", "https://images.unsplash.com", "https://www.paypalobjects.com", "https://*.youtube.com", "https://i.ytimg.com"],
       connectSrc: ["'self'", "https://www.paypal.com"],
-      frameSrc: ["'self'", "https://www.paypal.com"],
+      frameSrc: ["'self'", "https://www.paypal.com", "https://www.youtube.com", "https://*.youtube.com", "https://*.vimeo.com"],
       objectSrc: ["'none'"],
-      upgradeInsecureRequests: [],
     },
   } : false,
   crossOriginEmbedderPolicy: false,
