@@ -278,8 +278,6 @@ export async function createSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
 
-    ALTER TABLE posts ADD COLUMN IF NOT EXISTS space_id TEXT REFERENCES spaces(id) ON DELETE SET NULL;
-
     -- Community Transformation: Spaces
     CREATE TABLE IF NOT EXISTS spaces (
       id TEXT PRIMARY KEY,
@@ -295,6 +293,8 @@ export async function createSchema() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_spaces_workspace ON spaces(workspace_id, sort_order);
+
+    ALTER TABLE posts ADD COLUMN IF NOT EXISTS space_id TEXT REFERENCES spaces(id) ON DELETE SET NULL;
 
     -- Community Transformation: Post Reactions (per-user, per-reaction-type)
     CREATE TABLE IF NOT EXISTS post_reactions (
