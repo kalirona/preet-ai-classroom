@@ -74,6 +74,7 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
     {
       id: "user-student",
       email: "lincolnflores223@gmail.com",
+      password: "demo123",
       name: "Lincoln Flores",
       role: "Student (Member)",
       desc: "Preloaded student profile with standard classroom drip access.",
@@ -82,6 +83,7 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
     {
       id: "user-creator",
       email: "creator@example.com",
+      password: "demo123",
       name: "Alex Rivera",
       role: "Community Owner",
       desc: "Owner role with complete access to edit MRR Stats and premium Spaces.",
@@ -90,6 +92,7 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
     {
       id: "user-mod",
       email: "moderator@example.com",
+      password: "demo123",
       name: "Sarah Chen",
       role: "Moderator",
       desc: "Enforce and configure community tags and classroom parameters.",
@@ -98,6 +101,7 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
     {
       id: "user-admin",
       email: "admin@example.com",
+      password: "admin123",
       name: "Super Platform Admin",
       role: "Super Admin",
       desc: "Full system control panel overlays & sharded database switches.",
@@ -115,7 +119,7 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: demo.email, password: "demo" }) // seed accounts don't check strict passwords, so let's pass a dummy
+        body: JSON.stringify({ email: demo.email, password: demo.password })
       });
       const data = await response.json();
       if (!response.ok || !data.success) {
