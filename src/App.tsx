@@ -128,19 +128,23 @@ export default function App() {
           setCurrentUser(authData.user);
         }
 
-        // 2. Fetch communities
-        const commRes = await fetch("/api/communities");
-        const commData = await commRes.json();
-        if (commData.communities && commData.communities.length > 0) {
-          setCommunities(commData.communities);
-          setActiveCommunityId(commData.communities[0].id);
+        // 2. Fetch communities (only if authenticated)
+        if (authData.user) {
+          const commRes = await fetch("/api/communities");
+          const commData = await commRes.json();
+          if (commData.communities && commData.communities.length > 0) {
+            setCommunities(commData.communities);
+            setActiveCommunityId(commData.communities[0].id);
+          }
         }
 
-        // 3. Fetch user notifications
-        const notifRes = await fetch("/api/notifications");
-        const notifData = await notifRes.json();
-        if (notifData.notifications) {
-          setNotifications(notifData.notifications);
+        // 3. Fetch user notifications (only if authenticated)
+        if (authData.user) {
+          const notifRes = await fetch("/api/notifications");
+          const notifData = await notifRes.json();
+          if (notifData.notifications) {
+            setNotifications(notifData.notifications);
+          }
         }
 
       } catch (err) {

@@ -550,12 +550,11 @@ app.post("/api/auth/register", async (req, res) => {
     const commAi = await findWorkspaceById("comm-ai");
     if (commAi) {
       await updateWorkspace("comm-ai", { members_count: (commAi.members_count || 0) + 1 });
+      await createWorkspaceMember({
+        workspace_id: "comm-ai", user_id: newUser.id,
+        role: "member", status: "active",
+      });
     }
-
-    await createWorkspaceMember({
-      workspace_id: "comm-ai", user_id: newUser.id,
-      role: "member", status: "active",
-    });
 
     const tokenStr = generateTokenString();
     const tokenHash = hashToken(tokenStr);
@@ -815,8 +814,8 @@ app.post("/api/auth/google-callback", async (req, res) => {
       const commAi = await findWorkspaceById("comm-ai");
       if (commAi) {
         await updateWorkspace("comm-ai", { members_count: (commAi.members_count || 0) + 1 });
+        await createWorkspaceMember({ workspace_id: "comm-ai", user_id: user.id, role: "member", status: "active" });
       }
-      await createWorkspaceMember({ workspace_id: "comm-ai", user_id: user.id, role: "member", status: "active" });
     }
 
     const tokenStr = generateTokenString();
