@@ -1674,9 +1674,17 @@ export default function ClassroomView({
               attachments: l.attachments || [],
             })),
           })),
-          status: (c.status || "draft") as "draft" | "published",
+          status: (c.status || "draft") as "draft" | "published" | "archived",
+          price: c.price || 0,
+          isFree: c.isFree !== undefined ? c.isFree : true,
+          instructorName: c.instructorName || "",
+          instructorAvatar: c.instructorAvatar || "",
+          enrolledCount: c.enrolledCount || 0,
+          completionRate: c.completionRate || 0,
+          revenue: c.revenue || 0,
           createdAt: c.createdAt || new Date().toISOString(),
           updatedAt: c.updatedAt || new Date().toISOString(),
+          templateId: c.templateId || "",
         }))}
         onCoursesChange={(updated) => {
           setLocalCourses(updated as any);

@@ -8,7 +8,19 @@ export type BlockType =
   | "file"
   | "callout"
   | "divider"
-  | "code";
+  | "code"
+  | "audio"
+  | "pdf"
+  | "poll"
+  | "reflection"
+  | "ai_summary"
+  | "ai_tutor"
+  | "ai_practice"
+  | "discussion_prompt"
+  | "ask_community"
+  | "cta"
+  | "upgrade_offer"
+  | "booking";
 
 export interface ContentBlock {
   id: string;
@@ -47,7 +59,14 @@ export interface CourseDraft {
   coverUrl: string;
   category: string;
   modules: CourseDraftModule[];
-  status: "draft" | "published";
+  status: "draft" | "published" | "archived";
+  price: number;
+  isFree: boolean;
+  instructorName: string;
+  instructorAvatar: string;
+  enrolledCount: number;
+  completionRate: number;
+  revenue: number;
   createdAt: string;
   updatedAt: string;
   templateId?: string;
@@ -64,7 +83,6 @@ export interface CourseTemplate {
   lessonCount: number;
   difficulty: "beginner" | "intermediate" | "advanced";
   modules: { title: string; lessons: { title: string; contentType: string }[] }[];
-  isPremium: boolean;
 }
 
 export interface BlockEditorProps {

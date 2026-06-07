@@ -1,9 +1,7 @@
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Sparkles, BookOpen, Globe, Users, Check, ArrowRight, ArrowLeft, Layout, Film, FileText, HelpCircle, PenTool } from "lucide-react";
-import CourseTemplates from "./CourseTemplates";
-import { CourseTemplate, CourseDraft, CourseDraftModule, CourseDraftLesson } from "./CourseTypes";
-import { v4 as uuidv4 } from "uuid";
+import { X, BookOpen, Users, Target, Award, Sparkles, Zap, DollarSign, Image as ImageIcon, Tag, ChevronRight, ChevronLeft, GraduationCap, BarChart3, Globe, FileText } from "lucide-react";
+import { CourseDraft, CourseDraftModule, CourseDraftLesson, CourseTemplate } from "./CourseTypes";
+import { courseTemplates } from "./CourseTemplates";
 
 interface CourseCreationWizardProps {
   communityId: string;
@@ -11,362 +9,367 @@ interface CourseCreationWizardProps {
   onCancel: () => void;
 }
 
-type CourseType = "free" | "community";
+const courseTypes = [
+  { id: "standard", label: "Standard Course", description: "Self-paced with modules and lessons — the all-rounder", icon: BookOpen, color: "from-indigo-500 to-indigo-600" },
+  { id: "cohort", label: "Cohort-Based Course", description: "Live cohorts, weekly modules, community-driven with start dates", icon: Users, color: "from-purple-500 to-purple-600" },
+  { id: "challenge", label: "Challenge / Workshop", description: "Time-boxed lesson drip with daily tasks", icon: Target, color: "from-rose-500 to-rose-600" },
+  { id: "certification", label: "Certification Program", description: "Assessment gate with final exam and certificate", icon: Award, color: "from-amber-500 to-amber-600" },
+  { id: "ai_generated", label: "AI Generated", description: "Let AI scaffold your course from a single prompt", icon: Sparkles, color: "from-cyan-500 to-cyan-600" },
+];
 
-const STEPS = ["Type", "Template", "Details", "Review"];
+const categories = ["Web Development", "Data Science", "Design", "Marketing", "Business", "Photography", "Music", "Health", "Personal Development", "Other"];
 
-const contentTypeIcons: Record<string, React.ReactNode> = {
-  video: <Film className="w-3 h-3" />,
-  text: <FileText className="w-3 h-3" />,
-  quiz: <HelpCircle className="w-3 h-3" />,
-  assignment: <PenTool className="w-3 h-3" />,
-  file: <FileText className="w-3 h-3" />,
-};
-
-function templateToDraft(template: CourseTemplate, communityId: string, name: string, description: string, coverUrl: string): CourseDraft {
-  const modules: CourseDraftModule[] = template.modules.map((m, mi) => ({
-    id: `mod-${uuidv4().slice(0, 8)}`,
+function buildModulesFromTemplate(template: CourseTemplate, courseType: string): CourseDraftModule[] {
+  return template.modules.map((m, mi) => ({
+    id: `draft-mod-${Date.now()}-${mi}`,
     title: m.title,
     index: mi,
     lessons: m.lessons.map((l, li) => ({
-      id: `les-${uuidv4().slice(0, 8)}`,
+      id: `draft-lesson-${Date.now()}-${mi}-${li}`,
       title: l.title,
       durationMinutes: 10,
       contentType: l.contentType as CourseDraftLesson["contentType"],
-      blocks: [
-        { id: `block-${uuidv4().slice(0, 8)}`, type: "heading", content: l.title },
-        { id: `block-${uuidv4().slice(0, 8)}`, type: "paragraph", content: l.contentType === "video" ? "Video content goes here." : l.contentType === "quiz" ? "Quiz content goes here." : l.contentType === "assignment" ? "Assignment instructions go here." : "Content goes here." },
-      ],
-      isLocked: mi > 0,
-      status: "draft",
+      blocks: [{ id: `block-${Date.now()}-${mi}-${li}`, type: "paragraph" as const, content: "Start writing your lesson content here..." }],
+      isLocked: false,
+      status: "draft" as const,
     })),
   }));
-
-  return {
-    id: `course-${Date.now()}`,
-    communityId,
-    name,
-    description,
-    coverUrl,
-    category: template.category,
-    modules,
-    status: "draft",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    templateId: template.id,
-  };
-}
-
-function createBlankDraft(communityId: string, name: string, description: string, coverUrl: string): CourseDraft {
-  const firstModule: CourseDraftModule = {
-    id: `mod-${uuidv4().slice(0, 8)}`,
-    title: "Module 1: Getting Started",
-    index: 0,
-    lessons: [
-      {
-        id: `les-${uuidv4().slice(0, 8)}`,
-        title: "Welcome to the Course",
-        durationMinutes: 5,
-        contentType: "video",
-        blocks: [
-          { id: `block-${uuidv4().slice(0, 8)}`, type: "heading", content: "Welcome to the Course" },
-          { id: `block-${uuidv4().slice(0, 8)}`, type: "paragraph", content: "We're excited to have you here. This course will guide you through everything you need to know." },
-        ],
-        isLocked: false,
-        status: "draft",
-      },
-    ],
-  };
-
-  return {
-    id: `course-${Date.now()}`,
-    communityId,
-    name,
-    description,
-    coverUrl,
-    category: "General",
-    modules: [firstModule],
-    status: "draft",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
 }
 
 export default function CourseCreationWizard({ communityId, onComplete, onCancel }: CourseCreationWizardProps) {
   const [step, setStep] = useState(0);
-  const [courseType, setCourseType] = useState<CourseType>("free");
+  const [courseType, setCourseType] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<CourseTemplate | null>(null);
-  const [courseName, setCourseName] = useState("");
-  const [courseDesc, setCourseDesc] = useState("");
-  const [courseCover, setCourseCover] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState(categories[0]);
+  const [coverUrl, setCoverUrl] = useState("");
+  const [price, setPrice] = useState(0);
+  const [isFree, setIsFree] = useState(true);
+  const [error, setError] = useState("");
 
-  const canProceed = () => {
-    switch (step) {
-      case 0: return true;
-      case 1: return selectedTemplate !== null;
-      case 2: return courseName.trim().length >= 3;
-      case 3: return true;
-      default: return false;
-    }
-  };
+  const handleCreate = () => {
+    if (!name.trim()) { setError("Course name is required"); return; }
 
-  const handleFinish = () => {
-    if (!selectedTemplate) return;
-    const draft = templateToDraft(selectedTemplate, communityId, courseName, courseDesc, courseCover);
+    // Pick template (or build minimal one)
+    const template = selectedTemplate || courseTemplates[0];
+    const modules = buildModulesFromTemplate(template, courseType);
+
+    const draft: CourseDraft = {
+      id: `course-${Date.now()}`,
+      communityId,
+      name: name.trim(),
+      description: description.trim(),
+      coverUrl,
+      category,
+      modules,
+      status: "draft",
+      price: isFree ? 0 : price,
+      isFree,
+      instructorName: "Your Name",
+      instructorAvatar: "",
+      enrolledCount: 0,
+      completionRate: 0,
+      revenue: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      templateId: template?.id,
+    };
     onComplete(draft);
   };
 
-  const handleSkipTemplate = () => {
-    const blank: CourseTemplate = {
-      id: "blank",
-      name: "Start from Scratch",
-      description: "",
-      category: "General",
-      coverUrl: "",
-      moduleCount: 0,
-      lessonCount: 0,
-      difficulty: "beginner",
-      isPremium: false,
-      modules: [],
-    };
-    setSelectedTemplate(blank);
+  const handleGenerateAI = () => {
+    if (!name.trim()) return;
+    // Simulate AI generation: pick a random template
+    const t = courseTemplates[Math.floor(Math.random() * courseTemplates.length)];
+    setSelectedTemplate(t);
+    setStep(3);
   };
-
-  const renderStep = () => {
-    switch (step) {
-      case 0:
-        return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">What type of course is this?</h3>
-            <p className="text-sm text-gray-500 mb-6">Choose how students will access your course.</p>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => setCourseType("free")}
-                className={`p-6 rounded-xl border-2 text-left transition-all ${
-                  courseType === "free" ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200" : "border-gray-200 hover:border-indigo-300"
-                }`}
-              >
-                <BookOpen className="w-8 h-8 text-indigo-500 mb-3" />
-                <h4 className="font-semibold text-gray-900 mb-1">Free Course</h4>
-                <p className="text-sm text-gray-500">Available to all community members at no cost.</p>
-              </button>
-              <button
-                onClick={() => setCourseType("community")}
-                className={`p-6 rounded-xl border-2 text-left transition-all ${
-                  courseType === "community" ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200" : "border-gray-200 hover:border-indigo-300"
-                }`}
-              >
-                <Users className="w-8 h-8 text-emerald-500 mb-3" />
-                <h4 className="font-semibold text-gray-900 mb-1">Community Course</h4>
-                <p className="text-sm text-gray-500">For members only. Great for cohort-based programs.</p>
-              </button>
-            </div>
-          </div>
-        );
-
-      case 1:
-        return (
-          <CourseTemplates
-            onSelect={(t) => setSelectedTemplate(t)}
-            selectedId={selectedTemplate?.id || null}
-          />
-        );
-
-      case 2:
-        return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Course Details</h3>
-            <p className="text-sm text-gray-500 mb-6">Give your course a name and description.</p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Course Name</label>
-                <input
-                  type="text"
-                  value={courseName}
-                  onChange={(e) => setCourseName(e.target.value)}
-                  placeholder="e.g., Advanced AI Engineering"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={courseDesc}
-                  onChange={(e) => setCourseDesc(e.target.value)}
-                  placeholder="Describe what students will learn..."
-                  rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cover Image URL</label>
-                <input
-                  type="text"
-                  value={courseCover}
-                  onChange={(e) => setCourseCover(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                />
-                {courseCover && (
-                  <div className="mt-2 rounded-lg overflow-hidden h-28">
-                    <img src={courseCover} alt="preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 3:
-        return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Review & Start Building</h3>
-            <p className="text-sm text-gray-500 mb-6">Here's what your course will look like.</p>
-            <div className="bg-gray-50 rounded-xl p-6 space-y-4">
-              <div className="flex items-start gap-4">
-                {courseCover ? (
-                  <img src={courseCover} alt="" className="w-20 h-14 rounded-lg object-cover" />
-                ) : (
-                  <div className="w-20 h-14 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-                    <BookOpen className="w-6 h-6 text-indigo-400" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-gray-900">{courseName || "Untitled Course"}</h4>
-                  <p className="text-sm text-gray-500 line-clamp-1">{courseDesc || "No description yet."}</p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                    <span className="capitalize flex items-center gap-1"><Globe className="w-3 h-3" />{courseType}</span>
-                    <span className="flex items-center gap-1"><Layout className="w-3 h-3" />{selectedTemplate?.name || "Custom"}</span>
-                  </div>
-                </div>
-              </div>
-              {selectedTemplate && selectedTemplate.modules.length > 0 && (
-                <div>
-                  <h5 className="text-sm font-medium text-gray-700 mb-2">Course Structure ({selectedTemplate.modules.length} modules, {selectedTemplate.lessonCount} lessons)</h5>
-                  <div className="space-y-2">
-                    {selectedTemplate.modules.map((mod, mi) => (
-                      <div key={mi} className="bg-white rounded-lg p-3 border border-gray-200">
-                        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                          <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                          {mod.title}
-                        </div>
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                          {mod.lessons.map((les, li) => (
-                            <span key={li} className="inline-flex items-center gap-1 text-[11px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                              {contentTypeIcons[les.contentType] || null}
-                              {les.title}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-    }
-  };
-
-  const stepLabels = STEPS;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto mx-4"
-      >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="px-8 pt-6 pb-4 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Create New Course</h2>
-              <p className="text-sm text-gray-500">Set up your course structure in a few steps</p>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gray-900 flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
-            <button onClick={onCancel} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
+            <div>
+              <h2 className="font-semibold text-gray-900">Create New Course</h2>
+              <p className="text-xs text-gray-500">Step {step + 1} of 4</p>
+            </div>
           </div>
-          {/* Step indicators */}
-          <div className="flex items-center gap-2">
-            {stepLabels.map((label, i) => (
-              <React.Fragment key={label}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
-                    i < step ? "bg-indigo-600 text-white" : i === step ? "bg-indigo-100 text-indigo-700 border-2 border-indigo-500" : "bg-gray-100 text-gray-400"
-                  }`}>
-                    {i < step ? <Check className="w-3.5 h-3.5" /> : i + 1}
-                  </div>
-                  <span className={`text-xs font-medium hidden sm:block ${i === step ? "text-indigo-700" : i < step ? "text-indigo-600" : "text-gray-400"}`}>
-                    {label}
-                  </span>
+          <button onClick={onCancel} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Steps indicator */}
+        <div className="flex items-center gap-0 px-6 py-3 bg-gray-50 border-b border-gray-200 shrink-0">
+          {["Type", "Template", "Details", "Launch"].map((s, i) => (
+            <React.Fragment key={s}>
+              <div className={`flex items-center gap-2 ${i <= step ? "text-gray-900" : "text-gray-400"}`}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                  i < step ? "bg-gray-900 text-white" : i === step ? "bg-gray-900 text-white" : "bg-gray-200 text-gray-500"
+                }`}>
+                  {i + 1}
                 </div>
-                {i < stepLabels.length - 1 && (
-                  <div className={`flex-1 h-0.5 ${i < step ? "bg-indigo-500" : "bg-gray-200"}`} />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
+                <span className="text-sm font-medium">{s}</span>
+              </div>
+              {i < 3 && <div className={`flex-1 h-px mx-3 ${i < step ? "bg-gray-900" : "bg-gray-200"}`} />}
+            </React.Fragment>
+          ))}
         </div>
 
         {/* Body */}
-        <div className="p-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.15 }}
-            >
-              {renderStep()}
-            </motion.div>
-          </AnimatePresence>
+        <div className="flex-1 overflow-y-auto p-6">
+          {step === 0 && (
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Choose Course Type</h3>
+              <p className="text-sm text-gray-500 mb-5">Select the type of course you want to create</p>
+              <div className="grid grid-cols-2 gap-3">
+                {courseTypes.map((ct) => {
+                  const Icon = ct.icon;
+                  const selected = courseType === ct.id;
+                  return (
+                    <button
+                      key={ct.id}
+                      onClick={() => setCourseType(ct.id)}
+                      className={`relative flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                        selected ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300 bg-white"
+                      }`}
+                    >
+                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${ct.color} flex items-center justify-center shrink-0`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 text-sm">{ct.label}</div>
+                        <p className="text-xs text-gray-500 mt-0.5">{ct.description}</p>
+                      </div>
+                      {selected && <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>}
+                    </button>
+                  );
+                })}
+              </div>
+              {!courseType && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-700">Select a course type to continue</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 1 && (
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Choose a Template</h3>
+              <p className="text-sm text-gray-500 mb-5">Start with a pre-built structure or <button onClick={() => { setSelectedTemplate(null); setStep(2); }} className="text-gray-900 underline underline-offset-2 hover:text-gray-700">skip to blank</button></p>
+              <div className="grid grid-cols-2 gap-3">
+                {courseTemplates.map((t) => {
+                  const selected = selectedTemplate?.id === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelectedTemplate(t)}
+                      className={`relative flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                        selected ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300 bg-white"
+                      }`}
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 text-sm">{t.name}</div>
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{t.description}</p>
+                        <div className="flex items-center gap-2 mt-2 text-[11px] text-gray-400">
+                          <span>{t.moduleCount} modules</span>
+                          <span>·</span>
+                          <span>{t.lessonCount} lessons</span>
+                          <span>·</span>
+                          <span className="capitalize">{t.difficulty}</span>
+                        </div>
+                      </div>
+                      {selected && <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Course Details</h3>
+              <p className="text-sm text-gray-500 mb-5">Name, describe, categorize, and price your course</p>
+              <div className="space-y-4 max-w-lg">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Course Name *</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. The Complete SEO Masterclass"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900"
+                  />
+                  {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    placeholder="Brief description of your course..."
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 resize-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                    <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900">
+                      {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Cover Image URL</label>
+                    <input
+                      type="text"
+                      value={coverUrl}
+                      onChange={(e) => setCoverUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">Pricing</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setIsFree(true)}
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isFree ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                    >
+                      Free
+                    </button>
+                    <button
+                      onClick={() => setIsFree(false)}
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${!isFree ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                    >
+                      Paid
+                    </button>
+                    {!isFree && (
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">$</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={price}
+                          onChange={(e) => setPrice(Number(e.target.value))}
+                          className="w-24 pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="text-center py-8">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center mx-auto mb-5">
+                <Sparkles className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">Ready to Launch!</h3>
+              <p className="text-sm text-gray-500 mb-2">Your course is nearly ready to build</p>
+              <div className="inline-flex items-center gap-2 bg-gray-100 rounded-full px-4 py-2 text-sm text-gray-700">
+                <FileText className="w-4 h-4" />
+                {selectedTemplate ? selectedTemplate.name : "Blank course"}
+                <span className="text-gray-300">|</span>
+                <span className="font-medium">{name || "Untitled Course"}</span>
+              </div>
+              {courseType === "ai_generated" && (
+                <div className="mt-4 p-4 bg-cyan-50 border border-cyan-200 rounded-xl max-w-md mx-auto">
+                  <div className="flex items-center gap-2 text-sm font-medium text-cyan-800 mb-1">
+                    <Sparkles className="w-4 h-4" />
+                    AI Generation in Progress
+                  </div>
+                  <p className="text-xs text-cyan-700">Your course structure is being generated based on the name "{name}". You'll be able to edit everything in the builder.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 border-t border-gray-100 flex items-center justify-between">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 shrink-0">
           <button
-            onClick={step === 0 ? onCancel : () => setStep(step - 1)}
-            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            onClick={() => step > 0 ? setStep(step - 1) : onCancel()}
+            className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" />
             {step === 0 ? "Cancel" : "Back"}
           </button>
-          <div className="flex items-center gap-3">
-            {step === 1 && (
-              <button
-                onClick={handleSkipTemplate}
-                className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50"
-              >
-                Skip, start blank
-              </button>
-            )}
-            {step < STEPS.length - 1 ? (
-              <button
-                onClick={() => canProceed() && setStep(step + 1)}
-                disabled={!canProceed()}
-                className="flex items-center gap-1.5 text-sm font-medium bg-indigo-600 text-white px-5 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                Continue
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={handleFinish}
-                className="flex items-center gap-1.5 text-sm font-medium bg-indigo-600 text-white px-6 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <Sparkles className="w-4 h-4" />
-                Start Building
-              </button>
-            )}
-          </div>
+          {step === 0 && (
+            <button
+              disabled={!courseType}
+              onClick={() => setStep(1)}
+              className="flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next: Template
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+          {step === 1 && (
+            <button
+              onClick={() => setStep(2)}
+              className="flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors"
+            >
+              Next: Details
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+          {step === 2 && (
+            <button
+              onClick={() => {
+                if (!name.trim()) { setError("Course name is required"); return; }
+                setError("");
+                if (courseType === "ai_generated") { handleGenerateAI(); return; }
+                setStep(3);
+              }}
+              className="flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors"
+            >
+              {courseType === "ai_generated" ? "Generate with AI" : "Next: Launch"}
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+          {step === 3 && !courseType?.startsWith("ai") && (
+            <button
+              onClick={handleCreate}
+              className="flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              Open Builder
+            </button>
+          )}
+          {step === 3 && courseType === "ai_generated" && (
+            <button
+              onClick={handleCreate}
+              className="flex items-center gap-1.5 text-sm font-semibold text-white bg-cyan-600 px-6 py-2.5 rounded-xl hover:bg-cyan-700 transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              Open Builder
+            </button>
+          )}
         </div>
-      </motion.div>
+      </div>
     </div>
+  );
+}
+
+function Check({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+    </svg>
   );
 }

@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from "react";
-import { PanelLeftClose, PanelLeft, PanelRightClose, PanelRight, Plus } from "lucide-react";
-import { CourseDraft, CourseDraftModule, CourseDraftLesson, ContentBlock } from "./CourseTypes";
-import { v4 as uuidv4 } from "uuid";
+import { FileText } from "lucide-react";
+import { CourseDraft, CourseDraftLesson, ContentBlock, CourseDraftModule } from "./CourseTypes";
 import CourseHeader from "./CourseHeader";
 import CourseStructureTree from "./CourseStructureTree";
 import ContentEditor from "./ContentEditor";
@@ -11,9 +10,10 @@ interface CourseEditorProps {
   draft: CourseDraft;
   onUpdate: (draft: CourseDraft) => void;
   onBack: () => void;
+  currentUser?: any;
 }
 
-export default function CourseEditor({ draft, onUpdate, onBack }: CourseEditorProps) {
+export default function CourseEditor({ draft, onUpdate, onBack, currentUser }: CourseEditorProps) {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(
     draft.modules.length > 0 ? draft.modules[0].id : null
   );
@@ -21,264 +21,187 @@ export default function CourseEditor({ draft, onUpdate, onBack }: CourseEditorPr
     draft.modules.length > 0 && draft.modules[0].lessons.length > 0 ? draft.modules[0].lessons[0].id : null
   );
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
-  const [showLeftPanel, setShowLeftPanel] = useState(true);
-  const [showRightPanel, setShowRightPanel] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
 
   const selectedLesson = selectedLessonId
-    ? draft.modules.flatMap((m) => m.lessons).find((l) => l.id === selectedLessonId)
+    ? draft.modules.flatMap((m) => m.lessons).find((l) => l.id === selectedLessonId) || null
     : null;
 
-  const selectedBlock = selectedBlockId
-    ? selectedLesson?.blocks.find((b) => b.id === selectedBlockId)
+  const selectedBlock = selectedBlockId && selectedLesson
+    ? selectedLesson.blocks.find((b) => b.id === selectedBlockId) || null
     : null;
 
-  const updateDraft = useCallback((updates: Partial<CourseDraft>) => {
-    onUpdate({ ...draft, ...updates, updatedAt: new Date().toISOString() });
-  }, [draft, onUpdate]);
-
-  const updateModules = useCallback((modules: CourseDraftModule[]) => {
-    updateDraft({ modules });
-  }, [updateDraft]);
-
-  const updateLessonInModules = useCallback((lessonId: string, updates: Partial<CourseDraftLesson>) => {
-    const newModules = draft.modules.map((m) => ({
-      ...m,
-      lessons: m.lessons.map((l) => (l.id === lessonId ? { ...l, ...updates } : l)),
-    }));
-    updateModules(newModules);
-  }, [draft.modules, updateModules]);
-
-  // Tree handlers
-  const handleSelectLesson = (id: string) => {
-    setSelectedLessonId(id);
-    setSelectedBlockId(null);
-    // Find and select parent module
-    for (const m of draft.modules) {
-      if (m.lessons.find((l) => l.id === id)) {
-        setSelectedModuleId(m.id);
-        break;
-      }
-    }
-  };
-
-  const handleAddModule = () => {
+  // --- Module ops ---
+  const addModule = useCallback(() => {
     const newMod: CourseDraftModule = {
-      id: `mod-${uuidv4().slice(0, 8)}`,
+      id: `mod-${Date.now()}`,
       title: `Module ${draft.modules.length + 1}`,
       index: draft.modules.length,
       lessons: [],
     };
-    updateModules([...draft.modules, newMod]);
+    onUpdate({ ...draft, modules: [...draft.modules, newMod] });
     setSelectedModuleId(newMod.id);
-  };
+  }, [draft, onUpdate]);
 
-  const handleAddLesson = (moduleId: string) => {
-    const mod = draft.modules.find((m) => m.id === moduleId);
-    if (!mod) return;
+  const deleteModule = useCallback((id: string) => {
+    if (draft.modules.length <= 1) return;
+    const filtered = draft.modules.filter((m) => m.id !== id);
+    onUpdate({ ...draft, modules: filtered });
+    if (selectedModuleId === id) {
+      const next = filtered[0]?.id || null;
+      setSelectedModuleId(next);
+      setSelectedLessonId(next ? (filtered.find((m) => m.id === next)?.lessons[0]?.id || null) : null);
+    }
+  }, [draft, onUpdate, selectedModuleId]);
+
+  const renameModule = useCallback((id: string, title: string) => {
+    onUpdate({ ...draft, modules: draft.modules.map((m) => m.id === id ? { ...m, title } : m) });
+  }, [draft, onUpdate]);
+
+  // --- Lesson ops ---
+  const addLesson = useCallback((moduleId: string) => {
     const newLesson: CourseDraftLesson = {
-      id: `les-${uuidv4().slice(0, 8)}`,
-      title: `Lesson ${mod.lessons.length + 1}`,
+      id: `lesson-${Date.now()}`,
+      title: `Lesson ${draft.modules.find((m) => m.id === moduleId)?.lessons.length + 1 || 1}`,
       durationMinutes: 10,
-      contentType: "video",
-      blocks: [
-        { id: `block-${uuidv4().slice(0, 8)}`, type: "heading", content: "New Lesson" },
-        { id: `block-${uuidv4().slice(0, 8)}`, type: "paragraph", content: "Start writing your content here..." },
-      ],
+      contentType: "text",
+      blocks: [{ id: `block-${Date.now()}`, type: "paragraph", content: "Start writing..." }],
       isLocked: false,
       status: "draft",
     };
-    const newModules = draft.modules.map((m) =>
-      m.id === moduleId ? { ...m, lessons: [...m.lessons, newLesson] } : m
-    );
-    updateModules(newModules);
-    setSelectedLessonId(newLesson.id);
-  };
-
-  const handleDeleteModule = (id: string) => {
-    const newModules = draft.modules.filter((m) => m.id !== id);
-    updateModules(newModules);
-    if (selectedModuleId === id) {
-      setSelectedModuleId(newModules.length > 0 ? newModules[0].id : null);
-    }
-  };
-
-  const handleDeleteLesson = (id: string) => {
-    const newModules = draft.modules.map((m) => ({
-      ...m,
-      lessons: m.lessons.filter((l) => l.id !== id),
-    }));
-    updateModules(newModules);
-    if (selectedLessonId === id) {
-      setSelectedLessonId(null);
-      setSelectedBlockId(null);
-    }
-  };
-
-  const handleMoveModule = (id: string, direction: "up" | "down") => {
-    const idx = draft.modules.findIndex((m) => m.id === id);
-    if (direction === "up" && idx > 0) {
-      const newModules = [...draft.modules];
-      [newModules[idx - 1], newModules[idx]] = [newModules[idx], newModules[idx - 1]];
-      updateModules(newModules.map((m, i) => ({ ...m, index: i })));
-    } else if (direction === "down" && idx < draft.modules.length - 1) {
-      const newModules = [...draft.modules];
-      [newModules[idx + 1], newModules[idx]] = [newModules[idx], newModules[idx + 1]];
-      updateModules(newModules.map((m, i) => ({ ...m, index: i })));
-    }
-  };
-
-  const handleMoveLesson = (moduleId: string, lessonId: string, direction: "up" | "down") => {
-    const newModules = draft.modules.map((m) => {
-      if (m.id !== moduleId) return m;
-      const idx = m.lessons.findIndex((l) => l.id === lessonId);
-      const lessons = [...m.lessons];
-      if (direction === "up" && idx > 0) {
-        [lessons[idx - 1], lessons[idx]] = [lessons[idx], lessons[idx - 1]];
-      } else if (direction === "down" && idx < lessons.length - 1) {
-        [lessons[idx + 1], lessons[idx]] = [lessons[idx], lessons[idx + 1]];
-      }
-      return { ...m, lessons };
-    });
-    updateModules(newModules);
-  };
-
-  const handleRenameModule = (id: string, title: string) => {
-    updateModules(draft.modules.map((m) => (m.id === id ? { ...m, title } : m)));
-  };
-
-  const handleRenameLesson = (id: string, title: string) => {
-    updateLessonInModules(id, { title });
-  };
-
-  // Content editor handlers
-  const handleBlocksChange = (blocks: ContentBlock[]) => {
-    if (selectedLessonId) {
-      updateLessonInModules(selectedLessonId, { blocks });
-    }
-  };
-
-  const handleLessonTitleChange = (title: string) => {
-    if (selectedLessonId) {
-      updateLessonInModules(selectedLessonId, { title });
-    }
-  };
-
-  const handleContentTypeChange = (contentType: string) => {
-    if (selectedLessonId) {
-      updateLessonInModules(selectedLessonId, { contentType: contentType as CourseDraftLesson["contentType"] });
-    }
-  };
-
-  // Save / Publish
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await fetch("/api/courses", {
-        method: draft.id.includes("course-") ? "POST" : "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: draft.id,
-          communityId: draft.communityId,
-          name: draft.name,
-          description: draft.description,
-          coverUrl: draft.coverUrl,
-          modules: draft.modules,
-          status: draft.status,
-        }),
-      });
-    } catch (err) {
-      console.error("Save error:", err);
-    } finally {
-      setTimeout(() => setIsSaving(false), 500);
-    }
-  };
-
-  const handlePublishToggle = () => {
-    updateDraft({
-      status: draft.status === "published" ? "draft" : "published",
-    });
-  };
-
-  const handleClone = () => {
-    const cloned: CourseDraft = {
+    onUpdate({
       ...draft,
-      id: `course-${Date.now()}`,
-      name: `${draft.name} (Copy)`,
-      status: "draft",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      sourceCourseId: draft.id,
-    };
-    onUpdate(cloned);
-  };
+      modules: draft.modules.map((m) =>
+        m.id === moduleId ? { ...m, lessons: [...m.lessons, newLesson] } : m
+      ),
+    });
+    setSelectedLessonId(newLesson.id);
+    setSelectedBlockId(newLesson.blocks[0]?.id || null);
+  }, [draft, onUpdate]);
+
+  const deleteLesson = useCallback((id: string) => {
+    const mod = draft.modules.find((m) => m.lessons.some((l) => l.id === id));
+    if (!mod || mod.lessons.length <= 1) return;
+    onUpdate({
+      ...draft,
+      modules: draft.modules.map((m) =>
+        m.id === mod.id ? { ...m, lessons: m.lessons.filter((l) => l.id !== id) } : m
+      ),
+    });
+    if (selectedLessonId === id) {
+      const remaining = mod.lessons.filter((l) => l.id !== id);
+      setSelectedLessonId(remaining[0]?.id || null);
+    }
+  }, [draft, onUpdate, selectedLessonId]);
+
+  const renameLesson = useCallback((id: string, title: string) => {
+    onUpdate({
+      ...draft,
+      modules: draft.modules.map((m) => ({
+        ...m,
+        lessons: m.lessons.map((l) => l.id === id ? { ...l, title } : l),
+      })),
+    });
+  }, [draft, onUpdate]);
+
+  // --- Block ops ---
+  const updateBlocks = useCallback((blocks: ContentBlock[]) => {
+    if (!selectedLessonId) return;
+    onUpdate({
+      ...draft,
+      modules: draft.modules.map((m) => ({
+        ...m,
+        lessons: m.lessons.map((l) => l.id === selectedLessonId ? { ...l, blocks } : l),
+      })),
+    });
+  }, [draft, onUpdate, selectedLessonId]);
+
+  const updateLesson = useCallback((lessonId: string, updates: Partial<CourseDraftLesson>) => {
+    onUpdate({
+      ...draft,
+      modules: draft.modules.map((m) => ({
+        ...m,
+        lessons: m.lessons.map((l) => l.id === lessonId ? { ...l, ...updates } : l),
+      })),
+    });
+  }, [draft, onUpdate]);
+
+  const handlePublish = useCallback(() => {
+    const allPublished = draft.modules.every((m) => m.lessons.every((l) => l.status === "published"));
+    if (!allPublished) {
+      // Publish all lessons as well
+      const updated = {
+        ...draft,
+        status: "published" as const,
+        updatedAt: new Date().toISOString(),
+        modules: draft.modules.map((m) => ({
+          ...m,
+          lessons: m.lessons.map((l) => ({ ...l, status: "published" as const })),
+        })),
+      };
+      onUpdate(updated);
+    } else {
+      onUpdate({ ...draft, status: "published", updatedAt: new Date().toISOString() });
+    }
+  }, [draft, onUpdate]);
+
+  const handleSave = useCallback(() => {
+    onUpdate({ ...draft, updatedAt: new Date().toISOString() });
+  }, [draft, onUpdate]);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50">
       <CourseHeader
-        course={draft}
+        draft={draft}
+        onUpdate={onUpdate}
         onBack={onBack}
-        onSave={handleSave}
-        onPublishToggle={handlePublishToggle}
-        onClone={handleClone}
         onPreview={() => window.open(`/preview/course/${draft.id}`, "_blank")}
-        isSaving={isSaving}
+        onPublish={handlePublish}
+        onSave={handleSave}
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Tree */}
-        {showLeftPanel && (
-          <div className="w-72 border-r border-gray-200 bg-white flex-shrink-0 flex flex-col">
-            <CourseStructureTree
-              modules={draft.modules}
-              selectedModuleId={selectedModuleId}
-              selectedLessonId={selectedLessonId}
-              onSelectModule={setSelectedModuleId}
-              onSelectLesson={handleSelectLesson}
-              onAddModule={handleAddModule}
-              onAddLesson={handleAddLesson}
-              onDeleteModule={handleDeleteModule}
-              onDeleteLesson={handleDeleteLesson}
-              onMoveModule={handleMoveModule}
-              onMoveLesson={handleMoveLesson}
-              onRenameModule={handleRenameModule}
-              onRenameLesson={handleRenameLesson}
-            />
-          </div>
-        )}
+        {/* Left: Structure Tree */}
+        <div className="w-72 shrink-0">
+          <CourseStructureTree
+            modules={draft.modules}
+            selectedModuleId={selectedModuleId}
+            selectedLessonId={selectedLessonId}
+            onSelectModule={setSelectedModuleId}
+            onSelectLesson={(id) => { setSelectedLessonId(id); setSelectedBlockId(null); }}
+            onAddModule={addModule}
+            onAddLesson={addLesson}
+            onDeleteModule={deleteModule}
+            onDeleteLesson={deleteLesson}
+            onMoveModule={() => {}}
+            onMoveLesson={() => {}}
+            onRenameModule={renameModule}
+            onRenameLesson={renameLesson}
+          />
+        </div>
 
-        {/* Toggle left panel */}
-        <button
-          onClick={() => setShowLeftPanel(!showLeftPanel)}
-          className="flex items-center justify-center w-5 bg-white border-r border-gray-200 text-gray-300 hover:text-gray-500 hover:bg-gray-50 flex-shrink-0"
-        >
-          {showLeftPanel ? <PanelLeftClose className="w-3 h-3" /> : <PanelLeft className="w-3 h-3" />}
-        </button>
-
-        {/* Center - Content Editor */}
-        <div className="flex-1 bg-white flex flex-col min-w-0">
+        {/* Center: Content Editor */}
+        <div className="flex-1 min-w-0 border-r border-gray-200">
           {selectedLesson ? (
             <ContentEditor
               blocks={selectedLesson.blocks}
-              onChange={handleBlocksChange}
+              onChange={updateBlocks}
               selectedBlockId={selectedBlockId}
               onSelectBlock={setSelectedBlockId}
-              lessonTitle={selectedLesson.title}
-              onLessonTitleChange={handleLessonTitleChange}
-              contentType={selectedLesson.contentType}
-              onContentTypeChange={handleContentTypeChange}
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="h-full flex items-center justify-center bg-white">
               <div className="text-center">
-                <Plus className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-400">Select or create a lesson to start editing</p>
-                {draft.modules.length === 0 && (
+                <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">No lesson selected</h3>
+                <p className="text-xs text-gray-500 mb-4">Select a lesson from the structure tree</p>
+                {selectedModuleId && (
                   <button
-                    onClick={handleAddModule}
-                    className="mt-3 text-sm font-medium text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors"
+                    onClick={() => addLesson(selectedModuleId)}
+                    className="text-xs font-medium text-white bg-gray-900 px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
                   >
-                    Add your first module
+                    + Add Lesson
                   </button>
                 )}
               </div>
@@ -286,30 +209,16 @@ export default function CourseEditor({ draft, onUpdate, onBack }: CourseEditorPr
           )}
         </div>
 
-        {/* Toggle right panel */}
-        <button
-          onClick={() => setShowRightPanel(!showRightPanel)}
-          className="flex items-center justify-center w-5 bg-white border-l border-gray-200 text-gray-300 hover:text-gray-500 hover:bg-gray-50 flex-shrink-0"
-        >
-          {showRightPanel ? <PanelRightClose className="w-3 h-3" /> : <PanelRight className="w-3 h-3" />}
-        </button>
-
-        {/* Right Panel - Block Settings */}
-        {showRightPanel && (
-          <div className="w-72 border-l border-gray-200 bg-white flex-shrink-0 flex flex-col">
-            <BlockSettings
-              block={selectedBlock}
-              onChange={(updates) => {
-                if (selectedBlock && selectedLessonId) {
-                  const newBlocks = selectedLesson.blocks.map((b) =>
-                    b.id === selectedBlock.id ? { ...b, ...updates } : b
-                  );
-                  handleBlocksChange(newBlocks);
-                }
-              }}
-            />
-          </div>
-        )}
+        {/* Right: Settings */}
+        <div className="w-72 shrink-0">
+          <BlockSettings
+            draft={draft}
+            selectedLesson={selectedLesson}
+            selectedBlock={selectedBlock}
+            onUpdateDraft={onUpdate}
+            onUpdateLesson={updateLesson}
+          />
+        </div>
       </div>
     </div>
   );

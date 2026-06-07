@@ -57,7 +57,7 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import FeedView from "./components/FeedView";
-import AuthView from "./components/AuthView";
+import PublicWebsite from "./components/public/PublicWebsite";
 import ClassroomView from "./components/ClassroomView";
 import CalendarView from "./components/CalendarView";
 import LeaderboardView from "./components/LeaderboardView";
@@ -553,11 +553,11 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <AuthView 
-        onAuthSuccess={(user) => { 
-          setCurrentUser(user); 
-          window.location.reload(); 
-        }} 
+      <PublicWebsite
+        onAuthSuccess={(user) => {
+          setCurrentUser(user);
+          window.location.reload();
+        }}
       />
     );
   }
