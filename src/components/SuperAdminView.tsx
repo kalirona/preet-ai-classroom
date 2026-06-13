@@ -10,11 +10,10 @@ import {
 interface SuperAdminViewProps {
   currentUser: User | null;
   communities: Community[];
+  activeSection: string;
 }
 
-export default function SuperAdminView({ currentUser, communities }: SuperAdminViewProps) {
-  // Navigation
-  const [activeSection, setActiveSection] = useState<string>("dashboard");
+export default function SuperAdminView({ currentUser, communities, activeSection }: SuperAdminViewProps) {
 
   // Core Data State
   const [globalUsers, setGlobalUsers] = useState<User[]>([]);
@@ -39,7 +38,6 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
   const [isLoadingCp, setIsLoadingCp] = useState(true);
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationRes, setMigrationRes] = useState<{ success: boolean; message: string } | null>(null);
-  const [copiedSql, setCopiedSql] = useState(false);
 
   // Search & Filter States
   const [usersSearch, setUsersSearch] = useState("");
@@ -89,8 +87,8 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
     { id: "enterprise", name: "Enterprise Custom Matrix", priceMonthly: 299, commissionFee: 1.5, activeWorkspaces: 19 },
   ]);
 
-  // Creator Payouts state
-  const [creatorsPayoutList, setCreatorsPayoutList] = useState([
+  // Owner Payouts state
+  const [ownersPayoutList, setOwnersPayoutList] = useState([
     { id: "cr01", name: "Haskell Masterclass Co.", email: "haskell.pro@tech.org", unpaidEarnings: 1480, status: "READY", lastPayoutDate: "2026-05-12" },
     { id: "cr02", name: "Figma UX Guild", email: "uxfigma.school@gmail.com", unpaidEarnings: 820, status: "READY", lastPayoutDate: "2026-05-18" },
     { id: "cr03", name: "Solidity Bootcamps Inc.", email: "contracts@solidity.zone", unpaidEarnings: 3200, status: "READY", lastPayoutDate: "2026-04-30" },
@@ -98,40 +96,6 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
     { id: "cr05", name: "Minimalist Design Co.", email: "inter.typography@gmail.com", unpaidEarnings: 450, status: "READY", lastPayoutDate: "2026-05-01" },
   ]);
   const [payoutProcessingId, setPayoutProcessingId] = useState<string | null>(null);
-
-  // AI & API controls state
-  const [selectedGeminiModel, setSelectedGeminiModel] = useState("gemini-2.5-flash");
-  const [aiWorkspaceQuotaLimit, setAiWorkspaceQuotaLimit] = useState(25000); // 25k tokens monthly limit
-  const [systemInstructionsContent, setSystemInstructionsContent] = useState(
-    "You are an expert workspace community teaching agent. Provide detailed, human-oriented responses, use structured markdown playbooks, verify code parameter safety, and never bypass course syllabuses rules."
-  );
-  const [aiTelemetryStats, setAiTelemetryStats] = useState({
-    activeRequests: 0,
-    apiTokenHealth: "Excellent (REST PROXY TLS)",
-    lastModelInvocSeconds: 1.4,
-    monthlyTokenCount: 1845942,
-    rawLatencyHistory: [1.2, 1.4, 0.9, 1.8, 1.1, 1.3],
-  });
-
-  // Storage & Media State
-  const [optimMediaUpload, setOptimMediaUpload] = useState(true);
-  const [selectedFolder, setSelectedFolder] = useState<string>("root");
-  const [mediaList, setMediaList] = useState([
-    { name: "course_introduction.mp4", size: "148.4 MB", uploadedBy: "Haskell Co.", downloads: 412 },
-    { name: "lecture_slides_module_01.pdf", size: "4.8 MB", uploadedBy: "Figma UX Guild", downloads: 919 },
-    { name: "handout_worksheet_cheatsheet.pdf", size: "1.2 MB", uploadedBy: "skool.SaaS Admin", downloads: 1400 },
-    { name: "profile_avatar_default.png", size: "230 KB", uploadedBy: "skool.SaaS Admin", downloads: 85 },
-  ]);
-
-  // SMTP Settings
-  const [smtpConfig, setSmtpConfig] = useState({
-    host: "smtp.cloudpanel.enterprise.io",
-    port: 587,
-    username: "relay@skoolsaas-platform.com",
-    requireTls: true,
-  });
-  const [smtpTestEmail, setSmtpTestEmail] = useState("");
-  const [smtpTestResult, setSmtpTestResult] = useState<string | null>(null);
 
   // System Settings state
   const [deploymentRegion, setDeploymentRegion] = useState("gcp-us-central1");
@@ -298,75 +262,14 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
   };
 
   // Process payouts simulation
-  const handleProcessCreatorPayoutNow = (payoutId: string) => {
+  const handleProcessOwnerPayoutNow = (payoutId: string) => {
     setPayoutProcessingId(payoutId);
     setTimeout(() => {
-      setCreatorsPayoutList(prev => prev.map(cr => cr.id === payoutId ? { ...cr, unpaidEarnings: 0, status: "PROCESSED" } : cr));
+      setOwnersPayoutList(prev => prev.map(cr => cr.id === payoutId ? { ...cr, unpaidEarnings: 0, status: "PROCESSED" } : cr));
       setPayoutProcessingId(null);
-      alert("ACH/ISO direct wire processed successfully! Funds transferred with system clearing tracking ID: TRX-CLPAN-" + Math.floor(Math.random() * 900000 + 100000));
+      alert("Payout processed successfully.");
     }, 1500);
   };
-
-  // SMTP Test trigger simulation
-  const handleTriggerSMTPTest = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!smtpTestEmail) return;
-    setSmtpTestResult("CONNECTING");
-    setTimeout(() => {
-      setSmtpTestResult("SUCCESS");
-      setSmtpTestEmail("");
-    }, 1500);
-  };
-
-  // Copy local schema SQL script helper
-  const handleCopySchemaCommandFile = () => {
-    navigator.clipboard.writeText("cat /cloudpanel/schema.sql");
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2000);
-  };
-
-  // Categorize navigation items cleanly
-  const navigationGroups = [
-    {
-      title: "🌐 PLATFORM CONTROL",
-      items: [
-        { id: "dashboard", name: "Platform Dashboard", icon: Layers, desc: "System health & active tenants map" },
-        { id: "analytics", name: "SaaS Analytics", icon: TrendingUp, desc: "MRR, traffic, and platform indexes" },
-      ]
-    },
-    {
-      title: "👥 SAAS OPERATIONS",
-      items: [
-        { id: "users", name: "User Management", icon: Users, desc: "Platform account matrix & roles" },
-        { id: "workspaces", name: "Workspace Management", icon: Globe, desc: "Tenant shard databases & provisioning" },
-        { id: "subscriptions", name: "Subscription Plans", icon: CreditCard, desc: "SaaS price matrix hooks & cut tier" },
-      ]
-    },
-    {
-      title: "💰 FINANCIALS",
-      items: [
-        { id: "revenue", name: "Revenue Analytics", icon: DollarSign, desc: "Platform cuts fee split analysis" },
-        { id: "payouts", name: "Creator Payouts", icon: Coins, desc: "Wire transfers & pending creator balances" },
-      ]
-    },
-    {
-      title: "🔒 PLATFORM SHIELD",
-      items: [
-        { id: "shield", name: "Platform Shield", icon: Shield, desc: "Firewall modes & thread lockdown" },
-        { id: "logs", name: "Audit Logs", icon: ClipboardList, desc: "RBAC security & incident logging" },
-      ]
-    },
-    {
-      title: "⚙️ INFRASTRUCTURE",
-      items: [
-        { id: "ai", name: "AI & API Controls", icon: Sparkles, desc: "Gemini token quotas & instruction sets" },
-        { id: "storage", name: "Storage & Media", icon: HardDrive, desc: "Buckets file structures & optimize switches" },
-        { id: "email", name: "Email & Notifications", icon: Mail, desc: "SMTP server configs & system alerts" },
-        { id: "settings", name: "System Settings", icon: Settings, desc: "System host parameters & backups" },
-        { id: "cloudpanel", name: "CloudPanel Console", icon: Database, desc: "MySQL replication & phpMyAdmin rules" },
-      ]
-    }
-  ];
 
   // Calculated overall MRR
   const totalMRR = communities.reduce((acc, current) => acc + (current.isPremium ? current.priceMonthly * current.membersCount : 0), 0) + 7480;
@@ -404,115 +307,35 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
       )}
 
       {/* Main Container Layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto flex flex-col min-w-0" id="super-admin-view-viewport">
         
-        {/* INNER 14-TAB NAVIGATION SIDEBAR */}
-        <aside className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col h-full shrink-0 hidden lg:flex select-none">
-          <div className="p-4 border-b border-slate-800 bg-slate-950/40">
-            <div className="flex items-center gap-2.5">
-              <span className="text-xl">👑</span>
-              <div>
-                <h2 className="text-xs font-bold text-slate-100 font-display tracking-tight leading-snug">Super Admin</h2>
-                <p className="text-[10px] text-slate-400 font-mono">Infra Global Owner</p>
-              </div>
+        {/* Header Dashboard Banner */}
+        <div className="p-4 sm:p-5 bg-white border-b border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-gray-900 font-display tracking-tight flex items-center gap-1.5">
+                🌐 Platform Control Dashboard
+              </span>
+              <span className="text-xs font-mono bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold">
+                Admin
+              </span>
             </div>
+            <p className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">
+              Centralized telemetry & node configuration panel. Live-routing across {communities.length} tenant databases.
+            </p>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-4 font-sans select-none custom-scrollbar">
-            {navigationGroups.map((grp) => (
-              <div key={grp.title} className="space-y-1">
-                <span className="px-2 text-[9px] font-bold text-slate-500 font-mono tracking-widest block uppercase">
-                  {grp.title}
-                </span>
-                <div className="space-y-0.5">
-                  {grp.items.map((item) => {
-                    const Icon = item.icon;
-                    const isSelected = activeSection === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setActiveSection(item.id);
-                          setSuccessMessage("");
-                          setErrorMessage("");
-                        }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-xl transition flex items-center gap-2.5 group cursor-pointer ${
-                          isSelected
-                            ? "bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-900/30"
-                            : "text-slate-400 hover:bg-slate-850 hover:text-slate-105"
-                        }`}
-                      >
-                        <Icon className={`w-4 h-4 shrink-0 transition ${
-                          isSelected ? "text-white" : "text-slate-400 group-hover:text-indigo-400"
-                        }`} />
-                        <div className="truncate">
-                          <span className="text-[11px] block tracking-tight">{item.name}</span>
-                          {!isSelected && (
-                            <span className="text-[9px] text-slate-500 block truncate leading-tight group-hover:text-slate-400">
-                              {item.desc}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={loadAdminData}
+              disabled={isLoading}
+              className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+            >
+              <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} />
+              {isLoading ? "Syncing..." : "Reload Datasets"}
+            </button>
           </div>
-
-          <div className="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-            <span>MySQL Connection:</span>
-            <span className={`w-2.5 h-2.5 rounded-full ${isLoadingCp ? "bg-slate-500 animate-pulse" : cpStatus?.connected ? "bg-emerald-500" : "bg-amber-500"}`} />
-          </div>
-        </aside>
-
-        {/* MAIN CONFIGURATION STACK */}
-        <div className="flex-1 overflow-y-auto flex flex-col min-w-0" id="super-admin-view-viewport">
-          
-          {/* Header Dashboard Banner */}
-          <div className="p-4 sm:p-5 bg-white border-b border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold text-gray-900 font-display tracking-tight flex items-center gap-1.5">
-                  🌐 Platform Control Dashboard
-                </span>
-                <span className="text-[9.5px] uppercase font-mono bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold">
-                  SaaS Owner Shell
-                </span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">
-                Centralized telemetry & node configuration panel. Live-routing across {communities.length} tenant databases.
-              </p>
-            </div>
-
-            {/* Mobile Dropdown Section Swapper */}
-            <div className="lg:hidden flex items-center gap-2 text-xs w-full sm:w-auto">
-              <span className="text-gray-400 font-semibold font-mono">SECTION:</span>
-              <select
-                value={activeSection}
-                onChange={(e) => setActiveSection(e.target.value)}
-                className="flex-1 sm:flex-initial border border-gray-200 bg-white px-3 py-1.5 rounded-xl font-bold text-gray-850 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-600"
-              >
-                {navigationGroups.flatMap(g => g.items).map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={loadAdminData}
-                disabled={isLoading}
-                className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-              >
-                <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} />
-                {isLoading ? "Syncing..." : "Reload Datasets"}
-              </button>
-            </div>
-          </div>
+        </div>
 
           <div className="p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-6 flex-1">
             
@@ -536,33 +359,38 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
             {activeSection === "dashboard" && (
               <div className="space-y-6 animate-in fade-in duration-150">
                 
-                {/* Visual Status Grid */}
+                {/* Premium Stat Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 shadow-sm">
-                    <span className="text-[9px] text-gray-400 block uppercase font-mono font-bold tracking-wider">PLATFORM STATE</span>
-                    <span className="text-sm font-black font-mono text-emerald-700 block mt-1 tracking-tight flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse block" /> OPERATIONAL
-                    </span>
+                  <div className="stat-card-emerald rounded-2xl p-5 relative overflow-hidden">
+                    <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+                    <span className="text-sm font-semibold text-slate-900">Status</span>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
+                      <span className="text-sm font-black font-mono tracking-tight">Operational</span>
+                    </div>
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 shadow-sm">
-                    <span className="text-[9px] text-gray-400 block uppercase font-mono font-bold tracking-wider">DATABASE LAYERS</span>
-                    <span className="text-xs font-bold font-mono text-gray-900 block mt-1 truncate">
+                  <div className="stat-card-brand rounded-2xl p-5 relative overflow-hidden">
+                    <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+                    <span className="text-sm font-semibold text-slate-900">Database</span>
+                    <span className="text-xs font-bold font-mono block mt-2 truncate">
                       {cpStatus?.connected ? "CLOUDPANEL MYSQL" : "SQLite FILE MEMORY"}
                     </span>
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 shadow-sm">
-                    <span className="text-[9px] text-gray-400 block uppercase font-mono font-bold tracking-wider">SAAS TENANTS</span>
-                    <span className="text-sm font-extrabold font-mono text-gray-900 block mt-1">
-                      {communities.length} Host Shards Loaded
+                  <div className="stat-card-slate rounded-2xl p-5 relative overflow-hidden">
+                    <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+                    <span className="text-sm font-semibold text-slate-900">Communities</span>
+                    <span className="text-sm font-extrabold font-mono block mt-2">
+                      {communities.length} Active
                     </span>
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 shadow-sm">
-                    <span className="text-[9px] text-gray-400 block uppercase font-mono font-bold tracking-wider">COMBINED EST MRR</span>
-                    <span className="text-sm font-extrabold font-mono text-indigo-700 block mt-1">
-                      ${totalMRR.toLocaleString()} USD
+                  <div className="stat-card-cyan rounded-2xl p-5 relative overflow-hidden">
+                    <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+                    <span className="text-sm font-semibold text-slate-900">Revenue</span>
+                    <span className="text-sm font-extrabold font-mono block mt-2">
+                      ${totalMRR.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -571,65 +399,70 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
                   {/* Tenants Summary */}
-                  <div className="lg:col-span-2 bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
-                    <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                  <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                       <div>
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 font-mono">Tenant Database Directory</h3>
-                        <p className="text-[10px] text-gray-400 mt-0.5">Isolated relational course-databases sharded under active DNS mapping.</p>
+                        <h3 className="text-lg font-semibold text-slate-900">Communities</h3>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Isolated relational databases under active DNS mapping.</p>
                       </div>
-                      <span className="text-[10px] bg-slate-100 text-slate-700 font-mono font-bold px-2 py-0.5 rounded">{communities.length} Active dns</span>
+                      <span className="text-[10px] bg-slate-100 text-slate-600 font-mono font-bold px-2.5 py-1 rounded-lg">{communities.length} active</span>
                     </div>
 
-                    <div className="divide-y divide-gray-100 overflow-y-auto max-h-80 pr-1">
+                    <div className="divide-y divide-slate-100 overflow-y-auto max-h-80 pr-1">
                       {communities.map((comm) => (
-                        <div key={comm.id} className="py-3 flex justify-between items-center text-xs hover:bg-gray-50/50 px-1 rounded-lg transition">
-                          <div>
-                            <span className="font-bold text-gray-900 block">{comm.name}</span>
-                            <span className="text-[10px] text-gray-500 font-mono">
-                              Subdomain: <strong className="text-indigo-650 font-semibold">{comm.subdomain}.skoolsaas.pro</strong>
-                            </span>
+                        <div key={comm.id} className="py-3.5 flex justify-between items-center text-xs hover:bg-slate-50/80 px-2 rounded-xl transition group">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
+                              {comm.branding?.logoUrl || comm.name?.[0] || "S"}
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-900 block group-hover:text-indigo-600 transition">{comm.name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {comm.subdomain}.skool
+                              </span>
+                            </div>
                           </div>
                           <div className="text-right">
-                            <span className="block font-bold text-gray-950 font-mono">${comm.isPremium ? comm.priceMonthly : 0}/mo</span>
-                            <span className="text-gray-400 text-[10px] tracking-tight">👤 {comm.membersCount} users</span>
+                            <span className="block font-bold text-slate-900 font-mono">${comm.isPremium ? comm.priceMonthly : 0}<span className="text-slate-400 font-normal text-[10px]">/mo</span></span>
+                            <span className="text-slate-400 text-[10px]">{comm.membersCount} members</span>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Operational Banner Bulletin Broadcast Form */}
-                  <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm flex flex-col justify-between">
+                  {/* Broadcast Alert */}
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 font-mono">Platform-Wide Broadcast Alert</h3>
-                      <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                        Incorporate an immediate banner notification atop all registered tenant workspace index pages.
+                      <h3 className="text-lg font-semibold text-slate-900">Send Announcement</h3>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                        Send a banner notification to all registered workspace pages.
                       </p>
                     </div>
 
                     <form onSubmit={handleDispatchBroadcast} className="space-y-3 mt-4">
                       {broadcastSuccess ? (
                         <div className="p-4 bg-emerald-50 text-emerald-800 rounded-xl text-center text-xs space-y-1 border border-emerald-100 animate-in zoom-in-95 duration-150">
-                          <span className="font-bold block">🚨 Core Broadcast Connected</span>
-                          <p className="text-[9.5px] text-emerald-600">Dispatched live server alerts to active channels.</p>
+                          <span className="font-bold block">Broadcast Sent</span>
+                          <p className="text-[9.5px] text-emerald-600">Alert dispatched to all active channels.</p>
                         </div>
                       ) : (
                         <>
                           <textarea
                             rows={4}
                             required
-                            placeholder="e.g. Upgrade Notice: CloudPanel DB server is undergoing routine maintenance at 04:00 UTC."
+                            placeholder="e.g. Maintenance Notice: Scheduled downtime at 04:00 UTC."
                             value={broadcastMessage}
                             onChange={(e) => setBroadcastMessage(e.target.value)}
-                            className="w-full border border-gray-200 bg-[#F9FAFB] rounded-xl p-3 text-xs focus:ring-1 focus:ring-indigo-650 focus:outline-none placeholder:text-gray-400 leading-normal font-sans"
+                            className="w-full border border-slate-200 bg-slate-50/50 rounded-xl p-3 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:outline-none placeholder:text-slate-400 leading-normal font-sans transition"
                           />
                           
                           <button
                             type="submit"
-                            className="w-full py-2.5 bg-slate-900 hover:bg-slate-950 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition"
+                            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-indigo-200 transition"
                           >
                             <Send className="w-3.5 h-3.5" />
-                            Dispatch Operator Banner
+                            Send Broadcast
                           </button>
                         </>
                       )}
@@ -639,40 +472,40 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
                 </div>
 
                 {/* Quick Platform Actions Card */}
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 font-mono mb-3">Instant Operations Hub</h3>
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono mb-4">Quick Actions</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <button 
-                      onClick={() => { alert("Force CloudPanel SQL Flush initiated. Running clean checks."); checkCloudPanelConnection(); }}
-                      className="p-3 bg-indigo-50/10 hover:bg-indigo-50/40 border border-indigo-150 text-indigo-750 rounded-xl text-xs text-left font-bold transition flex items-center justify-between"
+                      onClick={() => { alert("MySQL cache flush initiated."); checkCloudPanelConnection(); }}
+                      className="p-4 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group"
                     >
-                      <span>🔄 Force Flush MySQL cache</span>
-                      <ArrowRight className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <span>Flush MySQL Cache</span>
+                      <ArrowRight className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition shrink-0" />
                     </button>
                     <button 
-                      onClick={() => alert("Snapshot system replication complete. backup_sqlite_db.bin saved to storage folder. S3 integrity checks returned okay.")}
-                      className="p-3 bg-emerald-50/10 hover:bg-emerald-50/40 border border-emerald-150 text-emerald-750 rounded-xl text-xs text-left font-bold transition flex items-center justify-between"
+                      onClick={() => alert("System snapshot captured.")}
+                      className="p-4 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group"
                     >
-                      <span>📥 Capture System Snapshot</span>
-                      <ArrowRight className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Capture Snapshot</span>
+                      <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition shrink-0" />
                     </button>
                     <button 
-                      onClick={() => { setMaintenanceModeActive(!maintenanceModeActive); alert("Maintenance mode toggle requested."); }}
-                      className={`p-3 border rounded-xl text-xs text-left font-bold transition flex items-center justify-between ${
+                      onClick={() => { setMaintenanceModeActive(!maintenanceModeActive); alert("Maintenance mode toggled."); }}
+                      className={`p-4 border rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group ${
                         maintenanceModeActive 
-                          ? "bg-rose-50 border-rose-200 text-rose-800" 
-                          : "bg-slate-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                          ? "bg-rose-50 border-rose-200 text-rose-700" 
+                          : "bg-slate-50/50 hover:bg-slate-50 border-slate-200 text-slate-600"
                       }`}
                     >
-                      <span>🔐 {maintenanceModeActive ? "Deactivate Lockdown Mode" : "Activate Maintenance Screen"}</span>
-                      <ArrowRight className="w-4 h-4 text-slate-650 shrink-0" />
+                      <span>{maintenanceModeActive ? "Disable Maintenance" : "Enable Maintenance"}</span>
+                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition shrink-0" />
                     </button>
                     <button 
-                      onClick={() => { setShieldThreatLevel("LOW"); setAlarmActive(false); alert("All alerts cleared. Logs archived."); }}
-                      className="p-3 bg-cyan-50/10 hover:bg-cyan-50/40 border border-cyan-150 text-cyan-750 rounded-xl text-xs text-left font-bold transition flex items-center justify-between"
+                      onClick={() => { setShieldThreatLevel("LOW"); setAlarmActive(false); alert("Security alerts cleared."); }}
+                      className="p-4 bg-cyan-50/50 hover:bg-cyan-50 border border-cyan-100 text-cyan-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group"
                     >
-                      <span>🛡️ Clear Security Counters</span>
-                      <ArrowRight className="w-4 h-4 text-cyan-600 shrink-0" />
+                      <span>Clear Security Alerts</span>
+                      <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:text-cyan-600 group-hover:translate-x-0.5 transition shrink-0" />
                     </button>
                   </div>
                 </div>
@@ -685,14 +518,14 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
             {/* ========================================================== */}
             {activeSection === "analytics" && (
               <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
                   <div className="flex justify-between items-center flex-wrap gap-2">
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Platform Financial Trajectory</h3>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Estimated MRR growth and platform commission fee share calculations over previous fiscal sectors.</p>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Financial Trajectory</h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5">MRR growth and platform commission calculations.</p>
                     </div>
                     <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-2.5 py-1">
-                      📈 Yearly MRR Velocity: +28.4%
+                      +28.4% YoY
                     </span>
                   </div>
 
@@ -775,29 +608,29 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
                   </div>
                 </div>
 
-                {/* Sub analytical KPI indicators bento block */}
+                {/* Sub analytical KPI indicators */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="bg-white rounded-2xl border border-gray-150 p-5 shadow-sm">
-                    <span className="text-[9px] text-gray-500 uppercase font-mono font-bold tracking-wider block">CLTV (PLATFORM LIFE TERM VALUE)</span>
-                    <span className="text-xl font-extrabold text-slate-900 block mt-1 tracking-tight">$4,850 USD</span>
-                    <span className="text-[10px] text-emerald-700 font-semibold block mt-1 leading-none">
-                      ▲ +4.2% from previous month pool
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+                    <span className="text-[9px] text-slate-400 uppercase font-mono font-bold tracking-wider block">CLTV</span>
+                    <span className="text-xl font-extrabold text-slate-900 block mt-1 tracking-tight">$4,850</span>
+                    <span className="text-[10px] text-emerald-600 font-semibold block mt-1">
+                      +4.2% from last month
                     </span>
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-gray-150 p-5 shadow-sm">
-                    <span className="text-[9px] text-gray-500 uppercase font-mono font-bold tracking-wider block">CAC (CUSTOMER ACQUISITION COST)</span>
-                    <span className="text-xl font-extrabold text-slate-900 block mt-1 tracking-tight">$312 USD</span>
-                    <span className="text-[10px] text-emerald-700 font-semibold block mt-1 leading-none">
-                      ▼ -8.4% cost savings optimized
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+                    <span className="text-[9px] text-slate-400 uppercase font-mono font-bold tracking-wider block">CAC</span>
+                    <span className="text-xl font-extrabold text-slate-900 block mt-1 tracking-tight">$312</span>
+                    <span className="text-[10px] text-emerald-600 font-semibold block mt-1">
+                      -8.4% cost reduction
                     </span>
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-gray-150 p-5 shadow-sm">
-                    <span className="text-[9px] text-gray-500 uppercase font-mono font-bold tracking-wider block">PLATFORM RECURRING CHURN RATE</span>
-                    <span className="text-xl font-extrabold text-slate-900 block mt-1 tracking-tight">1.25%</span>
-                    <span className="text-[10px] text-slate-400 font-medium block mt-1 leading-none">
-                      Industry standard benchmark: 3.5%
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+                    <span className="text-[9px] text-slate-400 uppercase font-mono font-bold tracking-wider block">PLATFORM FEE CUT</span>
+                    <span className="text-xl font-extrabold text-slate-900 block mt-1 tracking-tight">{platformCommissionFee}%</span>
+                    <span className="text-[10px] text-slate-500 font-semibold block mt-1">
+                      per transaction
                     </span>
                   </div>
                 </div>
@@ -809,75 +642,74 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
             {/* ========================================================== */}
             {activeSection === "users" && (
               <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Platform Identity Management</h3>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Coordinate overarching platform privileges and security clearance levels.</p>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">User Management</h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Manage platform roles and security clearance levels.</p>
                     </div>
 
                     <div className="relative">
                       <input
                         type="text"
-                        placeholder="Search users by name, email, role..."
+                        placeholder="Search by name, email, role..."
                         value={usersSearch}
                         onChange={(e) => setUsersSearch(e.target.value)}
-                        className="w-full sm:w-64 pl-3 pr-4 py-1.5 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-indigo-550 focus:outline-none"
+                        className="w-full sm:w-64 pl-3 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:outline-none transition"
                       />
                     </div>
                   </div>
 
-                  <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto pr-1">
+                  <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto pr-1">
                     {filteredUsers.length === 0 ? (
-                      <div className="py-12 text-center text-gray-400 font-mono text-xs">
-                        No active users matching the query filter bounds.
+                      <div className="py-12 text-center text-slate-400 font-mono text-xs">
+                        No users matching search criteria.
                       </div>
                     ) : (
                       filteredUsers.map((userObj) => (
-                        <div key={userObj.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs hover:bg-gray-50/50 px-2 rounded-xl transition">
+                        <div key={userObj.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs hover:bg-slate-50/80 px-2 rounded-xl transition group">
                           <div className="flex items-center gap-3">
-                            <span className="text-2xl">{userObj.avatarUrl ? "" : "👤"}</span>
-                            {userObj.avatarUrl && (
+                            {userObj.avatarUrl ? (
                               <img
                                 src={userObj.avatarUrl}
                                 alt="avatar"
                                 referrerPolicy="no-referrer"
-                                className="w-8 h-8 rounded-full border object-cover"
+                                className="w-9 h-9 rounded-full border border-slate-200 object-cover"
                               />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                                {(userObj.fullName || "U")[0]}
+                              </div>
                             )}
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-gray-950">{userObj.fullName || "Incognito Member"}</span>
-                                <span className="text-[9px] bg-slate-100 text-slate-650 font-mono px-1 rounded">
+                                <span className="font-bold text-slate-900 group-hover:text-indigo-600 transition">{userObj.fullName || "Unknown"}</span>
+                                <span className="text-[9px] bg-slate-100 text-slate-500 font-mono px-1.5 py-0.5 rounded">
                                   Lvl {userObj.level || 1}
                                 </span>
                               </div>
-                              <span className="text-[10.5px] text-gray-400 font-mono">{userObj.email}</span>
+                              <span className="text-[10.5px] text-slate-400 font-mono">{userObj.email}</span>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-3 justify-between sm:justify-end">
-                            <div className="text-right hidden sm:block">
-                              <span className="text-[10px] text-gray-400 block font-mono">Platform Privilege Role</span>
-                            </div>
-
                             <select
                               disabled={userObj.id === currentUser?.id}
                               value={userObj.platformRole || "user"}
                               onChange={(e) => handleUpdatePlatformRole(userObj.id, e.target.value)}
-                              className="border border-gray-200 bg-white text-xs px-2.5 py-1.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-650 cursor-pointer disabled:opacity-40 font-semibold text-gray-700"
+                              className="border border-slate-200 bg-white text-xs px-2.5 py-1.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer disabled:opacity-40 font-semibold text-slate-600 transition"
                             >
-                              <option value="user">User Status (Standard)</option>
-                              <option value="creator">Creator Elite (MRR enabled)</option>
-                              <option value="support_staff">Support Desk Staff</option>
-                              <option value="super_admin">🚨 GLOBAL SUPER ADMIN</option>
+                              <option value="user">User</option>
+                              <option value="owner">Owner</option>
+                              <option value="support_staff">Support Staff</option>
+                              <option value="super_admin">Super Admin</option>
                             </select>
 
                             <button
                               onClick={() => {
-                                alert(`Simulated account suspension toggle triggered for user ${userObj.fullName}. Core token revocation issued to DB.`);
+                                alert(`Account suspension triggered for ${userObj.fullName}.`);
                               }}
-                              className="px-2 py-1 border border-rose-100 hover:bg-rose-50 text-rose-600 rounded-lg text-[10px] uppercase font-mono font-bold cursor-pointer"
+                              className="px-2.5 py-1.5 border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-lg text-[10px] uppercase font-mono font-bold cursor-pointer transition"
                             >
                               Suspend
                             </button>
@@ -897,108 +729,108 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
               <div className="space-y-6 animate-in fade-in duration-150">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
-                  {/* Workspace List Registry */}
-                  <div className="lg:col-span-2 bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
+                  {/* Workspace List */}
+                  <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Dns Subdomains & Tenant Containers</h3>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Control live subdomain namespaces and operational multi-tenant database links.</p>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Workspaces</h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Manage tenant namespaces and database links.</p>
                     </div>
 
-                    <div className="divide-y divide-gray-100 max-h-90 overflow-y-auto pr-1">
+                    <div className="divide-y divide-slate-100 max-h-90 overflow-y-auto pr-1">
                       {communities.map((comm) => (
-                        <div key={comm.id} className="py-3 flex items-center justify-between text-xs hover:bg-gray-50/50 px-1 rounded-lg transition">
-                          <div>
-                            <span className="font-bold text-gray-900 block">{comm.name}</span>
-                            <span className="text-[10px] text-indigo-600 font-mono block mt-0.5 font-semibold">
-                              https://{comm.subdomain}.skoolsaas.pro
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center gap-4 text-right">
-                            <div className="hidden sm:block">
-                              <span className="text-[10px] text-gray-400 block font-mono">Monthly Rate</span>
-                              <span className="font-bold font-mono text-gray-800">${comm.isPremium ? comm.priceMonthly : 0}/mo</span>
+                        <div key={comm.id} className="py-3.5 flex items-center justify-between text-xs hover:bg-slate-50/80 px-2 rounded-xl transition group">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
+                              {comm.branding?.logoUrl || comm.name?.[0] || "S"}
                             </div>
                             <div>
-                              <button 
-                                onClick={() => alert(`Synchronized schema checked for namespace workspace: "${comm.name}". SQLite shard validated.`)}
-                                className="px-2 py-1 hover:bg-gray-100 border border-gray-150 rounded-lg font-bold text-[10px] cursor-pointer"
-                              >
-                                Check Health
-                              </button>
+                              <span className="font-bold text-slate-900 block group-hover:text-indigo-600 transition">{comm.name}</span>
+                              <span className="text-[10px] text-indigo-500 font-mono block mt-0.5">
+                                {comm.subdomain}.skool
+                              </span>
                             </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-4">
+                            <div className="text-right hidden sm:block">
+                              <span className="font-bold font-mono text-slate-900">${comm.isPremium ? comm.priceMonthly : 0}<span className="text-slate-400 font-normal text-[10px]">/mo</span></span>
+                            </div>
+                            <button 
+                              onClick={() => alert(`Health check for "${comm.name}". Schema validated.`)}
+                              className="px-2.5 py-1.5 hover:bg-slate-100 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-600 cursor-pointer transition"
+                            >
+                              Check
+                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Provision Space Simulator Form */}
-                  <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm flex flex-col justify-between">
+                  {/* Provision Form */}
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-700 font-mono flex items-center gap-1">
-                        ⚡ Shard Database Provisioner
-                      </h3>
-                      <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                        Instantly deploy a customized virtual community tenant container mapped under your custom subnet.
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-600 font-mono">New Workspace</h3>
+                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                        Deploy a new tenant container with custom subdomain.
                       </p>
                     </div>
 
                     <form onSubmit={handleSimulateWorkspaceProvision} className="space-y-3 mt-4">
                       <div>
-                        <label className="text-[9.5px] font-bold text-gray-400 block uppercase font-mono mb-1">WORKSPACE NAME</label>
+                        <label className="text-[9.5px] font-bold text-slate-400 block uppercase font-mono mb-1">Name</label>
                         <input
                           type="text"
                           required
-                          placeholder="e.g. Next.js Masterclasses"
+                          placeholder="e.g. Next.js Academy"
                           value={simWsName}
                           onChange={(e) => setSimWsName(e.target.value)}
-                          className="w-full border border-gray-200 bg-slate-50 px-2.5 py-1.5 rounded-xl text-xs focus:ring-1 focus:ring-indigo-600 focus:outline-none placeholder:text-gray-400"
+                          className="w-full border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:outline-none placeholder:text-slate-400 transition"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[9.5px] font-bold text-gray-400 block uppercase font-mono mb-1">SUBDOMAIN</label>
+                          <label className="text-[9.5px] font-bold text-slate-400 block uppercase font-mono mb-1">Subdomain</label>
                           <input
                             type="text"
                             required
-                            placeholder="e.g. nextclass"
+                            placeholder="nextclass"
                             value={simWsSubdomain}
                             onChange={(e) => setSimWsSubdomain(e.target.value)}
-                            className="w-full border border-gray-200 bg-slate-50 px-2.5 py-1.5 rounded-xl text-xs focus:ring-1 focus:ring-indigo-600 focus:outline-none placeholder:text-gray-400"
+                            className="w-full border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:outline-none placeholder:text-slate-400 transition"
                           />
                         </div>
                         <div>
-                          <label className="text-[9.5px] font-bold text-gray-400 block uppercase font-mono mb-1">MONTHLY RATE ($)</label>
+                          <label className="text-[9.5px] font-bold text-slate-400 block uppercase font-mono mb-1">Price ($/mo)</label>
                           <input
                             type="number"
                             required
                             min={0}
-                            placeholder="e.g. 49"
+                            placeholder="49"
                             value={simWsPrice}
                             onChange={(e) => setSimWsPrice(Number(e.target.value))}
-                            className="w-full border border-gray-200 bg-slate-50 px-2.5 py-1.5 rounded-xl text-xs focus:ring-1 focus:ring-indigo-600 focus:outline-none placeholder:text-gray-400 text-center"
+                            className="w-full border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:outline-none placeholder:text-slate-400 text-center transition"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-[9.5px] font-bold text-gray-400 block uppercase font-mono mb-1">CREATOR OWNER EMAIL</label>
+                        <label className="text-[9.5px] font-bold text-slate-400 block uppercase font-mono mb-1">Owner Email</label>
                         <input
                           type="email"
                           required
-                          placeholder="creator-email@organization.io"
+                          placeholder="owner@domain.com"
                           value={simWsEmail}
                           onChange={(e) => setSimWsEmail(e.target.value)}
-                          className="w-full border border-gray-200 bg-slate-50 px-2.5 py-1.5 rounded-xl text-xs focus:ring-1 focus:ring-indigo-600 focus:outline-none placeholder:text-gray-400"
+                          className="w-full border border-slate-200 bg-slate-50/50 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:outline-none placeholder:text-slate-400 transition"
                         />
                       </div>
 
                       <button
                         type="submit"
                         disabled={simIsProvisioning}
-                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition"
+                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-indigo-200 transition"
                       >
                         {simIsProvisioning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-4 h-4" />}
                         {simIsProvisioning ? "Deploying..." : "Provision Tenant Shard"}
@@ -1017,142 +849,65 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
             )}
 
             {/* ========================================================== */}
-            {/* SECTION 5: SUBSCRIPTION PLANS */}
+
             {/* ========================================================== */}
-            {activeSection === "subscriptions" && (
-              <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">SaaS Packaging Tiers Configurator</h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Configure platform billing plans and transaction fee structures.</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {recurringPlanTiers.map((tier) => (
-                      <div key={tier.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col justify-between space-y-3 relative overflow-hidden">
-                        <div>
-                          <span className="text-[9px] uppercase font-mono font-black text-indigo-700">TIER MODEL</span>
-                          <h4 className="text-sm font-bold text-slate-900 mt-1">{tier.name}</h4>
-                          <div className="flex items-baseline mt-2 font-mono">
-                            <span className="text-lg font-extrabold text-slate-950">${tier.priceMonthly}</span>
-                            <span className="text-[10px] text-slate-400">/mo</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
-                          <div className="flex justify-between items-center">
-                            <span>Admin Commission:</span>
-                            <span className="font-bold text-indigo-650">{tier.commissionFee}%</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Active Shards:</span>
-                            <span className="font-semibold text-slate-900">{tier.activeWorkspaces} tenant nodes</span>
-                          </div>
-                        </div>
-
-                        <button 
-                          onClick={() => {
-                            const newCost = prompt(`Define new monthly cost subscription parameter for tier ${tier.name}:`, String(tier.priceMonthly));
-                            if (newCost !== null) {
-                              setRecurringPlanTiers(prev => prev.map(t => t.id === tier.id ? { ...t, priceMonthly: Number(newCost) } : t));
-                              alert("Database pricing rule modified.");
-                            }
-                          }}
-                          className="w-full py-1.5 border border-slate-350 hover:bg-slate-900 hover:text-white transition rounded-xl text-[10px] font-bold cursor-pointer uppercase"
-                        >
-                          Modify Rates
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Transaction fee modifier */}
-                  <div className="p-4 bg-indigo-50/40 border border-indigo-120 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4">
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-indigo-750 block font-bold font-mono uppercase tracking-widest">GLOBAL STRIPE COMMISSIONS COMMISSION</span>
-                      <h4 className="text-xs font-bold text-indigo-950">Baseline Platform transaction cut</h4>
-                      <p className="text-[10px] text-indigo-900/80">Commission percentage processed by skool.SaaS from premium community enrollments.</p>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max="15" 
-                        step="0.5"
-                        value={platformCommissionFee}
-                        onChange={(e) => setPlatformCommissionFee(Number(e.target.value))}
-                        className="w-32 accent-indigo-600 cursor-pointer"
-                      />
-                      <span className="w-12 text-center text-xs font-black font-mono bg-indigo-950 text-white rounded-lg py-1">
-                        {platformCommissionFee}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
+            {/* SECTION 6: REVENUE ANALYTICS */}
             {/* ========================================================== */}
             {/* SECTION 6: REVENUE ANALYTICS */}
             {/* ========================================================== */}
             {activeSection === "revenue" && (
               <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Platform Revenue Distribution</h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Consolidated summary on stripe transactions, transaction fees accrued, and platform split commissions.</p>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Revenue Distribution</h3>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Stripe transactions, fees, and platform commission splits.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-center space-y-1">
-                      <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block">TOTAL VOLUME PROCESSED</span>
-                      <span className="text-xl font-extrabold text-slate-950 font-sans tracking-tight">$94,842 USD</span>
-                      <span className="text-[10px] text-emerald-700 font-bold block">▲ +12% this cycle</span>
+                    <div className="p-5 bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200/80 rounded-2xl text-center space-y-1">
+                      <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block">Total Volume</span>
+                      <span className="text-xl font-extrabold text-slate-900 font-sans tracking-tight">$94,842</span>
+                      <span className="text-[10px] text-emerald-600 font-bold block">+12% this cycle</span>
                     </div>
 
-                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-center space-y-1">
-                      <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block">ACCRUED FEES CUT TAKES (3%)</span>
-                      <span className="text-xl font-extrabold text-indigo-705 font-sans tracking-tight">
-                        ${(totalMRR * (platformCommissionFee / 100) + 1240).toFixed(2)} USD
+                    <div className="p-5 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200/80 rounded-2xl text-center space-y-1">
+                      <span className="text-[9px] uppercase font-mono font-bold text-indigo-400 block">Platform Fees ({platformCommissionFee}%)</span>
+                      <span className="text-xl font-extrabold text-indigo-700 font-sans tracking-tight">
+                        ${(totalMRR * (platformCommissionFee / 100) + 1240).toFixed(0)}
                       </span>
-                      <span className="text-[10px] text-slate-400 block font-mono">Direct platform ownership earnings</span>
+                      <span className="text-[10px] text-indigo-500 block font-mono">Commission earned</span>
                     </div>
 
-                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-center space-y-1">
-                      <span className="text-[9px] uppercase font-mono font-bold text-slate-450 block">FAILED CHARGES</span>
-                      <span className="text-xl font-extrabold text-rose-600 font-sans tracking-tight">$84.00 USD</span>
-                      <span className="text-[10px] text-slate-400 block">System Recovery automated loop active</span>
+                    <div className="p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border border-rose-200/80 rounded-2xl text-center space-y-1">
+                      <span className="text-[9px] uppercase font-mono font-bold text-rose-400 block">Failed Charges</span>
+                      <span className="text-xl font-extrabold text-rose-600 font-sans tracking-tight">$84</span>
+                      <span className="text-[10px] text-slate-400 block">Auto-recovery active</span>
                     </div>
                   </div>
 
-                  {/* Interactive SVG Pie split visualization */}
-                  <div className="p-4 bg-slate-900 border rounded-2xl flex flex-col sm:flex-row items-center justify-around gap-6">
+                  {/* Fee split visualization */}
+                  <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col sm:flex-row items-center justify-around gap-6">
                     <div className="w-32 h-32 relative shrink-0">
                       <svg width="100%" height="100%" viewBox="0 0 42 42" className="rotate-270">
                         <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgb(31, 41, 55)" strokeWidth="4.5" />
-                        
-                        {/* 97% for creators */}
                         <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgb(16, 185, 129)" strokeWidth="4.5" strokeDasharray="97 3" strokeDashoffset="0" />
-                        
-                        {/* 3% platform commission */}
-                        <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgb(79, 70, 229)" strokeWidth="4.5" strokeDasharray="3 97" strokeDashoffset="-97" />
+                        <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgb(99, 102, 241)" strokeWidth="4.5" strokeDasharray="3 97" strokeDashoffset="-97" />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-center font-mono">
-                        <span className="text-xs font-bold text-white">97% : 3%</span>
-                        <span className="text-[7.5px] text-slate-450 uppercase">Split Map</span>
+                        <span className="text-xs font-bold text-white">97 : 3</span>
+                        <span className="text-[7.5px] text-slate-500 uppercase">Split</span>
                       </div>
                     </div>
 
-                    <div className="space-y-2 text-xs md:text-sm text-slate-350 flex-1">
-                      <h4 className="font-bold text-white font-mono text-xs uppercase text-slate-100">Live Fee Sharing Policy Rule</h4>
+                    <div className="space-y-2.5 text-xs text-slate-300 flex-1">
+                      <h4 className="font-bold text-white font-mono text-xs uppercase">Fee Sharing Policy</h4>
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block" />
-                        <span><strong>97.0%</strong>: Settled immediately onto original content creators' bank routing numbers via Stripe Connect.</span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block shrink-0" />
+                        <span><strong className="text-white">97%</strong> goes to content creators via Stripe Connect</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 block" />
-                        <span><strong>{platformCommissionFee}%</strong> (Variable Commission Fee): Relayed onto platform operator system vault directly.</span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 block shrink-0" />
+                        <span><strong className="text-white">{platformCommissionFee}%</strong> platform commission</span>
                       </div>
                     </div>
                   </div>
@@ -1161,58 +916,58 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
             )}
 
             {/* ========================================================== */}
-            {/* SECTION 7: CREATOR PAYOUTS */}
+            {/* SECTION 7: OWNER PAYOUTS */}
             {/* ========================================================== */}
             {activeSection === "payouts" && (
               <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Pending Creator Wire Transfers</h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Review and approve global community ledger distributions. Settled using direct banking network sweeps.</p>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Owner Payouts</h3>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Review and approve pending wire transfers to community owners.</p>
                   </div>
 
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="border-b border-gray-150 text-gray-400 font-bold font-mono text-[9.5px] uppercase tracking-wider bg-gray-50/50">
-                          <th className="py-2.5 px-3">Creator / Organization</th>
-                          <th className="py-2.5 px-3">Operator Email</th>
-                          <th className="py-2.5 px-3 text-right">Ledge Balance Due</th>
-                          <th className="py-2.5 px-3">State Status</th>
-                          <th className="py-2.5 px-3 text-right">Administrative Actions</th>
+                        <tr className="border-b border-slate-200 text-slate-400 font-bold font-mono text-[9.5px] uppercase tracking-wider bg-slate-50/50">
+                          <th className="py-2.5 px-3">Organization</th>
+                          <th className="py-2.5 px-3">Email</th>
+                          <th className="py-2.5 px-3 text-right">Balance Due</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-3 text-right">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-150">
-                        {creatorsPayoutList.map((cr) => (
-                          <tr key={cr.id} className="hover:bg-slate-50/50 text-[10.5px]">
-                            <td className="py-3 px-3 font-bold text-gray-900">{cr.name}</td>
-                            <td className="py-3 px-3 text-gray-500 font-mono">{cr.email}</td>
-                            <td className="py-3 px-3 text-right font-bold font-mono text-gray-900">
-                              ${cr.unpaidEarnings.toLocaleString()}.00 USD
+                      <tbody className="divide-y divide-slate-100">
+                        {ownersPayoutList.map((cr) => (
+                          <tr key={cr.id} className="hover:bg-slate-50/80 text-[10.5px] transition">
+                            <td className="py-3 px-3 font-bold text-slate-900">{cr.name}</td>
+                            <td className="py-3 px-3 text-slate-500 font-mono">{cr.email}</td>
+                            <td className="py-3 px-3 text-right font-bold font-mono text-slate-900">
+                              ${cr.unpaidEarnings.toLocaleString()}
                             </td>
                             <td className="py-3 px-3">
                               <span className={`px-2 py-0.5 rounded text-[8.5px] font-mono uppercase font-bold border ${
                                 cr.unpaidEarnings > 0 
-                                  ? "bg-amber-50 text-amber-700 border-amber-155" 
-                                  : "bg-emerald-50 text-emerald-700 border-emerald-155"
+                                  ? "bg-amber-50 text-amber-600 border-amber-200" 
+                                  : "bg-emerald-50 text-emerald-600 border-emerald-200"
                               }`}>
-                                {cr.status === "READY" && cr.unpaidEarnings > 0 ? "Pending Wire Clearance" : "Settled / Active"}
+                                {cr.unpaidEarnings > 0 ? "Pending" : "Settled"}
                               </span>
                             </td>
                             <td className="py-3 px-3 text-right">
                               {payoutProcessingId === cr.id ? (
-                                <span className="text-[11px] font-bold text-indigo-650 flex items-center gap-1 justify-end font-mono animate-pulse">
-                                  <RefreshCw className="w-3 h-3 animate-spin" /> Processing wire...
+                                <span className="text-[11px] font-bold text-indigo-600 flex items-center gap-1 justify-end font-mono animate-pulse">
+                                  <RefreshCw className="w-3 h-3 animate-spin" /> Processing...
                                 </span>
                               ) : cr.unpaidEarnings > 0 ? (
                                 <button
-                                  onClick={() => handleProcessCreatorPayoutNow(cr.id)}
-                                  className="px-3 py-1 bg-slate-900 hover:bg-slate-950 text-white rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                  onClick={() => handleProcessOwnerPayoutNow(cr.id)}
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition cursor-pointer shadow-sm"
                                 >
-                                  Process Bank Sweep
+                                  Process Payout
                                 </button>
                               ) : (
-                                <span className="text-gray-400 text-[10px] select-none font-medium">Clear of Debts</span>
+                                <span className="text-slate-300 text-[10px] select-none font-medium">—</span>
                               )}
                             </td>
                           </tr>
@@ -1226,73 +981,57 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
              {/* ========================================================== */}
             {/* SECTION 8: PLATFORM SHIELD */}
             {/* ========================================================== */}
-            {activeSection === "shield" && (
+            {activeSection === "security" && (
               <div className="space-y-6 animate-in fade-in duration-150">
                 
-                {/* 1. THREAT MONITORING DIAL */}
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-6 shadow-sm space-y-4">
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-3 flex-wrap gap-2">
+                {/* 1. Threat Monitor */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-3 flex-wrap gap-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-ping" />
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-[#4F46E5] font-mono">Platform Shield Intrusion & Threat Monitor</h3>
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-600 font-mono">Security Shield</h3>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Automated intrusion prevention center, deep packet rate-limits, and live threat level mitigation.</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Threat monitoring and intrusion prevention.</p>
                     </div>
                     
-                    <div className="flex items-center gap-1 bg-slate-900 p-1.5 rounded-xl text-xs font-mono font-bold text-white shrink-0">
-                      <span className="px-2 text-slate-500 uppercase text-[9.5px]">THREAT LEVEL:</span>
-                      <button 
-                        onClick={() => { setShieldThreatLevel("LOW"); }}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] cursor-pointer font-extrabold transition ${shieldThreatLevel === "LOW" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
-                      >
-                        LOW
-                      </button>
-                      <button 
-                        onClick={() => { setShieldThreatLevel("ELEVATED"); }}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] cursor-pointer font-extrabold transition ${shieldThreatLevel === "ELEVATED" ? "bg-amber-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
-                      >
-                        ELEVATED
-                      </button>
-                      <button 
-                        onClick={() => { setShieldThreatLevel("CRITICAL"); }}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] cursor-pointer font-extrabold transition ${shieldThreatLevel === "CRITICAL" ? "bg-rose-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
-                      >
-                        CRITICAL
-                      </button>
-                      <button 
-                        onClick={() => { setShieldThreatLevel("LOCKDOWN"); }}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] cursor-pointer font-extrabold transition ${shieldThreatLevel === "LOCKDOWN" ? "bg-red-800 text-white animate-pulse shadow-inner" : "text-slate-450 hover:text-slate-300"}`}
-                      >
-                        LOCKDOWN
-                      </button>
+                    <div className="flex items-center gap-0.5 bg-slate-900 p-1 rounded-lg text-xs font-mono font-bold text-white shrink-0">
+                      <span className="px-2 text-slate-500 uppercase text-[9px]">THREAT:</span>
+                      {(["LOW", "ELEVATED", "CRITICAL", "LOCKDOWN"] as const).map((level) => (
+                        <button 
+                          key={level}
+                          onClick={() => setShieldThreatLevel(level)}
+                          className={`px-2 py-0.5 rounded text-[10px] cursor-pointer font-extrabold transition ${shieldThreatLevel === level ? (level === "LOCKDOWN" ? "bg-red-700 animate-pulse" : level === "CRITICAL" ? "bg-rose-600" : level === "ELEVATED" ? "bg-amber-600" : "bg-emerald-600") : "text-slate-500 hover:text-slate-300"}`}
+                        >
+                          {level}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Threat Meter stats line */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                    <div className="bg-slate-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between">
-                      <span className="text-[9px] uppercase font-mono tracking-wider font-extrabold text-gray-400">Threat Dial Threshold</span>
-                      <span className={`text-sm font-bold font-mono mt-1 ${shieldThreatLevel === "LOCKDOWN" ? "text-red-700 font-black animate-pulse" : shieldThreatLevel === "CRITICAL" ? "text-rose-600" : shieldThreatLevel === "ELEVATED" ? "text-amber-600" : "text-emerald-700"}`}>
-                        {shieldThreatLevel} mitigations active
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 flex flex-col justify-between">
+                      <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Threat Level</span>
+                      <span className={`text-sm font-bold font-mono mt-1 ${shieldThreatLevel === "LOCKDOWN" ? "text-red-700 animate-pulse" : shieldThreatLevel === "CRITICAL" ? "text-rose-600" : shieldThreatLevel === "ELEVATED" ? "text-amber-600" : "text-emerald-600"}`}>
+                        {shieldThreatLevel}
                       </span>
                     </div>
-                    <div className="bg-slate-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between">
-                      <span className="text-[9px] uppercase font-mono tracking-wider font-extrabold text-gray-400">Core Network Port</span>
-                      <span className="text-xs font-bold font-mono text-gray-800 mt-1">TCP/IP 3000 Ingress SSL</span>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 flex flex-col justify-between">
+                      <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Port</span>
+                      <span className="text-xs font-bold font-mono text-slate-700 mt-1">TCP 3000 SSL</span>
                     </div>
-                    <div className="bg-slate-50 p-3.5 rounded-2xl border border-gray-100 flex flex-col justify-between">
-                      <span className="text-[9px] uppercase font-mono tracking-wider font-extrabold text-gray-400">Anti-DDoS Firewall Cache</span>
-                      <span className="text-xs font-bold text-gray-850 mt-1">CloudPanel TLS Proxy Core (Active)</span>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 flex flex-col justify-between">
+                      <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Firewall</span>
+                      <span className="text-xs font-bold text-slate-700 mt-1">TLS Proxy Active</span>
                     </div>
                   </div>
 
-                  {/* Critical Emergency broadcast panel */}
-                  <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  {/* Emergency broadcast */}
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="space-y-0.5">
-                      <span className="text-[10px] text-rose-700 block font-bold font-mono tracking-wider uppercase">EMERGENCY EXCEPTION PORT COLD-STANDBY</span>
-                      <h4 className="text-xs font-bold text-rose-950">Broadcast general DDoS evac blockades</h4>
-                      <p className="text-[10px] text-rose-800/85 leading-normal">Instantly enforces security lockdown across all databases and terminates current workspace sessions to prevent unauthorized write exploits.</p>
+                      <span className="text-[10px] text-rose-600 block font-bold font-mono tracking-wider uppercase">Emergency Lockdown</span>
+                      <h4 className="text-xs font-bold text-rose-900">Broadcast platform-wide security evacuation</h4>
+                      <p className="text-[10px] text-rose-700/80 leading-normal">Enforces lockdown across all workspaces and terminates active sessions.</p>
                     </div>
 
                     <button
@@ -1300,49 +1039,45 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
                         setAlarmActive(!alarmActive);
                         if (!alarmActive) {
                           setShieldThreatLevel("LOCKDOWN");
-                          alert("ALARM ACTIVE. Platform security shifted to LOCKDOWN state!");
+                          alert("Platform shifted to LOCKDOWN state.");
                         } else {
                           setShieldThreatLevel("LOW");
-                          alert("Siren disarmed. Platform reverted to standard low-risk profiles.");
+                          alert("Lockdown disarmed. Platform reverted to normal.");
                         }
                       }}
-                      className={`px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase font-mono shadow-sm transition shrink-0 cursor-pointer ${
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wider uppercase font-mono shadow-sm transition shrink-0 cursor-pointer ${
                         alarmActive 
-                          ? "bg-rose-700 text-white animate-bounce" 
-                          : "bg-rose-950 hover:bg-rose-900 text-white"
+                          ? "bg-rose-600 text-white animate-pulse" 
+                          : "bg-rose-900 hover:bg-rose-800 text-white"
                       }`}
                     >
-                      ⚠️ {alarmActive ? "DISARM SECURITY SIREN" : "FORCE SYSTEM EVAC MODE"}
+                      {alarmActive ? "Disarm Lockdown" : "Activate Lockdown"}
                     </button>
                   </div>
                 </div>
 
-                {/* 2. SECURITY PROTOCOLS ENFORCEMENT & MFA */}
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-6 shadow-sm space-y-4">
+                {/* 2. Security Protocols */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-450 font-mono">MFA & Infrastructure Encryptions</h3>
-                    <p className="text-[10px] text-gray-455 mt-0.5">Enforce hardware MFA safety protocols, CORS validation rules, and custom SQL injection prevention parameters.</p>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Security Protocols</h3>
+                    <p className="text-[10px] text-slate-400 mt-0.5">MFA enforcement, CORS, XSS sanitization, and DDoS protection.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {Object.entries(securityModules).map(([key, value]) => {
                       let displayName = key.replace(/([A-Z])/g, ' $1').trim();
-                      if (key === "twoFactorForce") displayName = "MFA Forced For Staff";
-                      if (key === "corsMode") displayName = "Strict CORS Filters";
-                      if (key === "xssSanitizer") displayName = "Active XSS Sanitizer";
-                      if (key === "sqliBlocker") displayName = "MySQL sqli Blocker";
-                      if (key === "ddosRateLimit") displayName = "DDoS Rate Limits (Port 3000)";
-                      if (key === "secureCookies") displayName = "TLS Secure Cookies";
+                      if (key === "twoFactorForce") displayName = "MFA Enforcement";
+                      if (key === "corsMode") displayName = "CORS Protection";
+                      if (key === "xssSanitizer") displayName = "XSS Sanitizer";
+                      if (key === "sqliBlocker") displayName = "SQL Injection Blocker";
+                      if (key === "ddosRateLimit") displayName = "DDoS Rate Limits";
+                      if (key === "secureCookies") displayName = "Secure Cookies";
 
                       return (
-                        <div key={key} className="bg-slate-50 border border-gray-100 rounded-2xl p-4 flex items-center justify-between gap-3">
+                        <div key={key} className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex items-center justify-between gap-3">
                           <div>
-                            <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block">
-                              {displayName}
-                            </span>
-                            <span className="text-xs font-bold text-slate-800">
-                              {value ? "Enforced Globally" : "Bypassed / Not Enforced"}
-                            </span>
+                            <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block">{displayName}</span>
+                            <span className="text-xs font-bold text-slate-700">{value ? "Active" : "Disabled"}</span>
                           </div>
                           <button
                             type="button"
@@ -1356,62 +1091,62 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
                     })}
                   </div>
 
-                  <div className="bg-amber-50/50 border border-amber-200/70 p-3.5 rounded-2xl">
-                    <p className="text-[10px] text-amber-850 leading-relaxed">
-                      💡 <strong>MFA Enforcement Mandate:</strong> Enabling hardware multifactor protection shields all database access pathways. Admin and Creator credentials require active authenticator keys before granting edit locks.
+                  <div className="bg-indigo-50 border border-indigo-200/70 p-3.5 rounded-xl">
+                    <p className="text-[10px] text-indigo-800 leading-relaxed">
+                      <strong>MFA Enforcement:</strong> Enabling hardware MFA shields all database access pathways. Admin and Owner credentials require authenticator keys before granting edit access.
                     </p>
                   </div>
                 </div>
 
-                {/* 3. FIREWALL IP BLACKLIST & BANS */}
+                {/* 3. IP Ban Registry */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in duration-100">
-                  <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm md:col-span-4 space-y-4">
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm md:col-span-4 space-y-4">
                     <div>
-                      <h4 className="text-xs font-bold text-gray-800 font-display">Target Firewall IP Ban Registry</h4>
-                      <p className="text-[9.5px] text-gray-450 mt-0.5">Block malicious client machines and malicious scraping servers instantly before they hit CloudPanel proxy layers.</p>
+                      <h4 className="text-xs font-bold text-slate-900 font-display">IP Ban Registry</h4>
+                      <p className="text-[9.5px] text-slate-400 mt-0.5">Block malicious IPs before they reach the proxy layer.</p>
                     </div>
 
                     <div className="space-y-1.5 text-xs font-sans">
-                      <label className="block text-[10px] font-mono uppercase font-bold text-gray-500">Client IP Address</label>
+                      <label className="block text-[10px] font-mono uppercase font-bold text-slate-500">IP Address</label>
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          placeholder="e.g. 198.51.100.8"
+                          placeholder="198.51.100.8"
                           value={newIpBan}
                           onChange={(e) => setNewIpBan(e.target.value)}
-                          className="flex-1 bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
                         />
                         <button
                           onClick={() => {
                             if (!newIpBan.trim()) return;
                             setBannedIps([...bannedIps, newIpBan.trim()]);
                             setNewIpBan("");
-                            alert(`IP ${newIpBan} banned successfully on CloudPanel iptables firewall.`);
+                            alert(`IP ${newIpBan} banned.`);
                           }}
-                          className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-mono text-[10.5px] uppercase font-bold text-center block cursor-pointer transition"
+                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-mono text-[10.5px] font-bold transition cursor-pointer shadow-sm"
                         >
-                          BAN
+                          Ban
                         </button>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-gray-100">
-                      <span className="text-[9px] uppercase font-mono font-bold text-gray-400 tracking-wider block mb-2">Banned Client IPs ({bannedIps.length})</span>
+                    <div className="pt-2 border-t border-slate-100">
+                      <span className="text-[9px] uppercase font-mono font-bold text-slate-400 tracking-wider block mb-2">Banned IPs ({bannedIps.length})</span>
                       <div className="space-y-1 max-h-36 overflow-y-auto">
                         {bannedIps.length === 0 ? (
-                          <p className="text-[10px] text-gray-400 font-mono text-center py-2">No active IP network bans.</p>
+                          <p className="text-[10px] text-slate-300 font-mono text-center py-2">No bans</p>
                         ) : (
                           bannedIps.map((ip, idx) => (
-                            <div key={idx} className="flex justify-between items-center bg-gray-50 px-2.5 py-1.5 rounded-xl border border-gray-100 text-[10.5px] font-mono">
-                              <span className="text-gray-700">{ip}</span>
+                            <div key={idx} className="flex justify-between items-center bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-[10.5px] font-mono">
+                              <span className="text-slate-700">{ip}</span>
                               <button
                                 onClick={() => {
                                   setBannedIps(bannedIps.filter(item => item !== ip));
-                                  alert(`IP ${ip} has been pardoned and reverted to routing pool.`);
+                                  alert(`IP ${ip} unbanned.`);
                                 }}
-                                className="text-rose-600 hover:text-rose-800 font-bold uppercase text-[9px]"
+                                className="text-slate-400 hover:text-rose-600 font-bold uppercase text-[9px] transition"
                               >
-                                pardon
+                                remove
                               </button>
                             </div>
                           ))
@@ -1420,60 +1155,60 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
                     </div>
                   </div>
 
-                  {/* 4. ABUSE LOGS & SECURITY EVENTS */}
-                  <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm md:col-span-8 space-y-4">
+                  {/* 4. Abuse Logs */}
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm md:col-span-8 space-y-4">
                     <div className="flex justify-between items-center flex-wrap gap-2">
                       <div>
-                        <h4 className="text-xs font-bold text-gray-800 font-display">SaaS Abuse Logs & Security Incidents Tracker</h4>
-                        <p className="text-[9.5px] text-gray-455 mt-0.5">Chronological list of anomalous payload handshakes, rate-limit triggers, and malicious threat signals.</p>
+                        <h4 className="text-xs font-bold text-slate-900 font-display">Security Event Log</h4>
+                        <p className="text-[9.5px] text-slate-400 mt-0.5">Anomalous activity, rate-limit triggers, and threat signals.</p>
                       </div>
                       <button
                         onClick={() => {
                           setAbuseLogs([]);
-                          alert("Active abuse counters reset to clearance.");
+                          alert("Log cleared.");
                         }}
-                        className="px-3 py-1.5 text-slate-500 hover:bg-gray-50 border border-gray-250 rounded-xl font-mono text-[9px] font-bold uppercase transition cursor-pointer"
+                        className="px-3 py-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg font-mono text-[9px] font-bold uppercase transition cursor-pointer"
                       >
-                        Purge Trace
+                        Clear Log
                       </button>
                     </div>
 
                     <div className="overflow-x-auto">
                       <table className="w-full text-left font-sans text-xs border-collapse">
                         <thead>
-                          <tr className="border-b border-gray-100 text-[9px] font-bold font-mono tracking-wider text-gray-400 uppercase bg-gray-50/50">
-                            <th className="py-2 px-3 pb-2.5">timestamp</th>
-                            <th className="py-2 px-3 pb-2.5">Source client / IP</th>
-                            <th className="py-2 px-3 pb-2.5">Abuse Vector Event</th>
+                          <tr className="border-b border-slate-200 text-[9px] font-bold font-mono tracking-wider text-slate-400 uppercase bg-slate-50/50">
+                            <th className="py-2 px-3 pb-2.5">Time</th>
+                            <th className="py-2 px-3 pb-2.5">Source IP</th>
+                            <th className="py-2 px-3 pb-2.5">Event</th>
                             <th className="py-2 px-3 pb-2.5">Severity</th>
-                            <th className="py-2 px-3 pb-2.5 text-right">Protection Action</th>
+                            <th className="py-2 px-3 pb-2.5 text-right">Action</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-slate-100">
                           {abuseLogs.length === 0 ? (
                             <tr>
-                              <td colSpan={5} className="py-8 text-center text-gray-400 font-mono text-[10.5px]">
-                                Clearance State. No active security events or intrusion indices identified.
+                              <td colSpan={5} className="py-8 text-center text-slate-300 font-mono text-[10.5px]">
+                                No security events
                               </td>
                             </tr>
                           ) : (
                             abuseLogs.map((log) => (
-                              <tr key={log.id} className="hover:bg-slate-50/20 text-[10.5px]">
-                                <td className="py-3 px-3 font-mono text-gray-450 text-[10px] whitespace-nowrap">{log.date}</td>
+                              <tr key={log.id} className="hover:bg-slate-50/80 text-[10.5px] transition">
+                                <td className="py-3 px-3 font-mono text-slate-400 text-[10px] whitespace-nowrap">{log.date}</td>
                                 <td className="py-3 px-3 font-mono font-semibold text-slate-700">{log.ip}</td>
-                                <td className="py-3 px-3 text-gray-800">{log.event}</td>
+                                <td className="py-3 px-3 text-slate-800">{log.event}</td>
                                 <td className="py-3 px-3">
                                   <span className={`px-1.5 py-0.5 rounded font-mono font-bold text-[8.5px] border ${
                                     log.threat === "CRITICAL"
-                                      ? "bg-rose-50 text-rose-700 border-rose-100"
+                                      ? "bg-rose-50 text-rose-600 border-rose-200"
                                       : log.threat === "HIGH"
-                                        ? "bg-amber-50 text-amber-700 border-amber-100"
-                                        : "bg-blue-50 text-blue-700 border-blue-100"
+                                        ? "bg-amber-50 text-amber-600 border-amber-200"
+                                        : "bg-blue-50 text-blue-600 border-blue-200"
                                   }`}>
                                     {log.threat}
                                   </span>
                                 </td>
-                                <td className="py-3 px-3 text-right font-medium text-gray-500 text-[10px] max-w-xs truncate" title={log.actionHandled}>
+                                <td className="py-3 px-3 text-right font-medium text-slate-400 text-[10px] max-w-xs truncate" title={log.actionHandled}>
                                   {log.actionHandled}
                                 </td>
                               </tr>
@@ -1493,32 +1228,32 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
             {/* ========================================================== */}
             {activeSection === "logs" && (
               <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-100 pb-3">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-3">
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Platform Security Log Audit Trail</h3>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Real-time telemetry track mapping platform role changes, security checks, and tenant actions.</p>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Audit Log</h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Role changes, security events, and tenant actions.</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
                       <select
                         value={logsFilterAction}
                         onChange={(e) => setLogsFilterAction(e.target.value)}
-                        className="bg-white border rounded-xl px-2.5 py-1.5 text-xs text-gray-700 cursor-pointer focus:outline-none"
+                        className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       >
-                        <option value="ALL">All Event Subsets</option>
+                        <option value="ALL">All Events</option>
                         <option value="SECURITY_VIOLATION">Security Violations</option>
-                        <option value="ROLE_UPGRADE">Platform Promotions</option>
-                        <option value="COURSE_CREATED">Syllabus Creation</option>
-                        <option value="MIGRATION_AUTO">MySQL Synchronizations</option>
+                        <option value="ROLE_UPGRADE">Role Changes</option>
+                        <option value="COURSE_CREATED">Course Created</option>
+                        <option value="MIGRATION_AUTO">Migrations</option>
                       </select>
 
                       <input
                         type="text"
-                        placeholder="Filter by operator username, content detail..."
+                        placeholder="Search logs..."
                         value={logsSearch}
                         onChange={(e) => setLogsSearch(e.target.value)}
-                        className="border border-gray-200 bg-white rounded-xl px-3 py-1.5 text-xs w-full sm:w-56 focus:outline-none"
+                        className="border border-slate-200 bg-white rounded-lg px-3 py-1.5 text-xs w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
                       />
                     </div>
                   </div>
@@ -1526,45 +1261,45 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs min-w-max border-collapse">
                       <thead>
-                        <tr className="border-b border-gray-100 text-gray-400 font-bold font-mono text-[9.5px] uppercase tracking-wider bg-gray-50/50">
-                          <th className="py-2.5 px-3">UTC timestamp</th>
-                          <th className="py-2.5 px-3">Actor Operator</th>
-                          <th className="py-2.5 px-3">Action Type</th>
-                          <th className="py-2.5 px-3">Workspace Scope</th>
-                          <th className="py-2.5 px-3">Incident Payload Detail</th>
+                        <tr className="border-b border-slate-200 text-slate-400 font-bold font-mono text-[9.5px] uppercase tracking-wider bg-slate-50/50">
+                          <th className="py-2.5 px-3">Timestamp</th>
+                          <th className="py-2.5 px-3">Actor</th>
+                          <th className="py-2.5 px-3">Action</th>
+                          <th className="py-2.5 px-3">Workspace</th>
+                          <th className="py-2.5 px-3">Details</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-slate-100">
                         {filteredLogs.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="py-8 text-center text-gray-450 font-mono">
-                              No security audit logs found within current filter scopes.
+                            <td colSpan={5} className="py-8 text-center text-slate-300 font-mono">
+                              No logs found
                             </td>
                           </tr>
                         ) : (
                           filteredLogs.slice().reverse().map((log: any) => (
-                            <tr key={log.id} className="hover:bg-gray-50/30 text-[10.5px]">
-                              <td className="py-2.5 px-3 font-mono text-gray-400 whitespace-nowrap">
-                                {log.createdAt ? new Date(log.createdAt).toUTCString() : "2026-05-29 (UTC)"}
+                            <tr key={log.id} className="hover:bg-slate-50/80 text-[10.5px] transition">
+                              <td className="py-2.5 px-3 font-mono text-slate-400 whitespace-nowrap">
+                                {log.createdAt ? new Date(log.createdAt).toUTCString() : "—"}
                               </td>
-                              <td className="py-2.5 px-3 font-semibold text-gray-800">
-                                {log.userName || "Admin Terminal"}
+                              <td className="py-2.5 px-3 font-semibold text-slate-800">
+                                {log.userName || "System"}
                               </td>
                               <td className="py-2.5 px-3">
                                 <span className={`px-2 py-0.5 rounded text-[8.5px] font-mono uppercase font-bold border ${
                                   log.action === "SECURITY_VIOLATION" 
-                                    ? "bg-rose-50 text-rose-700 border-rose-100" 
+                                    ? "bg-rose-50 text-rose-600 border-rose-200" 
                                     : log.action.includes("ROLE") || log.action.includes("UPGRADE")
-                                      ? "bg-amber-50 text-amber-700 border-amber-100"
-                                      : "bg-indigo-50 text-indigo-700 border-indigo-100"
+                                      ? "bg-amber-50 text-amber-600 border-amber-200"
+                                      : "bg-indigo-50 text-indigo-600 border-indigo-200"
                                 }`}>
                                   {log.action}
                                 </span>
                               </td>
-                              <td className="py-2.5 px-3 font-mono text-gray-500 text-[10px]">
-                                {log.workspaceId || "System Core Shard"}
+                              <td className="py-2.5 px-3 font-mono text-slate-500 text-[10px]">
+                                {log.workspaceId || "System"}
                               </td>
-                              <td className="py-2.5 px-3 text-gray-650 max-w-md truncate" title={log.details}>
+                              <td className="py-2.5 px-3 text-slate-500 max-w-md truncate" title={log.details}>
                                 {log.details}
                               </td>
                             </tr>
@@ -1578,292 +1313,36 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
             )}
 
             {/* ========================================================== */}
-            {/* SECTION 10: AI & API CONTROLS */}
-            {/* ========================================================== */}
-            {activeSection === "ai" && (
-              <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#4F46E5] font-mono flex items-center gap-1">
-                      <Sparkles className="w-4 h-4 text-[#4F46E5]" /> Gemini API Orchestration Engine
-                    </h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Control pipeline routing for local course summarization tools, system instructions, and token limitations.</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                    
-                    {/* Quotas & Parameters */}
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                        <label className="text-[9.5px] font-bold text-gray-400 block uppercase font-mono">SELECTED GEMINI PLATFORM MODEL</label>
-                        <select
-                          value={selectedGeminiModel}
-                          onChange={(e) => setSelectedGeminiModel(e.target.value)}
-                          className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 cursor-pointer"
-                        >
-                          <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default Speed Optim)</option>
-                          <option value="gemini-2.0-pro">Gemini 2.0 Pro Experimental (Reasoning Elite)</option>
-                          <option value="gemini-1.5-pro">Gemini 1.5 Pro Stable (1M context windows)</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex justify-between items-center text-[9.5px] font-bold text-gray-500 font-mono uppercase">
-                          <span>Workspace Monthly Token Quota Limit</span>
-                          <span className="text-indigo-650 font-black">{aiWorkspaceQuotaLimit.toLocaleString()} Tokens</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="5000"
-                          max="100000"
-                          step="5000"
-                          value={aiWorkspaceQuotaLimit}
-                          onChange={(e) => setAiWorkspaceQuotaLimit(Number(e.target.value))}
-                          className="w-full accent-indigo-600 cursor-pointer mt-1"
-                        />
-                        <span className="text-[10px] text-gray-400 block italic leading-none mt-1">Limits automated course-outline parsing loops to avoid API overuse.</span>
-                      </div>
-
-                      <div className="bg-slate-900 text-slate-200 p-3 rounded-2xl border font-mono text-[10px] space-y-1.5">
-                        <span className="text-[9px] uppercase font-bold text-slate-500 block">Google API Gateway Ping Metrics</span>
-                        <div className="flex justify-between">
-                          <span>Proxy status:</span>
-                          <span className="text-emerald-400">ACTIVE ({aiTelemetryStats.apiTokenHealth})</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Tokens processed this cycle:</span>
-                          <span className="text-white font-bold">{aiTelemetryStats.monthlyTokenCount.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Default System Instructions */}
-                    <div className="space-y-2">
-                      <label className="text-[9.5px] font-bold text-gray-400 block uppercase font-mono">Default System Agent Instructions Scope</label>
-                      <textarea
-                        rows={6}
-                        value={systemInstructionsContent}
-                        onChange={(e) => setSystemInstructionsContent(e.target.value)}
-                        className="w-full font-sans border border-gray-200 bg-slate-50 rounded-xl p-3 text-xs leading-normal focus:outline-none"
-                      />
-                      <button
-                        onClick={() => alert("Static Gemini platform instructions adjusted in memory.")}
-                        className="px-4 py-2 bg-slate-900 hover:bg-slate-950 text-white rounded-xl text-xs font-bold cursor-pointer transition w-full"
-                      >
-                        Adjust Core Instructions Template
-                      </button>
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ========================================================== */}
-            {/* SECTION 11: STORAGE & MEDIA */}
-            {/* ========================================================== */}
-            {activeSection === "storage" && (
-              <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-                    <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Centralized Corporate File Buckets</h3>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Audit global PDF handouts, lecture reference sheets, and avatars size occupancy.</p>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0 text-xs text-gray-700">
-                      <span>Optimize assets:</span>
-                      <button
-                        onClick={() => setOptimMediaUpload(!optimMediaUpload)}
-                        className={`w-9 h-5 rounded-full transition relative shrink-0 cursor-pointer ${optimMediaUpload ? "bg-indigo-600" : "bg-slate-200"}`}
-                      >
-                        <span className={`w-3.5 h-3.5 rounded-full bg-white absolute top-0.75 transition-all duration-150 ${optimMediaUpload ? "left-4.5" : "left-1"}`} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="p-3 bg-slate-50 border rounded-2xl">
-                      <span className="text-[9px] uppercase font-mono font-bold text-slate-500 block">TOTAL VOLUME SECURED</span>
-                      <span className="text-base font-bold text-slate-900 mt-1 block">18.42 GB</span>
-                    </div>
-                    <div className="p-3 bg-slate-50 border rounded-2xl">
-                      <span className="text-[9px] uppercase font-mono font-bold text-slate-500 block">BUCKET CAPACITY LIMIT</span>
-                      <span className="text-base font-bold text-slate-900 mt-1 block">100 GB</span>
-                    </div>
-                    <div className="p-3 bg-slate-50 border rounded-2xl">
-                      <span className="text-[9px] uppercase font-mono font-bold text-slate-500 block">ZIP CHECKSUMS PASSED</span>
-                      <span className="text-base font-bold text-emerald-805 mt-1 block font-mono">100.0% SECURE</span>
-                    </div>
-                    <div className="p-3 bg-slate-50 border rounded-2xl">
-                      <span className="text-[9px] uppercase font-mono font-bold text-slate-500 block">COMPRESSION RATIO</span>
-                      <span className="text-base font-bold text-slate-900 mt-1 block font-mono">2.4x (GZIP)</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-2">
-                    <span className="text-[9.5px] font-bold text-slate-400 font-mono block uppercase">Virtual AWS S3 File Directory (Live check checks done)</span>
-                    <div className="divide-y divide-slate-100 overflow-y-auto max-h-56 border rounded-2xl pr-1">
-                      {mediaList.map((med, idx) => (
-                        <div key={idx} className="p-3 flex justify-between items-center text-xs hover:bg-slate-50/60 transition">
-                          <div className="flex items-center gap-2">
-                            <span>📄</span>
-                            <div>
-                              <span className="font-bold text-slate-900 block">{med.name}</span>
-                              <span className="text-[10px] text-slate-400 font-mono">Uploaded by Creator: <strong>{med.uploadedBy}</strong></span>
-                            </div>
-                          </div>
-                          
-                          <div className="text-right">
-                            <span className="block font-mono text-slate-800">{med.size}</span>
-                            <span className="text-slate-450 text-[10px]">📥 {med.downloads} requests</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ========================================================== */}
-            {/* SECTION 12: EMAIL & NOTIFICATIONS */}
-            {/* ========================================================== */}
-            {activeSection === "email" && (
-              <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Platform SMTP Relay Settings</h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Synchronize secure credentials for transaction invoices, user activation invites, and backup warning notifications.</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-                    
-                    {/* Form settings */}
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="col-span-2 space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400 block uppercase font-mono">SMTP INFRA HOST</label>
-                          <input
-                            type="text"
-                            value={smtpConfig.host}
-                            onChange={(e) => setSmtpConfig(prev => ({ ...prev, host: e.target.value }))}
-                            className="w-full bg-slate-50 border px-3 py-1.5 rounded-xl text-xs font-mono font-bold text-slate-800"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400 block uppercase font-mono">PORT</label>
-                          <input
-                            type="number"
-                            value={smtpConfig.port}
-                            onChange={(e) => setSmtpConfig(prev => ({ ...prev, port: Number(e.target.value) }))}
-                            className="w-full bg-slate-50 border px-3 py-1.5 rounded-xl text-xs text-center font-mono font-bold text-slate-800"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-gray-400 block uppercase font-mono">SMTP AUTHORIZED RELAY USERNAME</label>
-                        <input
-                          type="text"
-                          value={smtpConfig.username}
-                          onChange={(e) => setSmtpConfig(prev => ({ ...prev, username: e.target.value }))}
-                          className="w-full bg-slate-50 border px-3 py-1.5 rounded-xl text-xs font-mono text-slate-800"
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between py-1.5">
-                        <span className="text-[11px] text-slate-600 font-medium">Require Secure TLS Handshakes (SSL/STARTTLS):</span>
-                        <button
-                          type="button"
-                          onClick={() => setSmtpConfig(prev => ({ ...prev, requireTls: !prev.requireTls }))}
-                          className={`w-10 h-5.5 rounded-full transition relative cursor-pointer ${smtpConfig.requireTls ? "bg-indigo-600" : "bg-slate-200"}`}
-                        >
-                          <span className={`w-4 h-4 rounded-full bg-white absolute top-0.75 transition-all duration-150 ${smtpConfig.requireTls ? "left-5" : "left-1"}`} />
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={() => alert("Platform-wide corporate SMTP credentials synchronized successfully over CloudPanel mail daemon.")}
-                        className="w-full py-2 bg-slate-900 hover:bg-slate-950 text-white rounded-xl text-xs font-bold cursor-pointer transition uppercase"
-                      >
-                        Adjust Credentials
-                      </button>
-                    </div>
-
-                    {/* Test SMTP Email */}
-                    <div className="p-4 bg-slate-50 border rounded-2xl flex flex-col justify-between">
-                      <div className="space-y-1">
-                        <span className="text-[9px] uppercase font-mono font-black text-slate-450 block">SANDBOX MAIL DESK</span>
-                        <h4 className="text-xs font-bold text-slate-900">Transmit Administrative Test Payload</h4>
-                        <p className="text-[10px] text-slate-500">Relay a template raw confirmation diagnostic email to any email address below to inspect SMTP delivery times.</p>
-                      </div>
-
-                      <form onSubmit={handleTriggerSMTPTest} className="space-y-2.5 pt-4">
-                        <input
-                          type="email"
-                          required
-                          placeholder="your-personal-inbox@cloud.io"
-                          value={smtpTestEmail}
-                          onChange={(e) => setSmtpTestEmail(e.target.value)}
-                          className="w-full border border-gray-200 bg-white rounded-xl p-2.5 text-xs focus:ring-1 focus:ring-indigo-650 focus:outline-none placeholder:text-gray-400"
-                        />
-
-                        <button
-                          type="submit"
-                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
-                        >
-                          Dispatch Test Envelope
-                        </button>
-                      </form>
-
-                      {smtpTestResult && (
-                        <div className="mt-3 p-3 text-xs rounded-xl font-bold font-mono animate-in zoom-in-95 leading-normal">
-                          {smtpTestResult === "CONNECTING" ? (
-                            <span className="text-indigo-700 block text-center animate-pulse">📡 Initiating SSL socket connection...</span>
-                          ) : (
-                            <span className="text-emerald-700 block text-center">✅ Deliverability Check Success! SMTP Relay status reported OK. Received 250 Response Code.</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ========================================================== */}
             {/* SECTION 13: SYSTEM SETTINGS */}
             {/* ========================================================== */}
             {activeSection === "settings" && (
               <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Infrastructure Geography & Ingress Rules</h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Control network ingress points, active SQLite snapshot schedulers, and recovery keys.</p>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">System Settings</h3>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Region, database, and backup configuration.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-gray-450 block uppercase font-mono">PRIMARY GCP CORE REGION</label>
+                      <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">Region</label>
                       <select
                         value={deploymentRegion}
                         onChange={(e) => setDeploymentRegion(e.target.value)}
-                        className="w-full bg-slate-50 border rounded-xl px-3 py-2 text-xs font-bold font-mono text-slate-800 cursor-pointer"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold font-mono text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
                       >
-                        <option value="gcp-us-central1">Iowa (us-central1, Central Datacenter Grid)</option>
-                        <option value="gcp-asia-southeast1">Singapore (asia-southeast1, Asia High-Availability Core)</option>
-                        <option value="gcp-europe-west3">Frankfurt (europe-west3, Europe Safe GDPR Core)</option>
-                        <option value="gcp-local-sandbox">Direct Loopback Local Container Sandbox (Port 3000)</option>
+                        <option value="gcp-us-central1">US Central (Iowa)</option>
+                        <option value="gcp-asia-southeast1">Asia Pacific (Singapore)</option>
+                        <option value="gcp-europe-west3">Europe (Frankfurt)</option>
+                        <option value="gcp-local-sandbox">Local Sandbox</option>
                       </select>
                     </div>
 
                     <div className="space-y-3 flex flex-col justify-end">
-                      <div className="flex items-center justify-between text-xs py-1.5 bg-slate-50 p-2.5 rounded-xl border">
+                      <div className="flex items-center justify-between text-xs py-1.5 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
                         <div>
-                          <span className="font-bold text-slate-900 block">Debug Telemetry Logging Piles</span>
-                          <span className="text-[10px] text-slate-400 leading-none">Keeps verbose console tracks in runtime memory storage.</span>
+                          <span className="font-bold text-slate-900 block">Debug Logging</span>
+                          <span className="text-[10px] text-slate-400 leading-none">Verbose console output in memory</span>
                         </div>
                         <button
                           type="button"
@@ -1876,23 +1355,21 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-gray-150 space-y-3">
-                    <h4 className="text-xs font-bold text-gray-900 font-mono">Backup Recovery Coordinates Repository (SQLite storage check)</h4>
-                    <div className="bg-slate-900 rounded-2xl p-4 font-mono text-[10px] text-slate-350 space-y-2 relative overflow-hidden">
-                      <div className="flex justify-between items-center text-slate-500 border-b border-slate-850 pb-2">
-                        <span className="text-[8.5px] uppercase font-bold tracking-wider flex items-center gap-1">
-                          📋 Recovery Key Registry
-                        </span>
-                        <span>SHA-256 Verified Node Encryption</span>
+                  <div className="pt-2 border-t border-slate-100 space-y-3">
+                    <h4 className="text-xs font-bold text-slate-900 font-mono">Backup Recovery Keys</h4>
+                    <div className="bg-slate-900 rounded-xl p-4 font-mono text-[10px] text-slate-300 space-y-2 relative overflow-hidden">
+                      <div className="flex justify-between items-center text-slate-500 border-b border-slate-800 pb-2">
+                        <span className="text-[8.5px] uppercase font-bold tracking-wider">Recovery Keys</span>
+                        <span>SHA-256 Encrypted</span>
                       </div>
                       <div>
-                        <span>SYSTEM_BACKUP_TOKEN_KEY_A: <code className="text-emerald-400 font-bold">SHA256::f23b2c...a891</code></span>
+                        <span>KEY_A: </span><code className="text-emerald-400 font-bold">SHA256::f23b2c...a891</code>
                       </div>
                       <div>
-                        <span>SYSTEM_BACKUP_TOKEN_KEY_B: <code className="text-emerald-400 font-bold">SHA256::e910bd...d451</code></span>
+                        <span>KEY_B: </span><code className="text-emerald-400 font-bold">SHA256::e910bd...d451</code>
                       </div>
-                      <p className="text-slate-450 text-[9.5px] leading-relaxed pt-1.5 font-sans">
-                        These static environment parameters are generated automatically on startup to maintain encrypted database file-level recoveries in case the host memory drops unexpectedly. Keep safe.
+                      <p className="text-slate-500 text-[9.5px] leading-relaxed pt-1.5 font-sans">
+                        Auto-generated on startup for encrypted database recovery. Keep secure.
                       </p>
                     </div>
                   </div>
@@ -1900,176 +1377,7 @@ export default function SuperAdminView({ currentUser, communities }: SuperAdminV
               </div>
             )}
 
-            {/* ========================================================== */}
-            {/* SECTION 14: CLOUDPANEL CONSOLE */}
-            {/* ========================================================== */}
-            {activeSection === "cloudpanel" && (
-              <div className="space-y-6 animate-in fade-in duration-150">
-                
-                {/* Banner alert MySQL state */}
-                <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 text-white rounded-3xl p-5 shadow-sm relative overflow-hidden">
-                  <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-48 h-48 bg-white/5 rounded-full blur-xl pointer-events-none" />
-                  <span className="text-[9px] uppercase font-mono bg-indigo-600 text-indigo-50 border border-indigo-500/30 px-2.5 py-1 rounded-full font-bold inline-flex items-center gap-1.5 shadow-sm">
-                    <Database className="w-3 h-3" /> Core MySQL Database Bridge
-                  </span>
-                  <h2 className="text-md sm:text-lg font-bold font-display mt-3 tracking-tight">CloudPanel Relational Database Controller</h2>
-                  <p className="text-[10.5px] text-indigo-200/90 max-w-xl mt-1 leading-relaxed">
-                    Verify database configuration states, trigger localized backups hydration checks over host MySQL / MariaDB pools, and extract table structures dynamically.
-                  </p>
-                </div>
-
-                {/* DB Handshake verification metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="bg-white rounded-2xl border border-gray-150 p-5 shadow-sm flex flex-col justify-between">
-                    <div>
-                      <span className="text-[9px] text-gray-400 block uppercase font-mono font-bold tracking-wider">MySQL Bridge Handshake</span>
-                      <span className="text-xs font-bold text-gray-900 block mt-1 tracking-tight">
-                        {isLoadingCp ? "Pinging MySQL server..." : cpStatus?.connected ? "CONNECTED (Secure Connection)" : "FALLBACK LOCAL SQLite ACTIVE"}
-                      </span>
-                    </div>
-
-                    <div className="border-t border-gray-100 pt-3 mt-4 flex items-center justify-between text-[10px]">
-                      <span className="text-gray-500 font-medium font-mono">Status Indicator:</span>
-                      <span className={`px-2 py-0.5 rounded font-mono font-bold ${
-                        cpStatus?.connected ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-500 border-amber-100"
-                      }`}>
-                        {cpStatus?.connected ? "SUCCESSFUL" : "LOCAL BACKUP"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-2xl border border-gray-150 p-5 shadow-sm flex flex-col justify-between">
-                    <div>
-                      <span className="text-[9px] text-gray-400 block uppercase font-mono font-black tracking-wider">Synchronized Accounts</span>
-                      <span className="text-xl font-extrabold text-slate-900 block mt-1 font-mono tracking-tight">
-                        {isLoadingCp ? "..." : cpStatus?.usersCount || 0}
-                      </span>
-                    </div>
-
-                    <div className="border-t border-gray-100 pt-3 mt-4 flex items-center justify-between text-[10px]">
-                      <span className="text-gray-500 font-medium font-mono">Table integrity check:</span>
-                      <span className="text-emerald-700 font-bold font-mono">PASSED SECURE</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-2xl border border-gray-150 p-5 shadow-sm flex flex-col justify-between">
-                    <div>
-                      <span className="text-[9px] text-gray-400 block uppercase font-mono font-black tracking-wider">Target Host Parameter</span>
-                      <span className="text-[10px] font-mono text-gray-600 block mt-1 bg-slate-50 p-1 rounded border border-gray-150 overflow-hidden truncate">
-                        {isLoadingCp ? "Fetching state..." : cpStatus?.host ? `${cpStatus.host} (DB: ${cpStatus.database})` : "Using sandbox db.json mapping"}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={checkCloudPanelConnection}
-                      className="mt-3 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition py-1 border border-indigo-100 hover:bg-indigo-50/50 rounded-xl flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <RefreshCw className="w-3 h-3" /> Pin Connection
-                    </button>
-                  </div>
-                </div>
-
-                {/* Sync Action Hub */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  
-                  {/* Sync Control */}
-                  <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-150 p-6 space-y-4 shadow-sm">
-                    <h3 className="text-xs font-bold text-gray-900 tracking-tight uppercase font-mono">MySQL / MariaDB Core Sync</h3>
-                    <p className="text-[11px] text-gray-500 leading-relaxed font-sans">
-                      Deploy and normalize schemas to corporate database hosts directly from the cockpit. Operations are encapsulated safely under absolute query parameters mapping checks to avoid analytical drift between community tenants.
-                    </p>
-
-                    {migrationRes && (
-                      <div className={`p-3 border rounded-xl text-xs flex items-center gap-2 ${
-                        migrationRes.success ? "bg-emerald-50 border-emerald-250 text-emerald-800" : "bg-rose-50 border-rose-250 text-rose-800"
-                      }`}>
-                        {migrationRes.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />}
-                        <span className="font-semibold">{migrationRes.message}</span>
-                      </div>
-                    )}
-
-                    <div className="p-4 bg-slate-50 border rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div>
-                        <h4 className="text-[11px] font-bold text-gray-900 font-display">Hydrate MySQL Core schemas</h4>
-                        <p className="text-[10px] text-gray-400 mt-0.5">Truncate CloudPanel SQL database models and synchronize from local JSON.</p>
-                      </div>
-                      
-                      <button
-                        onClick={handleCloudPanelForceHydration}
-                        disabled={isMigrating || !cpStatus?.configured}
-                        className={`py-2 px-4 rounded-xl text-xs font-bold font-display flex items-center justify-center gap-2 transition shrink-0 ${
-                          !cpStatus?.configured 
-                            ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed" 
-                            : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm cursor-pointer"
-                        }`}
-                      >
-                        {isMigrating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                        {isMigrating ? "Mapping MySQL..." : "Force MySQL Hydration"}
-                      </button>
-                    </div>
-
-                    {/* Tutorial script check */}
-                    <div className="border-t border-gray-100 pt-4 space-y-3">
-                      <h4 className="text-xs font-bold text-gray-900 font-mono">Admin command: Extract schema files</h4>
-                      <div className="bg-slate-905 bg-slate-950 text-slate-100 rounded-2xl p-4 font-mono text-[10px] overflow-x-auto shadow-sm border border-slate-950">
-                        <div className="flex justify-between items-center text-slate-400 border-b border-slate-800 pb-2 mb-2">
-                          <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-1">
-                            <Terminal className="w-3 h-3" /> Console Shell Print
-                          </span>
-                          <button 
-                            onClick={handleCopySchemaCommandFile}
-                            className="hover:text-white transition p-1 hover:bg-slate-800 rounded font-bold text-[9px] cursor-pointer flex items-center gap-1.5"
-                          >
-                            {copiedSql ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                            {copiedSql ? "Copied" : "Copy command"}
-                          </button>
-                        </div>
-                        <code>$ cat /cloudpanel/schema.sql</code>
-                        <p className="mt-3 text-slate-400 leading-relaxed text-[9.5px] font-sans">
-                          Extract table scripts directly from work files, copy full contents, open inside your CloudPanel phpMyAdmin <strong>SQL window</strong>, paste, and run setup scripts.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Schema Settings instructions */}
-                  <div className="bg-white rounded-2xl border border-gray-150 p-5 shadow-sm space-y-4">
-                    <h3 className="text-xs font-bold text-gray-900 tracking-tight uppercase font-mono flex items-center gap-1.5">
-                      <ShieldAlert className="w-4 h-4 text-indigo-600" /> SQL Environment vars
-                    </h3>
-
-                    <div className="space-y-3 text-[11px] text-gray-650 leading-relaxed font-sans">
-                      <div className="p-3 bg-indigo-50 border border-indigo-120 rounded-xl space-y-1.5">
-                        <span className="font-bold text-indigo-900 block text-[9.5px] uppercase font-mono tracking-wider">Secrets variables catalog</span>
-                        <p className="text-[10px] text-indigo-950/80 leading-normal">
-                          Set these parameters inside the AI Studio secrets gateway panel to connect:
-                        </p>
-                        <div className="space-y-1 font-mono text-[9px] text-slate-900">
-                          <span className="block bg-white/70 px-1 py-0.5 rounded border">DB_HOST=127.0.0.1</span>
-                          <span className="block bg-white/70 px-1 py-0.5 rounded border">DB_PORT=3306</span>
-                          <span className="block bg-white/70 px-1 py-0.5 rounded border">DB_USER=cloudpanel_user</span>
-                          <span className="block bg-white/70 px-1 py-0.5 rounded border">DB_PASSWORD=your_password</span>
-                          <span className="block bg-white/70 px-1 py-0.5 rounded border">DB_NAME=cloudpanel_db</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 border-t border-gray-100 pt-3">
-                        <span className="font-bold text-gray-900 text-xs block font-display">1. Escaped SQL Injection defense</span>
-                        <p className="text-[10.5px]">
-                          All statements are fully parameterized via the Node mysql client library pools to avoid accidental lateral data exposures across workspaces.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-            )}
-
           </div>
-
-        </div>
 
       </div>
 

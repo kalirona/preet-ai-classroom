@@ -137,7 +137,7 @@ export default function FeedView({
       
       {/* LEFT COLUMN: Categories (Bento Left Rail) */}
       <div className="col-span-12 md:col-span-3 space-y-4">
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
           <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 font-mono mb-3">Channels</h3>
           <div className="space-y-1">
             {categories.map((cat) => {
@@ -188,7 +188,7 @@ export default function FeedView({
       <div className="col-span-12 md:col-span-9 space-y-5">
         
         {/* Bento Top Header bar with search and publish actions */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 flex flex-col sm:flex-row items-center gap-4 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 flex flex-col sm:flex-row items-center gap-4 shadow-sm">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -213,7 +213,7 @@ export default function FeedView({
         {/* FEED POSTS LISTING */}
         <div className="space-y-4">
           {filteredPosts.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] py-16 text-center shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200/80 py-16 text-center shadow-sm">
               <MessageCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <h3 className="text-sm font-bold text-gray-800">No conversations here</h3>
               <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
@@ -222,7 +222,7 @@ export default function FeedView({
             </div>
           ) : (
             filteredPosts.map((post) => (
-              <div key={post.id} className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-sm hover:border-indigo-200 transition-all group" id={`post-item-${post.id}`}>
+              <div key={post.id} className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm hover:border-indigo-200 transition-all group" id={`post-item-${post.id}`}>
                 
                 {/* Post Metadata Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -259,7 +259,7 @@ export default function FeedView({
                         Announcement
                       </span>
                     )}
-                    {onPinPost && (userRole === UserRole.CREATOR || userRole === UserRole.SUPER_ADMIN || userRole === UserRole.MODERATOR) && (
+                    {onPinPost && (userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN || userRole === UserRole.MODERATOR) && (
                       <button
                         onClick={() => onPinPost(post.id)}
                         className="text-gray-400 hover:text-amber-500 p-1"
@@ -321,17 +321,17 @@ export default function FeedView({
       {/* AI & MANUAL POST CREATOR MODAL */}
       {showCreatorModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl border border-[#E5E7EB] w-full max-w-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200/80 w-full max-w-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-150">
             
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h3 className="text-base font-bold text-gray-900 font-display">Create Discussion Subject</h3>
                 <p className="text-xs text-gray-400">Share prompts, questions, check-ins, or engineering solutions.</p>
               </div>
               <button
                 onClick={() => setShowCreatorModal(false)}
-                className="p-1 rounded-full hover:bg-gray-150 text-gray-400 hover:text-gray-600"
+                className="p-1 rounded-full hover:bg-slate-100 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -418,7 +418,7 @@ export default function FeedView({
               </div>
 
               {/* Form Actions footer */}
-              <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3">
+              <div className="p-6 bg-slate-50/50 border-t border-gray-100 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowCreatorModal(false)}
@@ -442,10 +442,10 @@ export default function FeedView({
 
       {/* EXPANDED DISCUSSION COMMENTS DRAWER */}
       {selectedPost && (
-        <div className="fixed inset-y-0 right-0 w-full sm:max-w-xl bg-white border-l border-[#E5E7EB] shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
+        <div className="fixed inset-y-0 right-0 w-full sm:max-w-xl bg-white border-l border-slate-200/80 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
           
           {/* Header */}
-          <div className="p-6 border-b border-gray-150 flex justify-between items-start">
+          <div className="p-6 border-b border-slate-200 flex justify-between items-start">
             <div className="flex-1">
               <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] font-mono font-bold rounded uppercase">
                 Category: #{selectedPost.category}
@@ -466,10 +466,10 @@ export default function FeedView({
           </div>
 
           {/* Comment Thread Content */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
             
             {/* Main OP Post Block */}
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 text-xs leading-relaxed text-gray-700 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 text-xs leading-relaxed text-gray-700 shadow-sm">
               <div className="font-bold text-gray-900 mb-2">Original Post Discussion:</div>
               <p>{selectedPost.content}</p>
             </div>
@@ -503,16 +503,16 @@ export default function FeedView({
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-650 leading-relaxed font-sans">{comm.content}</p>
+                  <p className="text-xs text-slate-500 leading-relaxed font-sans">{comm.content}</p>
                 </div>
               ))
             )}
           </div>
 
           {/* Comment Submit Box Input */}
-          <div className="p-4 border-t border-gray-150 bg-white">
+          <div className="p-4 border-t border-slate-200 bg-white">
             <form onSubmit={handleAddComment}>
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-150 rounded-xl p-2 focus-within:ring-1 focus-within:ring-indigo-500 focus-within:bg-white">
+              <div className="flex items-center gap-2 bg-gray-50 border border-slate-200 rounded-xl p-2 focus-within:ring-1 focus-within:ring-indigo-500 focus-within:bg-white">
                 <input
                   type="text"
                   required

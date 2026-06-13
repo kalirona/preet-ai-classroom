@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { User, UserRole, Notification } from "../types";
-import { Bell, Sparkles, User as UserIcon, ShieldCheck, HelpCircle, Trophy, Globe, Layers, Menu, LogOut } from "lucide-react";
+import { Bell, HelpCircle, Trophy, ShieldCheck, Menu, LogOut, Settings, Palette, User as UserIcon, Plus, Search } from "lucide-react";
 
 interface HeaderProps {
   user: User | null;
@@ -13,6 +13,24 @@ interface HeaderProps {
   onToggleSidebar: () => void;
   onLogout?: () => void;
 }
+
+const roleLabel: Record<string, string> = {
+  super_admin: "Super Admin",
+  admin: "Admin",
+  owner: "Creator",
+  instructor: "Instructor",
+  moderator: "Moderator",
+  member: "Member",
+};
+
+const roleColor: Record<string, string> = {
+  super_admin: "bg-indigo-100 text-indigo-700",
+  admin: "bg-amber-100 text-amber-700",
+  owner: "bg-emerald-100 text-emerald-700",
+  instructor: "bg-cyan-100 text-cyan-700",
+  moderator: "bg-purple-100 text-purple-700",
+  member: "bg-slate-100 text-slate-600",
+};
 
 export default function Header({
   user,
@@ -27,85 +45,82 @@ export default function Header({
 }: HeaderProps) {
   const [showBellMenu, setShowBellMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLDivElement>(null);
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setShowProfileMenu(false);
+      }
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setShowBellMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <header className="h-16 bg-white border-b border-[#E5E7EB] flex items-center justify-between px-8 z-30 sticky top-0" id="app-header">
-      {/* Community Branding & Status */}
+    <header className="h-18 bg-white border-b border-slate-200/80 flex items-center justify-between px-6 z-30 sticky top-0" id="app-header">
+      {/* Left: Brand + Search */}
       <div className="flex items-center gap-4">
-        {/* Toggle Button for Mobile Navigation Menu */}
         <button
           onClick={onToggleSidebar}
-          className="md:hidden p-2 -ml-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-xl transition cursor-pointer"
+          className="md:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
           id="btn-mobile-sidebar-toggle"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center shadow-sm font-display text-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-slate-900 text-white font-bold flex items-center justify-center shadow-sm text-base">
             {activeCommunity?.branding?.logoUrl || "⚡"}
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight font-display tracking-tight flex items-center gap-2">
-              {activeCommunity?.name || "Skool Sandbox Workspace"}
+            <h1 className="text-base font-semibold text-slate-900 leading-tight flex items-center gap-2">
+              {activeCommunity?.name || "My Community"}
               {activeCommunity?.isPremium && (
-                <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-md border border-indigo-200 uppercase tracking-wider">
+                <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-semibold rounded-md">
                   Pro
                 </span>
               )}
             </h1>
-            <p className="text-xs text-gray-400 font-mono flex items-center gap-1">
-              <Globe className="w-3 h-3 text-emerald-500" />
+            <p className="text-xs text-slate-400">
               {activeCommunity?.subdomain || "sandbox"}.yourapp.com
             </p>
           </div>
         </div>
       </div>
 
-      {/* Center Onboarding Assistance & Community Creator Action */}
-      <div className="hidden md:flex items-center gap-3">
+      {/* Right: Actions + Notifications + Profile */}
+      <div className="flex items-center gap-3">
+        {/* Role Switcher */}
+        <select
+          value={user?.role || UserRole.MEMBER}
+          onChange={(e) => onRoleChange(e.target.value as UserRole)}
+          className="text-sm bg-slate-50 text-slate-700 border border-slate-200 rounded-lg py-1.5 px-3 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 cursor-pointer hidden sm:block"
+          id="role-picker-testing"
+        >
+          <option value={UserRole.SUPER_ADMIN}>Super Admin</option>
+          <option value={UserRole.ADMIN}>Admin</option>
+          <option value={UserRole.MODERATOR}>Moderator</option>
+          <option value={UserRole.MEMBER}>Member</option>
+        </select>
+
+        {/* New Community Button */}
         <button
           onClick={openCreateCommunity}
-          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
+          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-medium transition"
           id="btn-create-subdomain"
         >
-          <Layers className="w-3.5 h-3.5" />
-          Create Community
+          <Plus className="w-4 h-4" />
+          New Community
         </button>
 
-        <button
-          onClick={openOnboarding}
-          className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border border-amber-200"
-          id="btn-onboarding-wizard"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-          Onboarding Guide
-        </button>
-      </div>
-
-      {/* Right Controls: Notifications, Role-Switcher & Profiles */}
-      <div className="flex items-center gap-5">
-        
-        {/* Testing Role Switcher */}
-        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-1">
-          <span className="text-[10px] font-bold text-gray-400 uppercase px-2 font-mono hidden sm:inline">Role Switcher:</span>
-          <select
-            value={user?.role || UserRole.MEMBER}
-            onChange={(e) => onRoleChange(e.target.value as UserRole)}
-            className="text-xs bg-white text-gray-800 border-none rounded-lg py-1 px-2 font-semibold shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-            id="role-picker-testing"
-          >
-            <option value={UserRole.SUPER_ADMIN}>1. Super Admin</option>
-            <option value={UserRole.CREATOR}>2. Creator</option>
-            <option value={UserRole.ADMIN}>3. Admin</option>
-            <option value={UserRole.MODERATOR}>4. Moderator</option>
-            <option value={UserRole.MEMBER}>5. Member (Student)</option>
-          </select>
-        </div>
-
-        {/* Notifications Dropdown */}
-        <div className="relative">
+        {/* Notifications */}
+        <div className="relative" ref={bellRef}>
           <button
             onClick={() => {
               setShowBellMenu(!showBellMenu);
@@ -113,38 +128,38 @@ export default function Header({
                 onMarkNotificationsRead();
               }
             }}
-            className="relative p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
+            className="relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition"
             id="bell-notification-btn"
           >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center animate-bounce border-2 border-white">
-                {unreadCount}
-              </span>
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
             )}
           </button>
 
           {showBellMenu && (
-            <div className="absolute right-0 mt-2 w-80 bg-white border border-[#E5E7EB] rounded-2xl shadow-xl py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-100" id="notification-bell-menu">
-              <div className="px-4 pb-2 border-b border-gray-100 flex justify-between items-center">
-                <span className="text-sm font-bold text-gray-900 font-display">Notifications</span>
-                <span className="text-xs text-gray-400 font-mono">Real-time Feed</span>
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50" id="notification-bell-menu">
+              <div className="px-4 pb-2 border-b border-slate-100 flex justify-between items-center">
+                <span className="text-sm font-semibold text-slate-900">Notifications</span>
+                {unreadCount > 0 && (
+                  <span className="text-xs text-slate-400">{unreadCount} new</span>
+                )}
               </div>
-              <div className="max-h-64 overflow-y-auto">
+              <div className="max-h-72 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-gray-400">
-                    Your pipeline shows no current unread alerts.
+                  <div className="py-10 text-center text-sm text-slate-400">
+                    You're all caught up
                   </div>
                 ) : (
                   notifications.map((n) => (
-                    <div key={n.id} className={`p-3 border-b border-gray-50 flex gap-2 hover:bg-gray-50 transition ${!n.isRead ? "bg-indigo-50/40" : ""}`}>
-                      <div className="text-sm mt-0.5">
+                    <div key={n.id} className={`px-4 py-3 flex gap-3 hover:bg-slate-50 transition ${!n.isRead ? "bg-indigo-50/30" : ""}`}>
+                      <div className="text-base mt-0.5">
                         {n.type === "level_up" ? "🎉" : n.type === "like" ? "👍" : n.type === "comment" ? "💬" : "📣"}
                       </div>
-                      <div className="flex-1">
-                        <div className="text-xs font-bold text-gray-900 leading-tight">{n.title}</div>
-                        <div className="text-[11px] text-gray-600 mt-0.5">{n.message}</div>
-                        <div className="text-[9px] text-gray-400 font-mono mt-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-900 leading-snug">{n.title}</div>
+                        <div className="text-sm text-slate-500 mt-0.5 line-clamp-2">{n.message}</div>
+                        <div className="text-xs text-slate-400 mt-1">
                           {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
@@ -156,68 +171,95 @@ export default function Header({
           )}
         </div>
 
-        {/* User Profile Info Card */}
-        <div className="relative">
+        {/* Profile Dropdown */}
+        <div className="relative" ref={profileRef}>
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-3 p-1 rounded-full hover:bg-gray-100 transition text-left"
+            className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100 transition text-left"
             id="user-profile-toggle"
           >
-            <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-indigo-100">
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200">
               <img
                 src={user?.avatarUrl || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"}
                 alt="Avatar"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="hidden lg:block">
-              <div className="text-xs font-bold text-gray-900 leading-tight">{user?.fullName || "Lincoln Flores"}</div>
-              <div className="text-[10px] text-gray-400 font-mono capitalize">
-                Level {user?.level || 4} student
-              </div>
-            </div>
           </button>
 
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white border border-[#E5E7EB] rounded-2xl shadow-xl py-2 z-50 font-sans" id="profile-expand-popup">
-              <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
-                <span className="block text-xs font-bold text-gray-900 leading-tight">{user?.fullName}</span>
-                <span className="block text-[10px] text-gray-400 font-mono mt-0.5">{user?.email}</span>
-              </div>
-              <div className="p-2 space-y-1">
-                <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-600 font-medium">
-                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                  <span>XP Balance: {user?.xp} XP</span>
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-3xl shadow-xl z-50 overflow-hidden" id="profile-expand-popup">
+              {/* Profile Header */}
+              <div className="p-6 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-slate-200 ring-2 ring-slate-100">
+                    <img
+                      src={user?.avatarUrl || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-base font-semibold text-slate-900 truncate">{user?.fullName || "User"}</div>
+                    <div className="text-sm text-slate-400 truncate mt-0.5">{user?.email}</div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${roleColor[user?.role || "member"] || "bg-slate-100 text-slate-600"}`}>
+                        {roleLabel[user?.role || "member"] || "Member"}
+                      </span>
+                      <div className="flex items-center gap-1 text-xs text-amber-600">
+                        <Trophy className="w-3 h-3" />
+                        <span className="font-medium">{user?.xp || 0} XP</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-600 font-medium">
-                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Role: {user?.role}</span>
-                </div>
               </div>
-              <div className="border-t border-gray-100 p-1 mt-1 space-y-0.5">
+
+              {/* Quick Links */}
+              <div className="px-3 pb-3 space-y-0.5">
                 <button
                   onClick={() => {
                     openOnboarding();
                     setShowProfileMenu(false);
                   }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 rounded-lg font-medium flex items-center gap-2 cursor-pointer"
+                  className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
                 >
-                  <HelpCircle className="w-3.5 h-3.5 text-gray-400" />
-                  Profile Wizard
+                  <UserIcon className="w-4 h-4 text-slate-400" />
+                  Profile
                 </button>
-                {onLogout && (
-                  <button
-                    onClick={() => {
-                      onLogout();
-                      setShowProfileMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg font-semibold flex items-center gap-2 cursor-pointer"
-                    id="btn-logout-sandbox"
-                  >
-                    <LogOut className="w-3.5 h-3.5 text-red-500" />
-                    Sign Out
-                  </button>
-                )}
+                <button
+                  className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
+                  onClick={() => setShowProfileMenu(false)}
+                >
+                  <Settings className="w-4 h-4 text-slate-400" />
+                  Settings
+                </button>
+                <button
+                  className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
+                  onClick={() => setShowProfileMenu(false)}
+                >
+                  <Palette className="w-4 h-4 text-slate-400" />
+                  Appearance
+                </button>
+              </div>
+
+              {/* Logout */}
+              <div className="px-3 pb-3">
+                <div className="border-t border-slate-100 pt-2">
+                  {onLogout && (
+                    <button
+                      onClick={() => {
+                        onLogout();
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
+                      id="btn-logout-sandbox"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}

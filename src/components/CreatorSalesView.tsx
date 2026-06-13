@@ -73,10 +73,10 @@ export default function CreatorSalesView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-extrabold font-display text-gray-900 tracking-tight flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-indigo-650" />
+            <Receipt className="w-5 h-5 text-indigo-600" />
             Workspace Sales & Revenue Dashboard
           </h1>
-          <p className="text-xs text-gray-450 mt-0.5">Simulate invoice clearings, review subscription payouts, and analyze database transactions.</p>
+          <p className="text-xs text-slate-400 mt-0.5">Simulate invoice clearings, review subscription payouts, and analyze database transactions.</p>
         </div>
 
         <button 
@@ -97,7 +97,7 @@ export default function CreatorSalesView({
 
       {/* INVOICE FORM POPOVER */}
       {showInvoiceForm && (
-        <div className="bg-white border border-[#E5E7EB] rounded-3xl p-5 shadow-md max-w-xl animate-in slide-in-from-top-4 duration-200">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-md max-w-xl animate-in slide-in-from-top-4 duration-200">
           <div className="flex justify-between items-center border-b border-gray-100 pb-2.5 mb-4">
             <span className="text-xs font-extrabold uppercase tracking-wide text-gray-800 font-mono flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
@@ -210,10 +210,10 @@ export default function CreatorSalesView({
       </div>
 
       {/* SALES HISTORY GRID TABLE */}
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         
         {/* Table Search & Filter Bar */}
-        <div className="p-4 border-b border-gray-150 bg-gray-50/50 flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="relative w-full sm:max-w-xs">
             <span className="absolute left-3 top-2.5 text-gray-400">
               <Search className="w-4 h-4" />
@@ -236,7 +236,7 @@ export default function CreatorSalesView({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-50 text-gray-400 uppercase font-mono border-b border-gray-150 text-[10px] tracking-wider font-extrabold">
+              <tr className="bg-slate-50 text-gray-400 uppercase font-mono border-b border-slate-200 text-[10px] tracking-wider font-extrabold">
                 <th className="py-3 px-4">Transaction ID</th>
                 <th className="py-3 px-4">Customer Name / Contact</th>
                 <th className="py-3 px-4">Item Sold</th>

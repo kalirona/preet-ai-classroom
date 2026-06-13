@@ -15,42 +15,48 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
   const wsRole = user.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER;
 
   switch (tab) {
+    // Platform-only tabs - super admin already returned true above
     case "superadmin":
-    case "cloudpanel":
-      // Restricted strictly to super_admin (who has already returned true above)
+    case "workspaces":
+    case "users":
+    case "revenue":
+    case "payouts":
+    case "security":
+    case "logs":
       return false;
 
-    case "creator":
+    // Owner-only workspace tabs
+    case "monetization":
+    case "mrr":
     case "sales":
     case "subscriptions":
     case "coupons":
-    case "affiliate":
-      // Billing infrastructure and SaaS analytics are restricted to the Workspace Creator/Owner
-      return wsRole === WorkspaceRole.CREATOR;
-
     case "settings":
-      // Workspace settings (platform-level info) is restricted strictly to the Workspace Creator
-      return wsRole === WorkspaceRole.CREATOR;
+      return wsRole === WorkspaceRole.OWNER;
 
-    case "course-builder":
+    // Owner or Admin
     case "analytics":
-      // Restricted to Workspace Creator / Admin
-      return wsRole === WorkspaceRole.CREATOR || wsRole === WorkspaceRole.ADMIN;
+    case "course-builder":
+      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN;
 
-    case "reports":
+    // Owner, Admin, or Moderator
+    case "members":
     case "moderation":
     case "audit_logs_tab":
-      // Reports, Moderation queue, and Audit logs are restricted to Workspace Staff (Creator, Admin, Moderator)
-      return wsRole === WorkspaceRole.CREATOR || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.MODERATOR;
+    case "reports":
+      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.MODERATOR;
 
-    case "challenges":
+    // Instructor-only tabs
+    case "students":
+      return wsRole === WorkspaceRole.INSTRUCTOR;
+
+    // Staff tabs (any role above basic member)
     case "dashboard":
-    case "marketplace":
-      // Standard members (students) do not access dashboard or marketplace for a distraction-free learning experience
+    case "community":
       return wsRole !== WorkspaceRole.MEMBER;
 
+    // Anyone can access (feed, courses, calendar, resources, profile, chat, saved, notifications_tab, home)
     default:
-      // Standard tabs like feed, courses, etc. are always accessible
       return true;
   }
 }
@@ -60,16 +66,13 @@ import FeedView from "./components/FeedView";
 import PublicWebsite from "./components/public/PublicWebsite";
 import ClassroomView from "./components/ClassroomView";
 import CalendarView from "./components/CalendarView";
-import LeaderboardView from "./components/LeaderboardView";
 import CreatorDashboard from "./components/CreatorDashboard";
 import MembersView from "./components/MembersView";
 import ChatView from "./components/ChatView";
 import ResourcesView from "./components/ResourcesView";
-import MarketplaceView from "./components/MarketplaceView";
 import SavedPostsView from "./components/SavedPostsView";
 import SettingsView from "./components/SettingsView";
 import SuperAdminView from "./components/SuperAdminView";
-import CloudPanelDashboard from "./components/CloudPanelDashboard";
 import WorkspaceAuditLogsView from "./components/WorkspaceAuditLogsView";
 import ProfileView from "./components/ProfileView";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -79,12 +82,12 @@ import WorkspaceDashboardView from "./components/WorkspaceDashboardView";
 import CreatorSalesView from "./components/CreatorSalesView";
 import CreatorSubscriptionsView from "./components/CreatorSubscriptionsView";
 import CreatorCouponsView from "./components/CreatorCouponsView";
-import CreatorAffiliateView from "./components/CreatorAffiliateView";
-import CreatorModerationView from "./components/CreatorModerationView";
-import CreatorReportsView from "./components/CreatorReportsView";
-import ChallengesView from "./components/ChallengesView";
+import ModerationCenter from "./components/ModerationCenter";
+import ReportsView from "./components/ReportsView";
+import NotificationsView from "./components/NotificationsView";
+import { SocketProvider } from "./components/SocketProvider";
 
-import { Sparkles, HelpCircle, UserCheck, Layers, BookOpen, Clock, Lightbulb, Check, X, ShieldAlert, Laptop, ArrowRight, Bell } from "lucide-react";
+import { Sparkles, X, ArrowRight } from "lucide-react";
 
 export default function App() {
   // Global Workspace states
@@ -128,14 +131,16 @@ export default function App() {
           setCurrentUser(authData.user);
         }
 
-        // 2. Fetch communities (only if authenticated)
-        if (authData.user) {
-          const commRes = await fetch("/api/communities");
-          const commData = await commRes.json();
-          if (commData.communities && commData.communities.length > 0) {
-            setCommunities(commData.communities);
-            setActiveCommunityId(commData.communities[0].id);
-          }
+        // 2. Fetch communities
+        const commRes = await fetch("/api/communities");
+        const commData = await commRes.json();
+        if (commData.communities && commData.communities.length > 0) {
+          setCommunities(commData.communities);
+          // Pick first community matching user's workspace roles, fallback to first
+          const matchedComm = commData.communities.find((c: any) => 
+            authData.user?.workspaceRoles?.[c.id]
+          ) || commData.communities[0];
+          setActiveCommunityId(matchedComm.id);
         }
 
         // 3. Fetch user notifications (only if authenticated)
@@ -202,8 +207,8 @@ export default function App() {
       let targetTab: string | null = null;
       if (path.startsWith("/admin") || path.startsWith("/platform") || path.startsWith("/enterprise") || path.startsWith("/security") || path.startsWith("/global-analytics") || hash === "#superadmin" || hash === "#platform" || hash === "#admin") {
         targetTab = "superadmin";
-      } else if (path.startsWith("/creator") || hash === "#creator") {
-        targetTab = "creator";
+      } else if (path.startsWith("/creator") || hash === "#mrr") {
+        targetTab = "mrr";
       } else if (path.startsWith("/settings") || hash === "#settings") {
         targetTab = "settings";
       } else if (hash) {
@@ -463,6 +468,17 @@ export default function App() {
     }
   };
 
+  const handleRefreshCourses = async () => {
+    if (!activeCommunityId) return;
+    try {
+      const res = await fetch(`/api/courses?communityId=${activeCommunityId}`);
+      const data = await res.json();
+      if (data.courses) setCourses(data.courses);
+    } catch (err) {
+      console.error("Failed to refresh courses:", err);
+    }
+  };
+
   // Custom multi-tenant Community maker action
   const handleCreateCommunitySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -563,6 +579,7 @@ export default function App() {
   }
 
   return (
+    <SocketProvider currentUser={currentUser}>
     <div className="flex h-screen bg-[#F8F9FB] text-[#1A1A1A] font-sans overflow-hidden" id="workspace-viewport">
       
       {/* Dynamic Left Admin Sidebar */}
@@ -603,7 +620,7 @@ export default function App() {
 
         {/* Tab Route Content Mount */}
         <main className="flex-1 overflow-hidden">
-          {activeTab === "dashboard" && (
+          {activeTab === "dashboard" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN && (
             <ErrorBoundary>
               <WorkspaceDashboardView
                 currentUser={currentUser}
@@ -615,7 +632,8 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "feed" && (
+          {/* Feed, Home, Community all render FeedView */}
+          {(activeTab === "home" || activeTab === "feed" || activeTab === "community") && (
             <ErrorBoundary>
               <FeedView
                 userRole={currentUser?.role || UserRole.MEMBER}
@@ -635,7 +653,7 @@ export default function App() {
                 activeCommunity={activeCommunity}
                 courses={courses}
                 onAddCourse={handleAddCourse}
-                onRefreshCourses={() => {}}
+                onRefreshCourses={handleRefreshCourses}
               />
             </ErrorBoundary>
           )}
@@ -647,7 +665,7 @@ export default function App() {
                 activeCommunity={activeCommunity}
                 courses={courses}
                 onAddCourse={handleAddCourse}
-                onRefreshCourses={() => {}}
+                onRefreshCourses={handleRefreshCourses}
                 isCourseBuilderOnly={true}
               />
             </ErrorBoundary>
@@ -660,7 +678,7 @@ export default function App() {
                 activeCommunity={activeCommunity}
                 courses={courses}
                 onAddCourse={handleAddCourse}
-                onRefreshCourses={() => {}}
+                onRefreshCourses={handleRefreshCourses}
                 isAnalyticsOnly={true}
               />
             </ErrorBoundary>
@@ -687,19 +705,11 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "leaderboard" && (
+          {activeTab === "students" && (
             <ErrorBoundary>
-              <LeaderboardView
+              <MembersView
                 currentUser={currentUser}
-              />
-            </ErrorBoundary>
-          )}
-
-          {activeTab === "challenges" && (
-            <ErrorBoundary>
-              <ChallengesView
-                currentUser={currentUser}
-                activeCommunity={activeCommunity}
+                activeCommunityId={activeCommunityId}
               />
             </ErrorBoundary>
           )}
@@ -708,6 +718,7 @@ export default function App() {
             <ErrorBoundary>
               <ChatView
                 currentUser={currentUser}
+                activeCommunityId={activeCommunityId}
               />
             </ErrorBoundary>
           )}
@@ -718,77 +729,26 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "marketplace" && (
+          {activeTab === "monetization" && canAccessTab("monetization", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
-              <MarketplaceView
-                currentUser={currentUser}
-                communities={communities}
-                onJoinCommunityLocal={(id, amount) => {
-                  if (!currentUser) return;
-                  const updatedCommunities = [...currentUser.joinedCommunities, id];
-                  setCurrentUser({ ...currentUser, joinedCommunities: updatedCommunities });
-                  setCommunities(communities.map(c => c.id === id ? { ...c, membersCount: c.membersCount + 1 } : c));
-                  const transacNotif: Notification = {
-                    id: `n-transact-${Date.now()}`,
-                    userId: currentUser.id,
-                    title: `Multi-tenant Seat Purchased! 💳`,
-                    message: `Assigned secure database index rows + subscription access for space ID ${id}.`,
-                    type: "payment",
-                    isRead: false,
-                    createdAt: new Date().toISOString()
-                  };
-                  setNotifications([transacNotif, ...notifications]);
-                }}
+              <CreatorDashboard
+                activeCommunity={activeCommunity}
+                onUpdateCommunity={handleUpdateActiveCommunity}
               />
             </ErrorBoundary>
-          )}
+          ) : activeTab === "monetization" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Monetization is restricted to the Workspace Owner.
+            </div>
+          ) : null}
 
           {activeTab === "notifications_tab" && (
-            <div className="h-full bg-[#F8F9FB] overflow-y-auto p-4 sm:p-6" id="notifications-expanded-inbox">
-              <div className="max-w-3xl mx-auto space-y-6">
-                <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-sm flex items-center justify-between flex-col sm:flex-row gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-750 flex items-center justify-center font-bold">
-                      <Bell className="w-5 h-5 text-indigo-650" />
-                    </div>
-                    <div>
-                      <h2 className="text-base font-bold text-gray-900 font-display">System Notifications Center</h2>
-                      <p className="text-xs text-gray-450 mt-0.5">Keep track of community upvotes, replies, level ups, and simulated transactions.</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleMarkNotificationsRead}
-                    className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
-                  >
-                    Clear All Alerts
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {notifications.length === 0 ? (
-                    <div className="bg-white rounded-2xl border border-[#E5E7EB] p-12 text-center text-xs text-gray-400 shadow-sm">
-                      You are all caught up! No recent activity logs discovered.
-                    </div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div key={n.id} className="bg-white rounded-xl border border-[#E5E7EB] p-4 flex gap-3.5 items-start shadow-sm justify-between transition hover:border-gray-300">
-                        <div className="flex gap-3">
-                          <span className="text-lg mt-0.5">{n.type === "level_up" ? "🎉" : n.type === "like" ? "👍" : n.type === "comment" ? "💬" : "💳"}</span>
-                          <div>
-                            <span className="font-bold text-gray-900 text-xs block">{n.title}</span>
-                            <p className="text-xs text-gray-650 mt-0.5">{n.message}</p>
-                            <span className="text-[10px] text-gray-400 font-mono mt-1.5 block">Dispatched {new Date(n.createdAt).toLocaleTimeString()}</span>
-                          </div>
-                        </div>
-                        {!n.isRead && (
-                          <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full mt-1.5 shrink-0"></span>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
+            <ErrorBoundary>
+              <NotificationsView
+                notifications={notifications}
+                onMarkAllRead={handleMarkNotificationsRead}
+              />
+            </ErrorBoundary>
           )}
 
           {activeTab === "saved" && (
@@ -817,8 +777,8 @@ export default function App() {
               />
             </ErrorBoundary>
           ) : activeTab === "settings" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6" id="unauthorized-settings-blocked">
-              🛑 403 Forbidden - Workspace Settings are restricted to Owner and Admins.
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Workspace Settings are restricted to the Owner.
             </div>
           ) : null}
 
@@ -836,14 +796,14 @@ export default function App() {
                     .then(data => {
                       if (data.auditLogs) setWorkspaceLogs(data.auditLogs);
                     })
-                    .catch(err => console.error("Error fetching workspace secure timeline:", err))
+                    .catch(err => console.error("Error fetching workspace audit logs:", err))
                     .finally(() => setLoadingWsLogs(false));
                 }}
               />
             </ErrorBoundary>
           ) : activeTab === "audit_logs_tab" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6" id="unauthorized-audit-blocked">
-              🛑 403 Forbidden - Workspace Analytics and active Audit Trails are restricted.
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Audit Logs are restricted to Owner, Admin, or Moderator.
             </div>
           ) : null}
 
@@ -855,8 +815,8 @@ export default function App() {
               />
             </ErrorBoundary>
           ) : activeTab === "sales" ? (
-            <div className="p-8 text-center text-red-650 font-bold bg-red-50/55 border border-red-200 rounded-3xl m-6" id="unauthorized-sales-blocked">
-              🛑 403 Forbidden - Workspace Sales Logs are restricted strictly to the Workspace Creator.
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Sales are restricted to the Owner.
             </div>
           ) : null}
 
@@ -868,8 +828,8 @@ export default function App() {
               />
             </ErrorBoundary>
           ) : activeTab === "subscriptions" ? (
-            <div className="p-8 text-center text-red-650 font-bold bg-[#FAF1F2] border border-red-200 rounded-3xl m-6" id="unauthorized-subscriptions-blocked">
-              🛑 403 Forbidden - Workspace Subscription Schedules are restricted strictly to the Workspace Creator.
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Subscriptions are restricted to the Owner.
             </div>
           ) : null}
 
@@ -878,76 +838,75 @@ export default function App() {
               <CreatorCouponsView />
             </ErrorBoundary>
           ) : activeTab === "coupons" ? (
-            <div className="p-8 text-center text-red-650 font-bold bg-red-50/55 border border-red-200 rounded-3xl m-6" id="unauthorized-coupons-blocked">
-              🛑 403 Forbidden - Workspace Promotional Coupons are restricted strictly to the Workspace Creator.
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Coupons are restricted to the Owner.
             </div>
           ) : null}
 
-          {activeTab === "affiliate" && canAccessTab("affiliate", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <CreatorAffiliateView />
-            </ErrorBoundary>
-          ) : activeTab === "affiliate" ? (
-            <div className="p-8 text-center text-red-650 font-bold bg-red-50/55 border border-red-200 rounded-3xl m-6" id="unauthorized-affiliate-blocked">
-              🛑 403 Forbidden - Affiliate Commission Programs are restricted strictly to the Workspace Creator.
-            </div>
-          ) : null}
-
-          {activeTab === "reports" && canAccessTab("reports", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <CreatorReportsView />
-            </ErrorBoundary>
-          ) : activeTab === "reports" ? (
-            <div className="p-8 text-center text-red-650 font-bold bg-red-50/55 border border-red-200 rounded-3xl m-6" id="unauthorized-reports-blocked">
-              🛑 403 Forbidden - Security Reports of the workspace are restricted to Workspace Staff.
-            </div>
-          ) : null}
-
-          {activeTab === "moderation" && canAccessTab("moderation", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <CreatorModerationView />
-            </ErrorBoundary>
-          ) : activeTab === "moderation" ? (
-            <div className="p-8 text-center text-red-650 font-bold bg-red-50/55 border border-red-200 rounded-3xl m-6" id="unauthorized-moderation-blocked">
-              🛑 403 Forbidden - Moderation privileges are restricted to Workspace Staff.
-            </div>
-          ) : null}
-
-          {activeTab === "creator" && canAccessTab("creator", currentUser, activeCommunityId) ? (
+          {activeTab === "mrr" && canAccessTab("mrr", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <CreatorDashboard
                 activeCommunity={activeCommunity}
                 onUpdateCommunity={handleUpdateActiveCommunity}
               />
             </ErrorBoundary>
-          ) : activeTab === "creator" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6" id="unauthorized-creator-blocked">
-              🛑 403 Forbidden - Workspace Creator MRR Dashboard is restricted.
+          ) : activeTab === "mrr" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - MRR Dashboard is restricted to the Owner.
             </div>
           ) : null}
 
-          {activeTab === "superadmin" && canAccessTab("superadmin", currentUser, activeCommunityId) ? (
+          {/* Super Admin routing: all super admin tabs render SuperAdminView */}
+          {(() => {
+            const superAdminTabs: Record<string, string> = {
+              superadmin: "dashboard",
+              workspaces: "workspaces",
+              users: "users",
+              revenue: "revenue",
+              payouts: "payouts",
+              analytics: "analytics",
+              security: "security",
+              logs: "logs",
+            };
+            const section = superAdminTabs[activeTab];
+            if (section && canAccessTab("superadmin", currentUser, activeCommunityId)) {
+              return (
+                <ErrorBoundary>
+                  <SuperAdminView
+                    currentUser={currentUser}
+                    communities={communities}
+                    activeSection={section}
+                  />
+                </ErrorBoundary>
+              );
+            }
+            if (section) {
+              return (
+                <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+                  403 Forbidden - Platform Admin is restricted.
+                </div>
+              );
+            }
+            return null;
+          })()}
+
+          {activeTab === "reports" && canAccessTab("reports", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
-              <SuperAdminView
-                currentUser={currentUser}
-                communities={communities}
-              />
+              <ReportsView currentUser={currentUser} activeCommunityId={activeCommunityId} />
             </ErrorBoundary>
-          ) : activeTab === "superadmin" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6" id="unauthorized-superadmin-blocked">
-              🛑 403 Forbidden - Platform Security Suite / Admin Gateway is restricted.
+          ) : activeTab === "reports" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Reports are restricted to Owner, Admin, or Moderator.
             </div>
           ) : null}
 
-          {activeTab === "cloudpanel" && canAccessTab("cloudpanel", currentUser, activeCommunityId) ? (
+          {activeTab === "moderation" && canAccessTab("moderation", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
-              <CloudPanelDashboard
-                currentUser={currentUser}
-              />
+              <ModerationCenter currentUser={currentUser} activeCommunityId={activeCommunityId} />
             </ErrorBoundary>
-          ) : activeTab === "cloudpanel" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6" id="unauthorized-cloudpanel-blocked">
-              🛑 403 Forbidden - CloudPanel Database Administration Suite is restricted.
+          ) : activeTab === "moderation" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Moderation is restricted to Owner, Admin, or Moderator.
             </div>
           ) : null}
         </main>
@@ -960,7 +919,7 @@ export default function App() {
           <div className="bg-white rounded-3xl border border-gray-200 w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             
             {/* Modal branding */}
-            <div className="p-6 bg-gradient-to-r from-indigo-900 to-purple-950 text-white relative">
+            <div className="p-6 bg-slate-900 text-white relative">
               <button
                 onClick={() => setShowOnboarding(false)}
                 className="absolute top-4 right-4 p-1 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer"
@@ -968,66 +927,66 @@ export default function App() {
                 <X className="w-5 h-5" />
               </button>
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-500 animate-bounce" />
-                <span className="text-[9px] uppercase font-mono tracking-widest bg-white/20 px-2 py-0.5 rounded-full">
-                  Sandbox Guide
+                <Sparkles className="w-5 h-5 text-amber-400" />
+                <span className="text-sm font-medium text-slate-300">
+                  Getting Started
                 </span>
               </div>
-              <h3 className="text-base font-bold font-display mt-2 leading-tight">
-                Skool Community Sandbox Accelerator
+              <h3 className="text-xl font-semibold mt-2 leading-tight">
+                Welcome to Skool
               </h3>
-              <p className="text-[11px] text-indigo-200 mt-1">
-                A fully responsive production architecture configured to launch premium multi-tenant subdomains.
+              <p className="text-sm text-slate-400 mt-1">
+                Everything you need to build and run your community.
               </p>
             </div>
 
             {/* Stepper details */}
-            <div className="p-6 space-y-4 max-h-[380px] overflow-y-auto">
+            <div className="p-6 space-y-5 max-h-[380px] overflow-y-auto">
               
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-100 mt-0.5">
+                <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm flex items-center justify-center shrink-0">
                   1
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-800">Explore Multi-Tenant Communities</h4>
-                  <p className="text-[11px] text-gray-500 mt-0.5 font-sans leading-relaxed">
-                    Toggle different spaces from the sidebar left-rail or click <strong>"Create Community"</strong> to spin up custom subdomains with special color schemes and logos.
+                  <h4 className="text-base font-medium text-slate-900">Create your community</h4>
+                  <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+                    Click <strong>"+ New Community"</strong> in the header to set up your own space with custom colors and branding.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-100 mt-0.5">
+                <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm flex items-center justify-center shrink-0">
                   2
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-800 font-sans">Experience both Student & Creator Roles</h4>
-                  <p className="text-[11px] text-gray-500 mt-0.5 font-sans leading-relaxed">
-                    Use our **Role Picker** in the top navigation bar to instant-switch between <strong>Creator</strong> and <strong>Student</strong> views. This reveals creator-exclusive MRR charts, event schedules, and custom pricing plans!
+                  <h4 className="text-base font-medium text-slate-900">Try different roles</h4>
+                  <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+                    Use the role switcher in the header to see how each role experiences the platform — from creator tools to student view.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-100 mt-0.5">
+                <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm flex items-center justify-center shrink-0">
                   3
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-800 font-sans">Deep Gemini AI Integration</h4>
-                  <p className="text-[11px] text-gray-500 mt-0.5 font-sans leading-relaxed">
-                    Harness AI inside multiple loops: write complex posts using <strong>AI Post Helpers</strong> or curate detailed multi-module syllabuses instantly under the <strong>Classroom Tab</strong>!
+                  <h4 className="text-base font-medium text-slate-900">AI-powered content</h4>
+                  <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+                    Use the AI assistant to draft posts, build course outlines, and generate lesson plans from the Classroom tab.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-100 mt-0.5">
+                <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm flex items-center justify-center shrink-0">
                   4
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-800 font-sans">Simulate Premium Stripe Subscriptions</h4>
-                  <p className="text-[11px] text-gray-500 mt-0.5 font-sans leading-relaxed">
-                    Under the <strong>"Creator MRR Stats"</strong> tab, click <strong>"Simulate Paid Join"</strong> to emulate premium Stripe checkouts. This boosts owner MRR and adds dynamic coordinate points to sales diagrams.
+                  <h4 className="text-base font-medium text-slate-900">Track revenue</h4>
+                  <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+                    In the Creator Hub, you can simulate paid memberships and see how revenue tracking works in real time.
                   </p>
                 </div>
               </div>
@@ -1035,14 +994,14 @@ export default function App() {
             </div>
 
             {/* Action buttons */}
-            <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 rounded-b-3xl">
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setShowOnboarding(false)}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold font-sans transition cursor-pointer shadow-sm flex items-center gap-1"
+                className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium transition cursor-pointer flex items-center gap-2"
                 id="btn-close-onboarding-banner"
               >
-                Launch Sandbox Portal
+                Got it
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -1056,10 +1015,10 @@ export default function App() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl border border-gray-200 w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
             
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono">Multi-Tenant Setup</h3>
-                <h2 className="text-base font-bold text-gray-900 font-display mt-1">Deploy Custom Subdomain</h2>
+                <h2 className="text-lg font-semibold text-slate-900">New Community</h2>
+                <p className="text-sm text-slate-400 mt-0.5">Set up a space for your community</p>
               </div>
               <button
                 onClick={() => setShowCreateCommunity(false)}
@@ -1073,94 +1032,94 @@ export default function App() {
               <div className="p-6 space-y-4">
                 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Community Space Name</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Community Name</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Next.js Mastermind Lab"
+                    placeholder="e.g. React Mastery"
                     value={newCommName}
                     onChange={(e) => setNewCommName(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-950 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Subdomain Prefix</label>
-                    <div className="flex items-center border border-gray-200 rounded-xl px-3 bg-gray-50">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">URL Handle</label>
+                    <div className="flex items-center border border-slate-200 rounded-xl px-3 bg-slate-50">
                       <input
                         type="text"
                         required
-                        placeholder="nextjs-lab"
+                        placeholder="react-mastery"
                         value={newCommSub}
                         onChange={(e) => setNewCommSub(e.target.value)}
-                        className="w-full bg-transparent border-none py-2 text-xs text-gray-950 focus:outline-none font-mono"
+                        className="w-full bg-transparent border-none py-2.5 text-sm text-slate-900 focus:outline-none"
                       />
-                      <span className="text-[10px] text-gray-400 font-mono">.skool</span>
+                      <span className="text-sm text-slate-400">.skool</span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Branding Icon Symbol</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Icon</label>
                     <select
                       value={newCommLogo}
                       onChange={(e) => setNewCommLogo(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-xs text-gray-950 focus:outline-none"
+                      className="w-full border border-slate-200 rounded-xl px-2.5 py-2.5 text-sm text-slate-900 focus:outline-none"
                     >
-                      <option value="🚀">🚀 Spaceship Rocket</option>
-                      <option value="⚛️">⚛️ Quantum React Model</option>
-                      <option value="🧘">🧘 Zenith Mindfulness</option>
-                      <option value="💡">💡 Intelligent Concept</option>
-                      <option value="🎓">🎓 Educator Cap</option>
+                      <option value="🚀">🚀 Rocket</option>
+                      <option value="⚛️">⚛️ React</option>
+                      <option value="🧘">🧘 Zen</option>
+                      <option value="💡">💡 Ideas</option>
+                      <option value="🎓">🎓 Education</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Monthly Subscription Support ($)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Monthly Price ($)</label>
                     <input
                       type="number"
                       required
                       min={0}
                       value={newCommPrice}
                       onChange={(e) => setNewCommPrice(Number(e.target.value))}
-                      className="w-full border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-gray-950 focus:outline-none"
+                      className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Course categories (comma separated)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Topics</label>
                     <input
                       type="text"
-                      placeholder="React, Nextjs, AI, DB"
+                      placeholder="React, Next.js, AI"
                       value={newCommCategoryInput}
                       onChange={(e) => setNewCommCategoryInput(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-gray-950 focus:outline-none"
+                      className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300"
                     />
                   </div>
                 </div>
 
-                <p className="text-[10px] text-gray-400 font-mono leading-relaxed bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                  ⚡ Adding a premium price automatically enables dynamic checkout simulation charges! Students must pay this before access to classroom resources lockouts.
+                <p className="text-sm text-slate-400 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  Setting a price enables paid memberships. Members will need to subscribe before accessing your content.
                 </p>
 
               </div>
 
-              <div className="p-6 bg-gray-50/50 border-t border-[#E5E7EB] flex justify-end gap-3 rounded-b-3xl">
+              <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowCreateCommunity(false)}
-                  className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-150"
+                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isCreatingComm}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-sm disabled:opacity-50"
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                   id="final-deploy-comm-btn"
                 >
-                  {isCreatingComm ? "Installing modules..." : "Deploy Community Domain"}
+                  {isCreatingComm ? "Creating..." : "Create Community"}
                 </button>
               </div>
 
@@ -1171,5 +1130,6 @@ export default function App() {
       )}
 
     </div>
+    </SocketProvider>
   );
 }

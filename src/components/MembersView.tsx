@@ -24,11 +24,11 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
 
   const pfRole = currentUser?.platformRole || PlatformRole.USER;
   const wsRole = currentUser?.platformRole === PlatformRole.SUPER_ADMIN 
-    ? WorkspaceRole.CREATOR 
+    ? WorkspaceRole.OWNER 
     : (currentUser?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER);
 
-  const isCreator = wsRole === WorkspaceRole.CREATOR;
-  const isAdmin = wsRole === WorkspaceRole.ADMIN || isCreator;
+  const isOwner = wsRole === WorkspaceRole.OWNER;
+  const isAdmin = wsRole === WorkspaceRole.ADMIN || isOwner;
   const isModerator = wsRole === WorkspaceRole.MODERATOR || isAdmin;
 
   async function loadWorkspaceMembers() {
@@ -155,7 +155,7 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
       <div className="max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
         
         {/* Top Header Branding Block */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-sm flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold shrink-0">
               {isModerator ? <Shield className="w-5 h-5" /> : <Users className="w-5 h-5" />}
@@ -164,7 +164,7 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
               <h2 className="text-base font-bold text-gray-900 font-display">
                 {isModerator ? "Workspace Trust & Security Center" : "Workspace Members"}
               </h2>
-              <p className="text-[11px] text-gray-500 mt-0.5">
+              <p className="text-sm text-slate-500 mt-0.5">
                 {isModerator 
                   ? "Manage community team assignments, audit active participants, and configure fine-grained moderation safety locks."
                   : "Browse and discover other participants learning alongside you in this workspace."}
@@ -206,7 +206,7 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
               placeholder="Search participants by credentials, name, email or index identity..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-white border border-[#E5E7EB] rounded-xl pl-10 pr-4 py-3 text-xs text-gray-950 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-650"
+              className="w-full bg-white border border-slate-200/80 rounded-xl pl-10 pr-4 py-3 text-xs text-gray-950 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-650"
             />
           </div>
           <div className="md:col-span-4 relative">
@@ -214,11 +214,12 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="w-full bg-white border border-[#E5E7EB] rounded-xl pl-10 pr-4 py-3 text-xs text-gray-950 focus:outline-none focus:ring-1 focus:ring-indigo-650 cursor-pointer"
+              className="w-full bg-white border border-slate-200/80 rounded-xl pl-10 pr-4 py-3 text-xs text-gray-950 focus:outline-none focus:ring-1 focus:ring-indigo-650 cursor-pointer"
             >
               <option value="All">All Tenant Roles</option>
-              <option value={WorkspaceRole.CREATOR}>Creator</option>
+              <option value={WorkspaceRole.OWNER}>Owner</option>
               <option value={WorkspaceRole.ADMIN}>Administrator</option>
+              <option value={WorkspaceRole.INSTRUCTOR}>Instructor</option>
               <option value={WorkspaceRole.MODERATOR}>Moderator</option>
               <option value={WorkspaceRole.MEMBER}>Member</option>
             </select>
@@ -226,18 +227,18 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
         </div>
 
         {/* Registry Table Card wrapper */}
-        <div className="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
           {isLoading ? (
-            <div className="p-12 text-center text-xs text-gray-400 font-mono flex items-center justify-center gap-2">
+            <div className="p-12 text-center text-sm text-slate-400 flex items-center justify-center gap-2">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Load workspace participant profiles...
             </div>
           ) : filteredMembers.length === 0 ? (
-            <div className="p-12 text-center text-xs text-gray-400 font-mono">No active community accounts conform to filters.</div>
+            <div className="p-12 text-center text-sm text-slate-400">No active community accounts conform to filters.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/60 border-b border-[#E5E7EB] text-[10px] font-bold text-gray-400 uppercase tracking-widest font-mono">
+                  <tr className="bg-slate-50/60 border-b border-slate-200/80 text-xs font-medium text-slate-500">
                     <th className="py-4 px-5">Participant Profile Card</th>
                     <th className="py-4 px-5">Tenant Workspace Role</th>
                     {isModerator && (
@@ -262,39 +263,40 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
                           />
                           <div>
                             <span className="font-bold text-gray-900 block">{member.fullName}</span>
-                            <span className="text-[10px] text-gray-400 font-mono block">
+                            <span className="text-sm text-slate-400 block">
                               {member.userId === currentUser?.id || isModerator ? member.email : "Email Hidden"}
                             </span>
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-5">
-                        {isAdmin && member.userId !== currentUser?.id && member.role !== WorkspaceRole.CREATOR ? (
-                          <div className="flex items-center gap-1.5">
-                            <select
-                              value={member.role}
-                              onChange={(e) => handleUpdateRole(member.userId, e.target.value)}
-                              className="bg-white border border-[#E5E7EB] rounded-lg px-2 py-1 text-[11px] text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer font-semibold"
-                            >
-                              <option value="creator">Creator</option>
-                              <option value="admin">Admin</option>
-                              <option value="moderator">Moderator</option>
-                              <option value="member">Member</option>
+                       <td className="py-4 px-5">
+                         {isAdmin && member.userId !== currentUser?.id && member.role !== WorkspaceRole.OWNER ? (
+                           <div className="flex items-center gap-1.5">
+                             <select
+                               value={member.role}
+                               onChange={(e) => handleUpdateRole(member.userId, e.target.value)}
+                                className="bg-white border border-slate-200/80 rounded-lg px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer font-semibold"
+                             >
+                                <option value="owner">Owner</option>
+                               <option value="admin">Admin</option>
+                               <option value="instructor">Instructor</option>
+                               <option value="moderator">Moderator</option>
+                               <option value="member">Member</option>
                             </select>
                           </div>
                         ) : (
-                          <span className={`px-2.5 py-0.5 text-[9px] font-bold font-mono uppercase bg-indigo-50 border border-indigo-150 text-indigo-700 rounded`}>
+                          <span className={`px-2.5 py-0.5 text-xs font-medium bg-indigo-50 border border-indigo-150 text-indigo-700 rounded`}>
                             {member.role}
                           </span>
                         )}
                       </td>
                       {isModerator && (
                         <>
-                          <td className="py-4 px-5 font-mono text-gray-400 text-[10.5px]">
+                          <td className="py-4 px-5 text-sm text-slate-400">
                             {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : "Pre-seeded"}
                           </td>
                           <td className="py-4 px-5">
-                            <span className={`px-2 py-0.5 text-[9px] font-bold font-mono uppercase rounded ${
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded ${
                               member.status === "banned" 
                                 ? "bg-rose-50 text-rose-700 border border-rose-200"
                                 : member.status === "muted"
@@ -306,12 +308,12 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
                           </td>
                           <td className="py-4 px-5 text-right">
                             <div className="flex justify-end gap-1.5">
-                              {member.userId !== currentUser?.id && member.role !== WorkspaceRole.CREATOR && (
+                              {member.userId !== currentUser?.id && member.role !== WorkspaceRole.OWNER && (
                                 <div className="flex gap-1.5">
                                   {member.status !== "muted" && member.status !== "banned" && (
                                     <button
                                       onClick={() => handleUpdateStatus(member.userId, "muted")}
-                                      className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-mono text-[9.5px] uppercase font-bold tracking-wider rounded-lg transition"
+                                      className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium rounded-lg transition"
                                       title="Mute of chat communication"
                                     >
                                       Mute
@@ -320,7 +322,7 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
                                   {member.status !== "banned" && (
                                     <button
                                       onClick={() => handleUpdateStatus(member.userId, "banned")}
-                                      className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 font-mono text-[9.5px] uppercase font-bold tracking-wider rounded-lg transition"
+                                      className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg transition"
                                       title="Ban user account entirely"
                                     >
                                       Ban
@@ -354,10 +356,10 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
       {/* Invite Member Drawer Overlays */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl border border-gray-200 w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-slate-50/50">
               <div>
-                <span className="text-[9px] uppercase font-mono text-indigo-650 font-black tracking-widest block bg-indigo-50 px-2 py-0.5 rounded w-max">Onboarding System</span>
+                <span className="text-[9px] uppercase font-mono text-indigo-600 font-black tracking-widest block bg-indigo-50 px-2 py-0.5 rounded w-max">Onboarding System</span>
                 <h2 className="text-base font-bold text-gray-900 font-display mt-1.5">Draft Workspace Invitation</h2>
               </div>
               <button
@@ -396,8 +398,9 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
                         onChange={(e) => setInviteRole(e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-xs text-gray-950 focus:outline-none cursor-pointer font-semibold"
                       >
-                        <option value={WorkspaceRole.MEMBER}>Member (Standard Student)</option>
-                        <option value={WorkspaceRole.MODERATOR}>Moderator (Moderate Comments & Comm)</option>
+                        <option value={WorkspaceRole.MEMBER}>Member (Student)</option>
+                        <option value={WorkspaceRole.MODERATOR}>Moderator (Moderation & Reports)</option>
+                        <option value={WorkspaceRole.INSTRUCTOR}>Instructor (Teaching & Courses)</option>
                         <option value={WorkspaceRole.ADMIN}>Admin (Manage Team & Courses)</option>
                       </select>
                     </div>
@@ -410,7 +413,7 @@ export default function MembersView({ currentUser, activeCommunityId }: MembersV
               </div>
 
               {!inviteSuccess && (
-                <div className="p-6 bg-gray-50/50 border-t border-[#E5E7EB] flex justify-end gap-3 rounded-b-3xl">
+                <div className="p-6 bg-slate-50/50 border-t border-slate-200/80 flex justify-end gap-3 rounded-b-3xl">
                   <button
                     type="button"
                     onClick={() => setShowInviteModal(false)}

@@ -5,7 +5,6 @@
 
 export enum UserRole {
   SUPER_ADMIN = "super_admin",
-  CREATOR = "creator",
   ADMIN = "admin",
   MODERATOR = "moderator",
   MEMBER = "member"
@@ -17,8 +16,9 @@ export enum PlatformRole {
 }
 
 export enum WorkspaceRole {
-  CREATOR = "creator",
+  OWNER = "owner",
   ADMIN = "admin",
+  INSTRUCTOR = "instructor",
   MODERATOR = "moderator",
   MEMBER = "member"
 }
@@ -26,35 +26,33 @@ export enum WorkspaceRole {
 export enum PlatformPermission {
   ACCESS_PLATFORM_ADMIN = "access_platform_admin",
   VIEW_GLOBAL_ANALYTICS = "view_global_analytics",
-  VIEW_CREATOR_MRR = "view_creator_mrr",
+  VIEW_OWNER_MRR = "view_owner_mrr",
   ENTERPRISE_SECURITY = "enterprise_security",
   MANAGE_USERS = "manage_users",
   BILLING_INFRASTRUCTURE = "billing_infrastructure"
 }
 
 export enum WorkspacePermission {
-  // Creator / Admin level
   MANAGE_WORKSPACE = "manage_workspace",
   MANAGE_COURSES = "manage_courses",
+  MANAGE_LESSONS = "manage_lessons",
   MANAGE_MEMBERS = "manage_members",
   ACCESS_BILLING = "access_billing",
   VIEW_ANALYTICS = "view_analytics",
   MANAGE_RESOURCES = "manage_resources",
-  
-  // Moderate
+  GRADE_ASSIGNMENTS = "grade_assignments",
   MODERATE_COMMUNITY = "moderate_community",
   MODERATE_CHAT = "moderate_chat",
   REMOVE_POSTS = "remove_posts",
   MODERATE_COMMENTS = "moderate_comments",
   MUTE_BAN_USERS = "mute_ban_users",
-
-  // Member level
+  VIEW_REPORTS = "view_reports",
+  MODERATE_CONTENT = "moderate_content",
   VIEW_FEED = "view_feed",
   JOIN_CLASSROOM = "join_classroom",
   VIEW_CALENDAR = "view_calendar",
   CHAT_PARTICIPATION = "chat_participation",
   VIEW_RESOURCES = "view_resources",
-  VIEW_MARKETPLACE = "view_marketplace",
   VIEW_PROFILE = "view_profile"
 }
 
@@ -62,7 +60,7 @@ export const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[
   [PlatformRole.SUPER_ADMIN]: [
     PlatformPermission.ACCESS_PLATFORM_ADMIN,
     PlatformPermission.VIEW_GLOBAL_ANALYTICS,
-    PlatformPermission.VIEW_CREATOR_MRR,
+    PlatformPermission.VIEW_OWNER_MRR,
     PlatformPermission.ENTERPRISE_SECURITY,
     PlatformPermission.MANAGE_USERS,
     PlatformPermission.BILLING_INFRASTRUCTURE
@@ -71,41 +69,59 @@ export const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[
 };
 
 export const WORKSPACE_ROLE_PERMISSIONS: Record<WorkspaceRole, WorkspacePermission[]> = {
-  [WorkspaceRole.CREATOR]: [
+  [WorkspaceRole.OWNER]: [
     WorkspacePermission.MANAGE_WORKSPACE,
     WorkspacePermission.MANAGE_COURSES,
+    WorkspacePermission.MANAGE_LESSONS,
     WorkspacePermission.MANAGE_MEMBERS,
     WorkspacePermission.ACCESS_BILLING,
     WorkspacePermission.VIEW_ANALYTICS,
     WorkspacePermission.MANAGE_RESOURCES,
-    WorkspacePermission.VIEW_FEED,
-    WorkspacePermission.JOIN_CLASSROOM,
-    WorkspacePermission.VIEW_CALENDAR,
-    WorkspacePermission.CHAT_PARTICIPATION,
-    WorkspacePermission.VIEW_RESOURCES,
-    WorkspacePermission.VIEW_MARKETPLACE,
-    WorkspacePermission.VIEW_PROFILE,
+    WorkspacePermission.GRADE_ASSIGNMENTS,
     WorkspacePermission.MODERATE_COMMUNITY,
     WorkspacePermission.MODERATE_CHAT,
     WorkspacePermission.REMOVE_POSTS,
     WorkspacePermission.MODERATE_COMMENTS,
-    WorkspacePermission.MUTE_BAN_USERS
-  ],
-  [WorkspaceRole.ADMIN]: [
-    WorkspacePermission.MANAGE_MEMBERS,
-    WorkspacePermission.MANAGE_COURSES,
-    WorkspacePermission.MANAGE_RESOURCES,
+    WorkspacePermission.MUTE_BAN_USERS,
+    WorkspacePermission.VIEW_REPORTS,
+    WorkspacePermission.MODERATE_CONTENT,
     WorkspacePermission.VIEW_FEED,
     WorkspacePermission.JOIN_CLASSROOM,
     WorkspacePermission.VIEW_CALENDAR,
     WorkspacePermission.CHAT_PARTICIPATION,
     WorkspacePermission.VIEW_RESOURCES,
-    WorkspacePermission.VIEW_MARKETPLACE,
-    WorkspacePermission.VIEW_PROFILE,
+    WorkspacePermission.VIEW_PROFILE
+  ],
+  [WorkspaceRole.ADMIN]: [
+    WorkspacePermission.MANAGE_COURSES,
+    WorkspacePermission.MANAGE_LESSONS,
+    WorkspacePermission.MANAGE_MEMBERS,
+    WorkspacePermission.MANAGE_RESOURCES,
+    WorkspacePermission.VIEW_ANALYTICS,
     WorkspacePermission.MODERATE_COMMUNITY,
     WorkspacePermission.MODERATE_CHAT,
     WorkspacePermission.REMOVE_POSTS,
-    WorkspacePermission.MODERATE_COMMENTS
+    WorkspacePermission.MODERATE_COMMENTS,
+    WorkspacePermission.MUTE_BAN_USERS,
+    WorkspacePermission.VIEW_REPORTS,
+    WorkspacePermission.MODERATE_CONTENT,
+    WorkspacePermission.VIEW_FEED,
+    WorkspacePermission.JOIN_CLASSROOM,
+    WorkspacePermission.VIEW_CALENDAR,
+    WorkspacePermission.CHAT_PARTICIPATION,
+    WorkspacePermission.VIEW_RESOURCES,
+    WorkspacePermission.VIEW_PROFILE
+  ],
+  [WorkspaceRole.INSTRUCTOR]: [
+    WorkspacePermission.MANAGE_COURSES,
+    WorkspacePermission.MANAGE_LESSONS,
+    WorkspacePermission.GRADE_ASSIGNMENTS,
+    WorkspacePermission.VIEW_ANALYTICS,
+    WorkspacePermission.VIEW_FEED,
+    WorkspacePermission.JOIN_CLASSROOM,
+    WorkspacePermission.VIEW_CALENDAR,
+    WorkspacePermission.VIEW_RESOURCES,
+    WorkspacePermission.VIEW_PROFILE
   ],
   [WorkspaceRole.MODERATOR]: [
     WorkspacePermission.VIEW_FEED,
@@ -113,12 +129,13 @@ export const WORKSPACE_ROLE_PERMISSIONS: Record<WorkspaceRole, WorkspacePermissi
     WorkspacePermission.VIEW_CALENDAR,
     WorkspacePermission.CHAT_PARTICIPATION,
     WorkspacePermission.VIEW_RESOURCES,
-    WorkspacePermission.VIEW_MARKETPLACE,
     WorkspacePermission.VIEW_PROFILE,
     WorkspacePermission.MODERATE_CHAT,
     WorkspacePermission.REMOVE_POSTS,
+    WorkspacePermission.MODERATE_COMMENTS,
     WorkspacePermission.MUTE_BAN_USERS,
-    WorkspacePermission.MODERATE_COMMENTS
+    WorkspacePermission.VIEW_REPORTS,
+    WorkspacePermission.MODERATE_CONTENT
   ],
   [WorkspaceRole.MEMBER]: [
     WorkspacePermission.VIEW_FEED,
@@ -126,10 +143,26 @@ export const WORKSPACE_ROLE_PERMISSIONS: Record<WorkspaceRole, WorkspacePermissi
     WorkspacePermission.VIEW_CALENDAR,
     WorkspacePermission.CHAT_PARTICIPATION,
     WorkspacePermission.VIEW_RESOURCES,
-    WorkspacePermission.VIEW_MARKETPLACE,
     WorkspacePermission.VIEW_PROFILE
   ]
 };
+
+export function getRoleDisplayLabel(role: WorkspaceRole): string {
+  switch (role) {
+    case WorkspaceRole.OWNER:
+      return "Creator";
+    case WorkspaceRole.ADMIN:
+      return "Admin";
+    case WorkspaceRole.INSTRUCTOR:
+      return "Instructor";
+    case WorkspaceRole.MODERATOR:
+      return "Moderator";
+    case WorkspaceRole.MEMBER:
+      return "Member";
+    default:
+      return role;
+  }
+}
 
 export function can(
   permission: WorkspacePermission | PlatformPermission | string,

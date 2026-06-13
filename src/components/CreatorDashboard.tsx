@@ -119,7 +119,7 @@ export default function CreatorDashboard({
       {/* 1. KEY ADMINISTRATIVE METRICS (Bento Row) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
           <div className="flex justify-between items-start">
             <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 font-mono">Monthly Revenue</span>
             <span className="p-1 px-2 bg-emerald-50 text-emerald-700 rounded-md text-[9px] font-mono font-bold flex items-center gap-1">
@@ -135,7 +135,7 @@ export default function CreatorDashboard({
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
           <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 font-mono">Active Members</span>
           <div className="text-xl font-bold font-display mt-2 text-gray-900">
             {stats?.activeStudents || 1420} students
@@ -145,7 +145,7 @@ export default function CreatorDashboard({
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
           <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 font-mono">Starting Price</span>
           <div className="text-xl font-bold font-display mt-2 text-indigo-700">
             {activeCommunity?.priceMonthly ? `$${activeCommunity?.priceMonthly}` : "Free Community"}
@@ -183,7 +183,7 @@ export default function CreatorDashboard({
       <div className="grid grid-cols-12 gap-6 mb-6">
         
         {/* GRAPH COLUMN (Left 7 Units) */}
-        <div className="col-span-12 lg:col-span-7 bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-sm flex flex-col justify-between">
+        <div className="col-span-12 lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">
           <div>
             <h3 className="text-xs font-bold text-gray-400 tracking-wider font-mono uppercase mb-4">Earnings Velocity</h3>
             
@@ -213,7 +213,7 @@ export default function CreatorDashboard({
         </div>
 
         {/* TRANSACTIONS LOGS (Right 5 Units) */}
-        <div className="col-span-12 lg:col-span-5 bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-xs flex flex-col justify-between">
+        <div className="col-span-12 lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col justify-between">
           <div>
             <h3 className="text-xs font-bold text-gray-400 tracking-wider font-mono uppercase mb-3">Recent Transactions</h3>
             <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
@@ -242,7 +242,7 @@ export default function CreatorDashboard({
       </div>
 
       {/* 3. LANDING PAGE DESIGN CUSTOMIZER FAQ / LANDING CONTENT */}
-      <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
         <h3 className="text-sm font-bold text-gray-900 font-display mb-4 flex items-center gap-2">
           <Settings className="w-4 h-4 text-indigo-600" />
           Customize Your Subdomain Landing Page

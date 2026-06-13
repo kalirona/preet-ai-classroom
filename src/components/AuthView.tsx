@@ -76,8 +76,8 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
       email: "lincolnflores223@gmail.com",
       password: "demo123",
       name: "Lincoln Flores",
-      role: "Student (Member)",
-      desc: "Preloaded student profile with standard classroom drip access.",
+      role: "Member",
+      desc: "Student in comm-ai, Admin in comm-saas, Owner in comm-yoga. Tests multi-workspace roles.",
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"
     },
     {
@@ -86,8 +86,17 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
       password: "demo123",
       name: "Alex Rivera",
       role: "Community Owner",
-      desc: "Owner role with complete access to edit MRR Stats and premium Spaces.",
+      desc: "Owner with full access to billing, courses, and settings.",
       avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"
+    },
+    {
+      id: "user-instructor",
+      email: "instructor@example.com",
+      password: "demo123",
+      name: "Michael Torres",
+      role: "Instructor",
+      desc: "Teaches courses, grades assignments, views analytics.",
+      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150"
     },
     {
       id: "user-mod",
@@ -95,16 +104,16 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
       password: "demo123",
       name: "Sarah Chen",
       role: "Moderator",
-      desc: "Enforce and configure community tags and classroom parameters.",
+      desc: "Moderates community, manages members and content.",
       avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
     },
     {
       id: "user-admin",
       email: "admin@example.com",
       password: "admin123",
-      name: "Super Platform Admin",
+      name: "Platform Admin",
       role: "Super Admin",
-      desc: "Full system control panel overlays & sharded database switches.",
+      desc: "Full platform control, all workspaces, user management.",
       avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150"
     }
   ];

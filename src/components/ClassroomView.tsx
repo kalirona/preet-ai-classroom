@@ -33,11 +33,11 @@ export default function ClassroomView({
   // Determine user context roles
   const pfRole = currentUser?.platformRole || "user";
   const wsRole = pfRole === "super_admin" 
-    ? "creator" 
+    ? "owner" 
     : (currentUser?.workspaceRoles?.[activeCommunity?.id || ""] || "member");
 
-  const hasStaffOverride = pfRole === "super_admin" || pfRole === "support_staff" || wsRole === "creator" || wsRole === "owner" || wsRole === "admin";
-  const canCreateCourse = currentUser?.role === "creator" || wsRole === "creator" || wsRole === "owner" || pfRole === "super_admin";
+  const hasStaffOverride = pfRole === "super_admin" || pfRole === "support_staff" || wsRole === "owner" || wsRole === "admin";
+  const canCreateCourse = wsRole === "owner" || wsRole === "admin" || pfRole === "super_admin";
 
   // Auto-select first course when component is mounted (skip if in standalone builder/analytics)
   useEffect(() => {

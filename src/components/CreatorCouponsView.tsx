@@ -83,10 +83,10 @@ export default function CreatorCouponsView() {
       {/* HEADER ROW */}
       <div>
         <h1 className="text-xl font-extrabold font-display text-gray-900 tracking-tight flex items-center gap-2">
-          <Ticket className="w-5 h-5 text-indigo-650" />
+          <Ticket className="w-5 h-5 text-indigo-600" />
           Workspace Coupon Planner
         </h1>
-        <p className="text-xs text-gray-450 mt-0.5">Define markdown coupons, configure ticket codes, and sandbox discount conditions in real-time.</p>
+        <p className="text-xs text-slate-400 mt-0.5">Define markdown coupons, configure ticket codes, and sandbox discount conditions in real-time.</p>
       </div>
 
       {toastMessage && (
@@ -103,7 +103,7 @@ export default function CreatorCouponsView() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* COUPON MAKER FORM */}
-        <div className="bg-white rounded-3xl border border-gray-200 p-5 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Create Coupon Code</h3>
           
           <form onSubmit={handleCreateCoupon} className="space-y-3">
@@ -155,7 +155,7 @@ export default function CreatorCouponsView() {
         </div>
 
         {/* COUPON TESTING SANDBOX */}
-        <div className="bg-white rounded-3xl border border-gray-200 p-5 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Simulated Coupon Playground</h3>
           <p className="text-[10.5px] text-gray-400 leading-relaxed">Type in a sandbox price and enter one of your active coupons above to test the math equations.</p>
           
@@ -212,7 +212,7 @@ export default function CreatorCouponsView() {
         </div>
 
         {/* COMPREHENSIVE REWARD STATS INFO */}
-        <div className="bg-white rounded-3xl border border-gray-200 p-5 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex flex-col justify-between">
           <div className="space-y-3.5">
             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Incentive Campaigns</h3>
             <div className="space-y-2 text-[11.5px] text-gray-600 leading-relaxed">
@@ -230,16 +230,16 @@ export default function CreatorCouponsView() {
       </div>
 
       {/* DISCOUNTS REGISTRY TABLE */}
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-150 bg-gray-50/50 flex justify-between items-center text-xs">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center text-xs">
           <span className="font-extrabold uppercase tracking-wider text-slate-500 font-mono">Workspace Coupons Index</span>
-          <span className="text-[10px] text-gray-450 font-mono">Actions synced directly to stripe core callbacks</span>
+          <span className="text-[10px] text-slate-400 font-mono">Actions synced directly to stripe core callbacks</span>
         </div>
 
         <div className="overflow-x-auto text-xs">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-gray-400 uppercase font-mono border-b border-gray-150 text-[10px] tracking-wider font-extrabold">
+              <tr className="bg-slate-50 text-gray-400 uppercase font-mono border-b border-slate-200 text-[10px] tracking-wider font-extrabold">
                 <th className="py-2.5 px-4">Coupon Code</th>
                 <th className="py-2.5 px-4">Markdown Rate</th>
                 <th className="py-2.5 px-4 text-center">Active Status</th>
@@ -262,7 +262,7 @@ export default function CreatorCouponsView() {
                       className={`inline-flex items-center gap-1 rounded bg-transparent px-2 py-0.5 text-[10px] uppercase font-mono font-black ${
                         c.active 
                           ? "text-emerald-700 hover:bg-emerald-50" 
-                          : "text-gray-450 hover:bg-gray-100"
+                          : "text-slate-400 hover:bg-gray-100"
                       }`}
                     >
                       {c.active ? "● ACTIVE" : "○ INACTIVE"}

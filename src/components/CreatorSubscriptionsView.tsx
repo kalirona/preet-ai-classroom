@@ -82,10 +82,10 @@ export default function CreatorSubscriptionsView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-extrabold font-display text-gray-900 tracking-tight flex items-center gap-2">
-            <Repeat className="w-5 h-5 text-indigo-650" />
+            <Repeat className="w-5 h-5 text-indigo-600" />
             Subscriptions Manager
           </h1>
-          <p className="text-xs text-gray-450 mt-0.5">Control billing schedules, view trial cohorts, and edit recurring student membership status.</p>
+          <p className="text-xs text-slate-400 mt-0.5">Control billing schedules, view trial cohorts, and edit recurring student membership status.</p>
         </div>
 
         <button 
@@ -99,14 +99,14 @@ export default function CreatorSubscriptionsView({
 
       {toast && (
         <div className="bg-indigo-50 border border-indigo-200 text-indigo-850 p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 shadow-sm animate-in zoom-in-95 duration-150">
-          <CheckCircle className="w-4 h-4 text-indigo-650 shrink-0" />
+          <CheckCircle className="w-4 h-4 text-indigo-600 shrink-0" />
           <span>{toast}</span>
         </div>
       )}
 
       {/* ADD SUBSCRIBER FORM */}
       {showAddForm && (
-        <div className="bg-white border border-gray-200 rounded-3xl p-5 shadow-md max-w-xl animate-in slide-in-from-top-4 duration-200">
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-md max-w-xl animate-in slide-in-from-top-4 duration-200">
           <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
             <span className="text-xs font-bold uppercase tracking-wide text-gray-800 font-mono">
               Simulate Subscriber Onboarding
@@ -200,10 +200,10 @@ export default function CreatorSubscriptionsView({
       </div>
 
       {/* SUBSCRIBERS DIRECTORY */}
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         
         {/* Actions header bar */}
-        <div className="p-4 border-b border-gray-150 bg-gray-50/50 flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="relative w-full sm:max-w-xs">
             <span className="absolute left-3 top-2.5 text-gray-400">
               <Search className="w-4 h-4" />
@@ -225,7 +225,7 @@ export default function CreatorSubscriptionsView({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-50 text-gray-400 uppercase font-mono border-b border-gray-150 text-[10px] tracking-wider font-extrabold">
+              <tr className="bg-slate-50 text-gray-400 uppercase font-mono border-b border-slate-200 text-[10px] tracking-wider font-extrabold">
                 <th className="py-3 px-4">Student Profile</th>
                 <th className="py-3 px-4">Billing Plan Tier</th>
                 <th className="py-3 px-4">Recur Monthly</th>

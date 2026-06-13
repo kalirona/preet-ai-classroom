@@ -3,7 +3,8 @@ import { Community, User, UserRole, PlatformRole, WorkspaceRole } from "../types
 import { 
   MessageSquare, BookOpen, Calendar, Trophy, BarChart3, Star, Layers, Sparkles, X, ChevronDown, 
   Menu, Info, Users, ShieldAlert, LogOut, FileText, Settings, Bookmark, Bell, ShoppingCart, UserCheck, ChevronLeft, ChevronRight, HelpCircle, Shield, Database,
-  LayoutDashboard, Receipt, Repeat, Ticket, HeartHandshake, ShieldCheck, ScrollText, Flag
+  LayoutDashboard, Receipt, Repeat, Ticket, HeartHandshake, ShieldCheck, ScrollText, Flag,
+  Globe, DollarSign, CreditCard
 } from "lucide-react";
 
 interface SidebarProps {
@@ -37,85 +38,95 @@ export default function Sidebar({
   // Resolve platform-level and workspace-level roles
   const pfRole = user?.platformRole || PlatformRole.USER;
   const wsRole = user?.platformRole === PlatformRole.SUPER_ADMIN 
-    ? WorkspaceRole.CREATOR 
+    ? WorkspaceRole.OWNER 
     : (user?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER);
 
   const isGlobalSuperAdmin = pfRole === PlatformRole.SUPER_ADMIN;
-  const isWsCreator = wsRole === WorkspaceRole.CREATOR;
+  const isWsOwner = wsRole === WorkspaceRole.OWNER;
   const isWsAdmin = wsRole === WorkspaceRole.ADMIN;
-  const isWsModerator = wsRole === WorkspaceRole.MODERATOR || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.CREATOR;
+  const isWsInstructor = wsRole === WorkspaceRole.INSTRUCTOR;
+  const isWsModerator = wsRole === WorkspaceRole.MODERATOR;
   const isStudent = wsRole === WorkspaceRole.MEMBER;
 
-  // Student Section - Classroom only
-  const studentLearningNavigation = [
-    { id: "courses", name: "Classroom", icon: BookOpen },
-  ];
-
-  // Hiding other sections for standard students
-  const studentCommunityNavigation: any[] = [];
-
-  // Workspace Section dynamically configured by role
-  const workspaceNavigation = isGlobalSuperAdmin || isWsCreator
+  // Super Admin: Platform-only tabs (no workspace tabs)
+  const platformNavigation = isGlobalSuperAdmin
     ? [
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
-        { id: "feed", name: "Home Feed", icon: MessageSquare },
-        { id: "courses", name: "Classroom", icon: BookOpen },
-        { id: "course-builder", name: "Course Builder ⭐️", icon: Layers },
-        { id: "calendar", name: "Calendar", icon: Calendar },
-        { id: "members", name: "Members", icon: Users },
+        { id: "workspaces", name: "Workspaces", icon: Globe },
+        { id: "users", name: "Users", icon: Users },
+        { id: "revenue", name: "Revenue", icon: DollarSign },
+        { id: "payouts", name: "Payouts", icon: CreditCard },
         { id: "analytics", name: "Analytics", icon: BarChart3 },
-        { id: "leaderboard", name: "Leaderboard", icon: Trophy },
-        { id: "chat", name: "Group Chat", icon: MessageSquare },
-        { id: "resources", name: "Vault", icon: FileText },
-        { id: "marketplace", name: "Marketplace", icon: ShoppingCart },
-      ]
-    : isWsAdmin
-    ? [
-        { id: "courses", name: "Classroom", icon: BookOpen },
-        { id: "course-builder", name: "Course Builder ⭐️", icon: Layers },
-        { id: "analytics", name: "Analytics", icon: BarChart3 },
-      ]
-    : [
-        { id: "courses", name: "Classroom", icon: BookOpen },
-      ];
-
-  // Community Section (engagment features)
-  const communityNavigation = !isStudent
-    ? [
-        { id: "challenges", name: "Challenges", icon: Trophy },
+        { id: "security", name: "Security Center", icon: Shield },
+        { id: "logs", name: "Audit Logs", icon: ScrollText },
+        { id: "settings", name: "Settings", icon: Settings },
       ]
     : [];
 
-  // 2. Monetization Section (Creator and Super Admin only)
-  const monetizationNavigation = [
-    { id: "sales", name: "Sales", icon: Receipt },
-    { id: "subscriptions", name: "Subscriptions", icon: Repeat },
-    { id: "coupons", name: "Coupons", icon: Ticket },
-    { id: "creator", name: "Creator MRR Stats", icon: BarChart3 },
-    { id: "affiliate", name: "Affiliate Program", icon: HeartHandshake },
-  ];
+  // Creator (Owner): Full workspace control
+  const creatorNavigation = (isWsOwner || isGlobalSuperAdmin)
+    ? [
+        { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
+        { id: "community", name: "Community", icon: MessageSquare },
+        { id: "courses", name: "Courses", icon: BookOpen },
+        { id: "calendar", name: "Calendar", icon: Calendar },
+        { id: "members", name: "Members", icon: Users },
+        { id: "resources", name: "Resources", icon: FileText },
+        { id: "analytics", name: "Analytics", icon: BarChart3 },
+        { id: "monetization", name: "Monetization", icon: DollarSign },
+        { id: "settings", name: "Settings", icon: Settings },
+      ]
+    : [];
 
-  // 3. Moderation Section
-  const moderationNavigation = [
-    ...(isWsCreator || isGlobalSuperAdmin ? [{ id: "settings", name: "Workspace Settings", icon: Settings }] : []),
-    ...(isWsModerator ? [
-      { id: "reports", name: "Reports", icon: Flag },
-      { id: "moderation", name: "Moderation Queue", icon: ShieldCheck },
-      { id: "audit_logs_tab", name: "Audit Logs", icon: ScrollText }
-    ] : [])
-  ];
+  // Admin: Community manager
+  const adminNavigation = isWsAdmin
+    ? [
+        { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
+        { id: "community", name: "Community", icon: MessageSquare },
+        { id: "courses", name: "Courses", icon: BookOpen },
+        { id: "members", name: "Members", icon: Users },
+        { id: "analytics", name: "Analytics", icon: BarChart3 },
+        { id: "moderation", name: "Moderation", icon: ShieldCheck },
+      ]
+    : [];
 
-  // 4. Personal Section
+  // Instructor: Teacher only
+  const instructorNavigation = isWsInstructor
+    ? [
+        { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
+        { id: "courses", name: "Courses", icon: BookOpen },
+        { id: "students", name: "Students", icon: Users },
+        { id: "calendar", name: "Calendar", icon: Calendar },
+        { id: "resources", name: "Resources", icon: FileText },
+      ]
+    : [];
+
+  // Moderator: Moderation center
+  const moderatorNavigation = isWsModerator
+    ? [
+        { id: "community", name: "Community", icon: MessageSquare },
+        { id: "members", name: "Members", icon: Users },
+        { id: "moderation", name: "Moderation", icon: ShieldCheck },
+        { id: "reports", name: "Reports", icon: Flag },
+        { id: "chat", name: "Chat", icon: MessageSquare },
+      ]
+    : [];
+
+  // Student (Member): Learning focused
+  const studentNavigation = isStudent
+    ? [
+        { id: "home", name: "Home", icon: LayoutDashboard },
+        { id: "courses", name: "Courses", icon: BookOpen },
+        { id: "calendar", name: "Calendar", icon: Calendar },
+        { id: "resources", name: "Resources", icon: FileText },
+        { id: "profile", name: "Profile", icon: UserCheck },
+      ]
+    : [];
+
+  // Personal section (all roles)
   const personalNavigation = [
     { id: "notifications_tab", name: "Notifications", icon: Bell },
     { id: "saved", name: "Saved Posts", icon: Bookmark },
-    { id: "profile", name: "My Profile", icon: UserCheck },
-  ];
-
-  // 5. Platform Control (Super Admins only)
-  const platformNavigation = [
-    ...(isGlobalSuperAdmin ? [{ id: "superadmin", name: "Platform Control", icon: Shield }] : []),
-    ...(isGlobalSuperAdmin ? [{ id: "cloudpanel", name: "CloudPanel Console", icon: Database }] : []),
   ];
 
   // Calculations for dynamic XP
@@ -252,240 +263,193 @@ export default function Sidebar({
         {/* NAVIGATION LINKS */}
         <div className="flex-1 overflow-y-auto p-3 space-y-5" id="main-navigation-scroller">
           
-          {isStudent ? (
-            <>
-              {/* 📚 LEARNING */}
-              <div className="space-y-1">
-                {!isCollapsed && (
-                  <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
-                    📚 Learning
-                  </span>
-                )}
-                <nav className="space-y-0.5">
-                  {studentLearningNavigation.map((m) => {
-                    const isSel = activeTab === m.id;
-                    const Icon = m.icon;
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => onChangeTab(m.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                          isSel 
-                            ? "bg-indigo-50/70 text-indigo-700 font-bold" 
-                            : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
-                        }`}
-                        title={m.name}
-                      >
-                        <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
-                        {!isCollapsed && <span>{m.name}</span>}
-                      </button>
-                    );
-                  })}
-                </nav>
-              </div>
-
-              {/* 👥 COMMUNITY */}
-              {studentCommunityNavigation.length > 0 && (
-                <div className="space-y-1">
-                  {!isCollapsed && (
-                    <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
-                      👥 Community
-                    </span>
-                  )}
-                  <nav className="space-y-0.5">
-                    {studentCommunityNavigation.map((m) => {
-                      const isSel = activeTab === m.id;
-                      const Icon = m.icon;
-                      return (
-                        <button
-                          key={m.id}
-                          onClick={() => onChangeTab(m.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                            isSel 
-                              ? "bg-indigo-50/70 text-indigo-700 font-bold" 
-                              : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
-                          }`}
-                          title={m.name}
-                        >
-                          <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
-                          {!isCollapsed && <span>{m.name}</span>}
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {/* 1. WORKSPACE */}
-              <div className="space-y-1">
-                {!isCollapsed && (
-                  <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
-                    ⚡ Workspace
-                  </span>
-                )}
-                <nav className="space-y-0.5">
-                  {workspaceNavigation.map((m) => {
-                    const isSel = activeTab === m.id;
-                    const Icon = m.icon;
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => onChangeTab(m.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                          isSel 
-                            ? "bg-indigo-50/70 text-indigo-700 font-bold" 
-                            : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
-                        }`}
-                        title={m.name}
-                      >
-                        <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
-                        {!isCollapsed && <span>{m.name}</span>}
-                      </button>
-                    );
-                  })}
-                </nav>
-              </div>
-
-              {/* 1.5 COMMUNITY ENGAGEMENT */}
-              {communityNavigation.length > 0 && (
-                <div className="space-y-1">
-                  {!isCollapsed && (
-                    <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
-                      🎮 Community
-                    </span>
-                  )}
-                  <nav className="space-y-0.5">
-                    {communityNavigation.map((m) => {
-                      const isSel = activeTab === m.id;
-                      const Icon = m.icon;
-                      return (
-                        <button
-                          key={m.id}
-                          onClick={() => onChangeTab(m.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                            isSel 
-                              ? "bg-indigo-50/70 text-indigo-700 font-bold" 
-                              : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
-                          }`}
-                          title={m.name}
-                        >
-                          <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
-                          {!isCollapsed && <span>{m.name}</span>}
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-              )}
-
-              {/* 2. MONETIZATION (Only visible for workspace owner/creators or platform super admin) */}
-              {(isWsCreator || isGlobalSuperAdmin) && (
-                <div className="space-y-1">
-                  {!isCollapsed && (
-                    <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
-                      💰 Monetization
-                    </span>
-                  )}
-                  <nav className="space-y-0.5">
-                    {monetizationNavigation.map((m) => {
-                      const isSel = activeTab === m.id;
-                      const Icon = m.icon;
-                      return (
-                        <button
-                          key={m.id}
-                          onClick={() => onChangeTab(m.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                            isSel 
-                              ? "bg-indigo-50/70 text-indigo-700 font-bold" 
-                              : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
-                          }`}
-                          title={m.name}
-                        >
-                          <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
-                          {!isCollapsed && <span>{m.name}</span>}
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-              )}
-
-              {/* 3. MODERATION */}
-              {moderationNavigation.length > 0 && (
-                <div className="space-y-1">
-                  {!isCollapsed && (
-                    <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
-                      {isWsCreator ? "🛠 Management" : "🛠 Moderation"}
-                    </span>
-                  )}
-                  <nav className="space-y-0.5">
-                    {moderationNavigation.map((m) => {
-                      const isSel = activeTab === m.id;
-                      const Icon = m.icon;
-                      return (
-                        <button
-                          key={m.id}
-                          onClick={() => onChangeTab(m.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                            isSel 
-                              ? "bg-indigo-50/70 text-indigo-700 font-bold" 
-                              : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
-                          }`}
-                          title={m.name}
-                        >
-                          <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
-                          {!isCollapsed && <span>{m.name}</span>}
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* 4. PERSONAL */}
-          <div className="space-y-1">
-            {!isCollapsed && (
-              <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
-                👤 Personal
-              </span>
-            )}
-            <nav className="space-y-0.5">
-              {personalNavigation.map((m) => {
-                const isSel = activeTab === m.id;
-                const Icon = m.icon;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => onChangeTab(m.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                      isSel 
-                        ? "bg-indigo-50/70 text-indigo-700 font-bold" 
-                        : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
-                    }`}
-                    title={m.name}
-                  >
-                    <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
-                    {!isCollapsed && <span>{m.name}</span>}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* 5. PLATFORM CONTROL */}
-          {isGlobalSuperAdmin && (
+          {/* MAIN NAVIGATION - Role-based */}
+          {isGlobalSuperAdmin ? (
             <div className="space-y-1">
               {!isCollapsed && (
-                <span className="block text-[9px] font-bold uppercase text-gray-455 tracking-widest font-mono mb-1.5 px-3">
-                  🌐 Platform Control
+                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
+                  Platform
                 </span>
               )}
               <nav className="space-y-0.5">
                 {platformNavigation.map((m) => {
+                  const isSel = activeTab === m.id;
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => onChangeTab(m.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
+                        isSel 
+                          ? "bg-indigo-50/70 text-indigo-700 font-bold" 
+                          : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                      title={m.name}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
+                      {!isCollapsed && <span>{m.name}</span>}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          ) : isWsOwner ? (
+            <div className="space-y-1">
+              {!isCollapsed && (
+                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
+                  Workspace
+                </span>
+              )}
+              <nav className="space-y-0.5">
+                {creatorNavigation.map((m) => {
+                  const isSel = activeTab === m.id;
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => onChangeTab(m.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
+                        isSel 
+                          ? "bg-indigo-50/70 text-indigo-700 font-bold" 
+                          : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                      title={m.name}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
+                      {!isCollapsed && <span>{m.name}</span>}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          ) : isWsAdmin ? (
+            <div className="space-y-1">
+              {!isCollapsed && (
+                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
+                  Workspace
+                </span>
+              )}
+              <nav className="space-y-0.5">
+                {adminNavigation.map((m) => {
+                  const isSel = activeTab === m.id;
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => onChangeTab(m.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
+                        isSel 
+                          ? "bg-indigo-50/70 text-indigo-700 font-bold" 
+                          : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                      title={m.name}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
+                      {!isCollapsed && <span>{m.name}</span>}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          ) : isWsInstructor ? (
+            <div className="space-y-1">
+              {!isCollapsed && (
+                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
+                  Teaching
+                </span>
+              )}
+              <nav className="space-y-0.5">
+                {instructorNavigation.map((m) => {
+                  const isSel = activeTab === m.id;
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => onChangeTab(m.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
+                        isSel 
+                          ? "bg-indigo-50/70 text-indigo-700 font-bold" 
+                          : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                      title={m.name}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
+                      {!isCollapsed && <span>{m.name}</span>}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          ) : isWsModerator ? (
+            <div className="space-y-1">
+              {!isCollapsed && (
+                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
+                  Moderation
+                </span>
+              )}
+              <nav className="space-y-0.5">
+                {moderatorNavigation.map((m) => {
+                  const isSel = activeTab === m.id;
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => onChangeTab(m.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
+                        isSel 
+                          ? "bg-indigo-50/70 text-indigo-700 font-bold" 
+                          : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                      title={m.name}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
+                      {!isCollapsed && <span>{m.name}</span>}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {!isCollapsed && (
+                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
+                  Learning
+                </span>
+              )}
+              <nav className="space-y-0.5">
+                {studentNavigation.map((m) => {
+                  const isSel = activeTab === m.id;
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => onChangeTab(m.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
+                        isSel 
+                          ? "bg-indigo-50/70 text-indigo-700 font-bold" 
+                          : "text-gray-650 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                      title={m.name}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSel ? "text-indigo-650" : "text-gray-400"}`} />
+                      {!isCollapsed && <span>{m.name}</span>}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
+
+          {/* PERSONAL - All roles except super admin */}
+          {!isGlobalSuperAdmin && (
+            <div className="space-y-1">
+              {!isCollapsed && (
+                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
+                  Personal
+                </span>
+              )}
+              <nav className="space-y-0.5">
+                {personalNavigation.map((m) => {
                   const isSel = activeTab === m.id;
                   const Icon = m.icon;
                   return (

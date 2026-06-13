@@ -51,7 +51,7 @@ export default function WorkspaceDashboardView({
     <div className="p-4 sm:p-6 space-y-6 overflow-y-auto h-full bg-[#F8F9FB]" id="ws-dashboard-view">
       
       {/* 1. PERSONALIZED HERO BANNER */}
-      <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
+      <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute left-1/3 bottom-0 w-32 h-32 bg-purple-500/10 rounded-full blur-xl pointer-events-none" />
         
@@ -73,7 +73,7 @@ export default function WorkspaceDashboardView({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* QUESTS PANEL */}
-        <div className="lg:col-span-2 bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
           <div className="flex justify-between items-center border-b border-gray-100 pb-3">
             <div>
               <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Daily Gamification Quests</h2>
@@ -86,7 +86,7 @@ export default function WorkspaceDashboardView({
           </div>
 
           {/* XP Progress indicator */}
-          <div className="bg-[#F8F9FB] rounded-2xl p-4 border border-gray-150">
+          <div className="bg-[#F8F9FB] rounded-2xl p-4 border border-slate-200">
             <div className="flex justify-between items-center mb-1.5 text-xs font-medium">
               <span className="font-bold text-gray-800">LVL {level} PROGRESS</span>
               <span className="font-mono text-indigo-700 font-bold">{xp} / {nextBoundary} XP</span>
@@ -143,7 +143,7 @@ export default function WorkspaceDashboardView({
         <div className="space-y-6">
           
           {/* Calendar countdown card */}
-          <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Upcoming Live Stream</h3>
             <div className="bg-indigo-50/50 border border-indigo-150 p-4 rounded-2xl space-y-2.5">
               <div className="flex justify-between items-center">
@@ -166,7 +166,7 @@ export default function WorkspaceDashboardView({
           </div>
 
           {/* Quick Mini Classroom progress check */}
-          <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-3">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">My Classroom Index</h3>
             <div className="space-y-2.5">
               <div className="flex justify-between items-center text-xs">
@@ -183,7 +183,7 @@ export default function WorkspaceDashboardView({
 
               <button
                 onClick={() => onChangeTab("courses")}
-                className="w-full text-center text-[10px] uppercase font-mono font-black text-indigo-650 hover:text-indigo-850 hover:underline pt-1.5 cursor-pointer block"
+                className="w-full text-center text-[10px] uppercase font-mono font-black text-indigo-600 hover:text-indigo-850 hover:underline pt-1.5 cursor-pointer block"
               >
                 Resume Learning Classroom →
               </button>
@@ -198,7 +198,7 @@ export default function WorkspaceDashboardView({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Quick feed post dispatcher */}
-        <div className="lg:col-span-2 bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-3">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Simulate a Quick Feed Post</h3>
           <form onSubmit={handleQuickPostSubmit} className="space-y-3">
             <textarea
@@ -210,7 +210,7 @@ export default function WorkspaceDashboardView({
               required
             />
             <div className="flex justify-between items-center">
-              <span className="text-[10px] text-gray-450 leading-relaxed">
+              <span className="text-[10px] text-slate-400 leading-relaxed">
                 Posts on the feed automatically grant you up to <strong className="text-indigo-600">+40 XP</strong>!
               </span>
               <button
@@ -225,7 +225,7 @@ export default function WorkspaceDashboardView({
         </div>
 
         {/* Mini Leaderboards widget */}
-        <div className="bg-white rounded-3xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
           <div className="flex justify-between items-center border-b border-gray-100 pb-2">
             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Workspace Leaderboard</h3>
             <span className="text-[10px] text-indigo-700 font-bold font-mono">Top Competitors</span>
