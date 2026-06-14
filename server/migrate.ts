@@ -42,7 +42,7 @@ async function seed() {
     email: "creator@example.com",
     username: "AlexCreator",
     full_name: "Alex Rivera",
-    role: "creator",
+    role: "admin",
     platform_role: "user",
     avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
     xp: 2450,
@@ -51,6 +51,22 @@ async function seed() {
     badges: ["Community Builder", "Course Master", "XP Guru"],
     joined_communities: ["comm-ai", "comm-yoga", "comm-saas"],
     bio: "AI educator and product strategist helping creators build thriving groups.",
+    password_hash: hash("demo123"),
+  });
+
+  const instructor = await createUser({
+    email: "instructor@example.com",
+    username: "InstructorMike",
+    full_name: "Michael Torres",
+    role: "instructor",
+    platform_role: "user",
+    avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
+    xp: 1800,
+    level: 9,
+    streak: 12,
+    badges: ["Course Master", "Top Educator"],
+    joined_communities: ["comm-ai", "comm-saas"],
+    bio: "Senior instructor specializing in TypeScript and system architecture.",
     password_hash: hash("demo123"),
   });
 
@@ -176,15 +192,18 @@ async function seed() {
     is_private: true
   });
 
-  await createWorkspaceMember({ workspace_id: "comm-ai", user_id: creator.id, role: "creator" });
+  await createWorkspaceMember({ workspace_id: "comm-ai", user_id: creator.id, role: "owner" });
+  await createWorkspaceMember({ workspace_id: "comm-ai", user_id: instructor.id, role: "instructor" });
   await createWorkspaceMember({ workspace_id: "comm-ai", user_id: student.id, role: "member" });
   await createWorkspaceMember({ workspace_id: "comm-ai", user_id: moderator.id, role: "moderator" });
   await createWorkspaceMember({ workspace_id: "comm-ai", user_id: admin.id, role: "member" });
-  await createWorkspaceMember({ workspace_id: "comm-saas", user_id: creator.id, role: "creator" });
+  await createWorkspaceMember({ workspace_id: "comm-saas", user_id: creator.id, role: "owner" });
+  await createWorkspaceMember({ workspace_id: "comm-saas", user_id: instructor.id, role: "instructor" });
   await createWorkspaceMember({ workspace_id: "comm-saas", user_id: student.id, role: "admin" });
-  await createWorkspaceMember({ workspace_id: "comm-yoga", user_id: student.id, role: "creator" });
+  await createWorkspaceMember({ workspace_id: "comm-yoga", user_id: student.id, role: "owner" });
   await createWorkspaceMember({ workspace_id: "comm-yoga", user_id: creator.id, role: "member" });
-  await createWorkspaceMember({ workspace_id: "comm-private-mastermind", user_id: creator.id, role: "creator" });
+  await createWorkspaceMember({ workspace_id: "comm-yoga", user_id: instructor.id, role: "instructor" });
+  await createWorkspaceMember({ workspace_id: "comm-private-mastermind", user_id: creator.id, role: "owner" });
 
   // Seed default spaces for comm-ai
   const aiSpaceDefs = [

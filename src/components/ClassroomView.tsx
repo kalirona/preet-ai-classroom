@@ -1722,18 +1722,18 @@ export default function ClassroomView({
 
           {/* CREATOR TOGGLE ZONE BANNER */}
           {hasStaffOverride && !isCourseBuilderOnly && !isAnalyticsOnly && (
-            <div className="bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-indigo-500/20 flex flex-col sm:flex-row justify-between items-center gap-4 transition duration-150 relative overflow-hidden" id="creator-workspace-bar">
+                <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg flex flex-col sm:flex-row justify-between items-center gap-4 transition duration-150 relative overflow-hidden" id="creator-workspace-bar">
               <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                <Sparkles className="w-24 h-24 text-indigo-300" />
+                <Sparkles className="w-24 h-24 text-slate-300" />
               </div>
               <div className="flex items-center gap-3.5 z-10">
-                <div className="w-11 h-11 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-xl select-none shadow-inner border border-indigo-500/30">
+                <div className="w-11 h-11 rounded-xl bg-white/10 text-white flex items-center justify-center font-bold text-xl select-none">
                   🎓
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold font-mono tracking-widest uppercase text-indigo-200">Instructor Workspace Office</h4>
-                  <p className="text-[11px] text-indigo-100/80 mt-0.5 leading-normal max-w-md">
-                    Switch to creator mode to manage curriculums, analyze completion drops, moderate discussions, and build resources.
+                  <h4 className="text-sm font-semibold text-white">Instructor Dashboard</h4>
+                  <p className="text-sm text-slate-300 mt-0.5 leading-normal max-w-md">
+                    Manage your courses, track student progress, and review content.
                   </p>
                 </div>
               </div>
@@ -1745,14 +1745,14 @@ export default function ClassroomView({
                     setSelectedBuilderCourse(localCourses[0]);
                   }
                 }}
-                className={`py-2 px-5 rounded-xl text-xs font-extrabold font-mono uppercase tracking-wider transition duration-150 shadow-md cursor-pointer shrink-0 border border-transparent ${
+                className={`py-2 px-5 rounded-xl text-sm font-medium transition duration-150 cursor-pointer shrink-0 ${
                   isCreatorMode
-                    ? "bg-amber-500 hover:bg-amber-600 text-slate-950"
-                    : "bg-indigo-600 hover:bg-indigo-750 text-white"
+                    ? "bg-white text-slate-900 hover:bg-slate-100"
+                    : "bg-white/10 text-white hover:bg-white/20 border border-white/20"
                 }`}
                 id="toggle-creator-studio-btn"
               >
-                {isCreatorMode ? "🧑‍🎓 Enter Student Preview" : "🛠️ Enter Creator Hub"}
+                {isCreatorMode ? "Enter Student View" : "Enter Instructor Hub"}
               </button>
             </div>
           )}
@@ -1778,13 +1778,13 @@ export default function ClassroomView({
                   <button
                     type="button"
                     onClick={() => setCreatorTab("analytics")}
-                    className={`pb-2.5 text-xs uppercase font-mono tracking-wider font-bold transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
+                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
                       creatorTab === "analytics"
-                        ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
-                        : "text-gray-400 hover:text-gray-650 font-medium"
+                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
+                        : "text-gray-400 hover:text-gray-650"
                     }`}
                   >
-                    📊 Student Analytics
+                    Analytics
                   </button>
                   <button
                     type="button"
@@ -1794,35 +1794,46 @@ export default function ClassroomView({
                         setSelectedBuilderCourse(localCourses[0]);
                       }
                     }}
-                    className={`pb-2.5 text-xs uppercase font-mono tracking-wider font-bold transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
+                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
                       creatorTab === "builder"
-                        ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
-                        : "text-gray-400 hover:text-gray-650 font-medium"
+                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
+                        : "text-gray-400 hover:text-gray-650"
                     }`}
                   >
-                    🛠️ Course Builder
+                    Course Builder
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreatorTab("review")}
+                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
+                      creatorTab === "review"
+                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
+                        : "text-gray-400 hover:text-gray-650"
+                    }`}
+                  >
+                    Review & Publish
                   </button>
                   <button
                     type="button"
                     onClick={() => setCreatorTab("activity")}
-                    className={`pb-2.5 text-xs uppercase font-mono tracking-wider font-bold transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
+                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
                       creatorTab === "activity"
-                        ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
-                        : "text-gray-400 hover:text-gray-650 font-medium"
+                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
+                        : "text-gray-400 hover:text-gray-650"
                     }`}
                   >
-                    📝 Recent Activities
+                    Activity
                   </button>
                   <button
                     type="button"
                     onClick={() => setCreatorTab("community")}
-                    className={`pb-2.5 text-xs uppercase font-mono tracking-wider font-bold transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
+                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
                       creatorTab === "community"
-                        ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
-                        : "text-gray-400 hover:text-gray-650 font-medium"
+                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
+                        : "text-gray-400 hover:text-gray-650"
                     }`}
                   >
-                    💬 Community Moderator
+                    Community
                   </button>
                 </div>
               )}
@@ -2472,6 +2483,133 @@ export default function ClassroomView({
                   </div>
                 </div>
                 )
+              )}
+
+              {/* TAB: REVIEW & PUBLISH */}
+              {creatorTab === "review" && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  {selectedBuilderCourse ? (
+                    <>
+                      {/* Course Overview Card */}
+                      <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+                        <div className="flex items-start justify-between mb-6">
+                          <div className="flex items-start gap-4">
+                            {selectedBuilderCourse.coverUrl ? (
+                              <div className="w-20 h-14 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+                                <img src={selectedBuilderCourse.coverUrl} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            ) : (
+                              <div className="w-20 h-14 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shrink-0">
+                                <BookOpen className="w-6 h-6 text-indigo-400" />
+                              </div>
+                            )}
+                            <div>
+                              <h2 className="text-xl font-semibold text-slate-900">{selectedBuilderCourse.name || "Untitled Course"}</h2>
+                              <p className="text-sm text-slate-500 mt-1">{selectedBuilderCourse.description || "No description"}</p>
+                              <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                                <span>{selectedBuilderCourse.modules?.length || 0} modules</span>
+                                <span>•</span>
+                                <span>{selectedBuilderCourse.modules?.reduce((acc: number, m: any) => acc + (m.lessons?.length || 0), 0) || 0} lessons</span>
+                              </div>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            selectedBuilderCourse.status === "published" 
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}>
+                            {selectedBuilderCourse.status === "published" ? "Published" : "Draft"}
+                          </span>
+                        </div>
+
+                        {/* Module Summary */}
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-100 pb-2">Course Structure</h3>
+                          {selectedBuilderCourse.modules?.map((mod: any, idx: number) => (
+                            <div key={mod.id} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-medium text-slate-900">Module {idx + 1}: {mod.title}</h4>
+                                <span className="text-xs text-slate-400">{mod.lessons?.length || 0} lessons</span>
+                              </div>
+                              <div className="space-y-1">
+                                {mod.lessons?.map((les: any, lesIdx: number) => (
+                                  <div key={les.id} className="flex items-center gap-2 text-sm text-slate-600 py-1">
+                                    <span className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-medium text-slate-600 shrink-0">{lesIdx + 1}</span>
+                                    <span className="truncate">{les.title}</span>
+                                    <span className="text-xs text-slate-400 shrink-0">{les.durationMinutes}min</span>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                      les.contentType === "video" ? "bg-blue-50 text-blue-600" :
+                                      les.contentType === "quiz" ? "bg-purple-50 text-purple-600" :
+                                      les.contentType === "assignment" ? "bg-amber-50 text-amber-600" :
+                                      "bg-slate-100 text-slate-500"
+                                    }`}>{les.contentType}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Readiness Checklist */}
+                      <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+                        <h3 className="text-base font-semibold text-slate-900 mb-4">Publish Checklist</h3>
+                        <div className="space-y-3">
+                          {[
+                            { label: "Course has a name", done: !!selectedBuilderCourse.name },
+                            { label: "Course has a description", done: !!selectedBuilderCourse.description },
+                            { label: "At least one module exists", done: (selectedBuilderCourse.modules?.length || 0) > 0 },
+                            { label: "Each module has at least one lesson", done: selectedBuilderCourse.modules?.every((m: any) => (m.lessons?.length || 0) > 0) },
+                            { label: "All lessons have content", done: selectedBuilderCourse.modules?.every((m: any) => m.lessons?.every((l: any) => (l.blocks?.length || 0) > 0)) },
+                          ].map((item, i) => (
+                            <div key={i} className="flex items-center gap-3">
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${item.done ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>
+                                {item.done ? <Check className="w-3 h-3" /> : <span className="w-2 h-2 rounded-full bg-slate-300" />}
+                              </div>
+                              <span className={`text-sm ${item.done ? "text-slate-900" : "text-slate-500"}`}>{item.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Publish Actions */}
+                      <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm flex items-center justify-between">
+                        <div>
+                          <h3 className="text-base font-semibold text-slate-900">Ready to publish?</h3>
+                          <p className="text-sm text-slate-500 mt-0.5">Once published, students can enroll and start learning.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={handleSaveLessonDeepEdits}
+                            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition"
+                          >
+                            Save Draft
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedBuilderCourse) {
+                                const updated = { ...selectedBuilderCourse, status: "published" as const };
+                                setSelectedBuilderCourse(updated);
+                                setLocalCourses(prev => prev.map(c => c.id === updated.id ? updated : c));
+                              }
+                            }}
+                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition"
+                          >
+                            Publish Course
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-20 bg-white border border-slate-200 rounded-2xl">
+                      <BookOpen className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                      <h4 className="text-base font-medium text-slate-900">Select a course to review</h4>
+                      <p className="text-sm text-slate-500 mt-1">Choose a course from the Builder tab first.</p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* TAB 3: RECENT STUDENT ACTIVITY */}

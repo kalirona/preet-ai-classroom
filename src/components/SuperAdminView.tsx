@@ -290,7 +290,7 @@ export default function SuperAdminView({ currentUser, communities, activeSection
   });
 
   return (
-    <div className="h-full flex flex-col bg-[#F8F9FB] overflow-hidden" id="superadmin-saas-infra-wrapper">
+    <div className="h-full flex flex-col bg-white overflow-hidden" id="superadmin-saas-infra-wrapper">
       
       {/* Alarm flash overlay mode inside Cloud Panel Shield */}
       {shieldThreatLevel === "LOCKDOWN" && (
@@ -314,14 +314,14 @@ export default function SuperAdminView({ currentUser, communities, activeSection
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-bold text-gray-900 font-display tracking-tight flex items-center gap-1.5">
-                🌐 Platform Control Dashboard
+                Platform Control
               </span>
               <span className="text-xs font-mono bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold">
                 Admin
               </span>
             </div>
             <p className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">
-              Centralized telemetry & node configuration panel. Live-routing across {communities.length} tenant databases.
+              Managing {communities.length} communities across the platform.
             </p>
           </div>
 
@@ -361,35 +361,31 @@ export default function SuperAdminView({ currentUser, communities, activeSection
                 
                 {/* Premium Stat Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="stat-card-emerald rounded-2xl p-5 relative overflow-hidden">
-                    <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
-                    <span className="text-sm font-semibold text-slate-900">Status</span>
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-5 relative overflow-hidden">
+                    <span className="text-sm font-semibold text-slate-500">Status</span>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
-                      <span className="text-sm font-black font-mono tracking-tight">Operational</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-lg font-bold text-slate-900">Operational</span>
                     </div>
                   </div>
 
-                  <div className="stat-card-brand rounded-2xl p-5 relative overflow-hidden">
-                    <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
-                    <span className="text-sm font-semibold text-slate-900">Database</span>
-                    <span className="text-xs font-bold font-mono block mt-2 truncate">
-                      {cpStatus?.connected ? "CLOUDPANEL MYSQL" : "SQLite FILE MEMORY"}
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-5 relative overflow-hidden">
+                    <span className="text-sm font-semibold text-slate-500">Database</span>
+                    <span className="text-lg font-bold text-slate-900 block mt-2">
+                      {cpStatus?.connected ? "Connected" : "SQLite"}
                     </span>
                   </div>
 
-                  <div className="stat-card-slate rounded-2xl p-5 relative overflow-hidden">
-                    <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
-                    <span className="text-sm font-semibold text-slate-900">Communities</span>
-                    <span className="text-sm font-extrabold font-mono block mt-2">
-                      {communities.length} Active
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-5 relative overflow-hidden">
+                    <span className="text-sm font-semibold text-slate-500">Communities</span>
+                    <span className="text-lg font-bold text-slate-900 block mt-2">
+                      {communities.length}
                     </span>
                   </div>
 
-                  <div className="stat-card-cyan rounded-2xl p-5 relative overflow-hidden">
-                    <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
-                    <span className="text-sm font-semibold text-slate-900">Revenue</span>
-                    <span className="text-sm font-extrabold font-mono block mt-2">
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-5 relative overflow-hidden">
+                    <span className="text-sm font-semibold text-slate-500">Revenue</span>
+                    <span className="text-lg font-bold text-slate-900 block mt-2">
                       ${totalMRR.toLocaleString()}
                     </span>
                   </div>

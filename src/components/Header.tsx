@@ -10,6 +10,7 @@ interface HeaderProps {
   onMarkNotificationsRead: () => void;
   openOnboarding: () => void;
   openCreateCommunity: () => void;
+  onTabChange: (tab: string) => void;
   onToggleSidebar: () => void;
   onLogout?: () => void;
 }
@@ -40,6 +41,7 @@ export default function Header({
   onMarkNotificationsRead,
   openOnboarding,
   openCreateCommunity,
+  onTabChange,
   onToggleSidebar,
   onLogout
 }: HeaderProps) {
@@ -219,7 +221,7 @@ export default function Header({
               <div className="px-3 pb-3 space-y-0.5">
                 <button
                   onClick={() => {
-                    openOnboarding();
+                    onTabChange("profile");
                     setShowProfileMenu(false);
                   }}
                   className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
@@ -229,17 +231,33 @@ export default function Header({
                 </button>
                 <button
                   className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
-                  onClick={() => setShowProfileMenu(false)}
+                  onClick={() => {
+                    onTabChange("settings");
+                    setShowProfileMenu(false);
+                  }}
                 >
                   <Settings className="w-4 h-4 text-slate-400" />
                   Settings
                 </button>
                 <button
                   className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
-                  onClick={() => setShowProfileMenu(false)}
+                  onClick={() => {
+                    onTabChange("profile");
+                    setShowProfileMenu(false);
+                  }}
                 >
                   <Palette className="w-4 h-4 text-slate-400" />
                   Appearance
+                </button>
+                <button
+                  className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
+                  onClick={() => {
+                    onTabChange("support");
+                    setShowProfileMenu(false);
+                  }}
+                >
+                  <HelpCircle className="w-4 h-4 text-slate-400" />
+                  Help & Support
                 </button>
               </div>
 

@@ -51,7 +51,7 @@ export default function Sidebar({
   // Super Admin: Platform-only tabs (no workspace tabs)
   const platformNavigation = isGlobalSuperAdmin
     ? [
-        { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
+        { id: "superadmin", name: "Dashboard", icon: LayoutDashboard },
         { id: "workspaces", name: "Workspaces", icon: Globe },
         { id: "users", name: "Users", icon: Users },
         { id: "revenue", name: "Revenue", icon: DollarSign },
@@ -75,6 +75,7 @@ export default function Sidebar({
         { id: "analytics", name: "Analytics", icon: BarChart3 },
         { id: "monetization", name: "Monetization", icon: DollarSign },
         { id: "settings", name: "Settings", icon: Settings },
+        { id: "support", name: "Support", icon: HelpCircle },
       ]
     : [];
 
@@ -87,6 +88,7 @@ export default function Sidebar({
         { id: "members", name: "Members", icon: Users },
         { id: "analytics", name: "Analytics", icon: BarChart3 },
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
+        { id: "support", name: "Support", icon: HelpCircle },
       ]
     : [];
 
@@ -109,6 +111,7 @@ export default function Sidebar({
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
         { id: "reports", name: "Reports", icon: Flag },
         { id: "chat", name: "Chat", icon: MessageSquare },
+        { id: "support", name: "Support", icon: HelpCircle },
       ]
     : [];
 

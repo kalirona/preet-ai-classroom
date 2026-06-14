@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import http from "http";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import crypto from "crypto";
@@ -8,6 +9,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
 import { verify as verifyTOTP } from "otplib";
+import { Server as SocketServer } from "socket.io";
 
 import {
   findUserByEmail, findUserById, findUserByUsername, createUser, updateUser,
@@ -15,7 +17,7 @@ import {
   createWorkspace, updateWorkspace, findWorkspaceMember, createWorkspaceMember,
   updateWorkspaceMember, findWorkspaceMembers, findUserWorkspaceRoles,
   findPostsByWorkspace, findPostById, createPost, updatePost,
-  findCommentsByPost, createComment, findCoursesByWorkspace, findCoursesWithContent, findCourseById,
+  findCommentsByPost, createComment, findCoursesWithContent, findCourseById,
   createCourse, updateCourse, deleteCourse, findModulesByCourse, createModule,
   findLessonsByModule, findLessonById, createLesson,
   findEventsByWorkspace, findEventById, createEvent, updateEvent,
@@ -23,6 +25,7 @@ import {
   markAllNotificationsRead, createTransaction, findUserTransactions,
   findUserTransactionsByWorkspace, createAuditLog, findAuditLogsByWorkspace,
   findAllAuditLogs, createSession, findSessionByTokenHash, deleteUserSessions,
+  findChannelsByWorkspace, createChannel, deleteChannel,
   getLoginAttempts, upsertLoginAttempts, resetLoginAttempts,
   findWorkspaceUserIds, findUsersByIds, findAllUsers, query, transaction,
   isDatabaseSeeded, createSchema, cleanupExpiredSessions, cleanupExpiredResetTokens, getPool,
@@ -32,9 +35,6 @@ import {
   findPostsBySpace, createPostWithSpace, togglePostReaction, getPostReactions,
   findCommentsThreaded, toggleCommentReaction,
   addXp, getXpHistory, getWorkspaceLeaderboard,
-  findChallengesByWorkspace, findChallengeById, createChallenge,
-  findChallengeTasks, createChallengeTask, joinChallenge, completeChallengeTask,
-  getChallengeLeaderboard,
   findLessonDiscussions, createLessonDiscussion,
   upsertLessonNote, findLessonNote,
   findMemberActivity, findUserActivity, logActivity,
@@ -881,8 +881,9 @@ app.post("/api/auth/switch-role", authenticateUser, requirePlatformPermission(Pl
     const workspaceId = req.headers["x-workspace-id"] || null;
     if (workspaceId) {
       let wsRole = "member";
-      if (role === UserRole.SUPER_ADMIN || role === UserRole.CREATOR) wsRole = "creator";
+      if (role === UserRole.SUPER_ADMIN) wsRole = "owner";
       else if (role === UserRole.ADMIN) wsRole = "admin";
+      else if (role === "instructor") wsRole = "instructor";
       else if (role === UserRole.MODERATOR) wsRole = "moderator";
 
       const existing = await findWorkspaceMember(workspaceId, target.id);
@@ -926,8 +927,9 @@ app.post("/api/auth/onboarding", authenticateUser, async (req: any, res: any) =>
         if (comm) await updateWorkspace(targetCommunityId, { members_count: (comm.members_count || 0) + 1 });
 
         let wsRole = "member";
-        if (role === UserRole.SUPER_ADMIN || role === UserRole.CREATOR) wsRole = "creator";
+        if (role === UserRole.SUPER_ADMIN) wsRole = "owner";
         else if (role === UserRole.ADMIN) wsRole = "admin";
+        else if (role === "instructor") wsRole = "instructor";
         else if (role === UserRole.MODERATOR) wsRole = "moderator";
 
         const existing = await findWorkspaceMember(targetCommunityId, req.user.id);
@@ -1021,7 +1023,7 @@ app.post("/api/communities", authenticateUser, async (req: any, res: any) => {
       is_private: isPrivate || false,
     });
 
-    await createWorkspaceMember({ workspace_id: newComm.id, user_id: req.user.id, role: "creator", status: "active" });
+    await createWorkspaceMember({ workspace_id: newComm.id, user_id: req.user.id, role: "owner", status: "active" });
 
     const user = await findUserById(req.user.id);
     if (user) {
@@ -1229,10 +1231,13 @@ app.post("/api/posts", authenticateUser, requireWorkspacePermission(WorkspacePer
       } catch { /* skip AI check on failure */ }
     }
 
+    const wsRole = req.user.workspaceRoles?.[communityId] || "member";
+    const authorRoleLabel = wsRole === "owner" ? "Owner" : wsRole === "admin" ? "Admin" : wsRole === "moderator" ? "Moderator" : "Member";
+
     const newPost = await createPost({
       workspace_id: communityId, author_id: req.user.id, author_name: req.user.fullName,
       author_avatar: req.user.avatarUrl,
-      author_role: req.user.role === "creator" ? "Founder" : "Student",
+      author_role: authorRoleLabel,
       title, content, category: category || "General Discussions",
       tags: tags || [],
     });
@@ -1259,7 +1264,7 @@ app.post("/api/posts/:id/pin", authenticateUser, requireWorkspacePermission(Work
   }
 });
 
-app.post("/api/posts/:id/like", authenticateUser, async (req: any, res: any) => {
+app.post("/api/posts/:id/like", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const post = await findPostById(id);
@@ -1298,7 +1303,7 @@ app.post("/api/posts/:id/like", authenticateUser, async (req: any, res: any) => 
   }
 });
 
-app.get("/api/posts/:id/comments", authenticateUser, async (req: any, res: any) => {
+app.get("/api/posts/:id/comments", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const post = await findPostById(req.params.id);
     if (!post) return res.status(404).json({ error: "Post not found." });
@@ -1315,7 +1320,7 @@ app.get("/api/posts/:id/comments", authenticateUser, async (req: any, res: any) 
   }
 });
 
-app.post("/api/posts/:id/comments", authenticateUser, async (req: any, res: any) => {
+app.post("/api/posts/:id/comments", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { content, parentId } = req.body;
@@ -1329,10 +1334,13 @@ app.post("/api/posts/:id/comments", authenticateUser, async (req: any, res: any)
       return res.status(403).json({ error: "Not a member of this workspace." });
     }
 
+    const wsRole = req.user.workspaceRoles?.[post.workspace_id] || "member";
+    const authorRoleLabel = wsRole === "owner" ? "Owner" : wsRole === "admin" ? "Admin" : wsRole === "moderator" ? "Moderator" : "Member";
+
     const comment = await createComment({
       post_id: id, parent_id: parentId || null, author_id: req.user.id,
       author_name: req.user.fullName, author_avatar: req.user.avatarUrl,
-      author_role: req.user.role === "creator" ? "Founder" : "Student",
+      author_role: authorRoleLabel,
       content,
     });
 
@@ -1511,7 +1519,7 @@ app.post("/api/courses/generate-ai", authenticateUser, requireWorkspacePermissio
   }
 });
 
-app.get("/api/lessons/:id", authenticateUser, async (req: any, res: any) => {
+app.get("/api/lessons/:id", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
   try {
     const lesson = await findLessonById(req.params.id);
     if (!lesson) return res.status(404).json({ error: "Lesson not found." });
@@ -1529,7 +1537,7 @@ app.get("/api/lessons/:id", authenticateUser, async (req: any, res: any) => {
     }
 
     const isStaff = req.user.platformRole === "super_admin" ||
-      ["creator", "admin"].includes(member.role);
+      ["owner", "admin"].includes(member.role);
     if (lesson.is_locked && !isStaff) {
       return res.status(403).json({ error: "Lesson is locked. Complete previous lessons first." });
     }
@@ -1546,7 +1554,7 @@ app.get("/api/lessons/:id", authenticateUser, async (req: any, res: any) => {
   }
 });
 
-app.get("/api/lessons/:id/stream", authenticateUser, async (req: any, res: any) => {
+app.get("/api/lessons/:id/stream", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
   try {
     const lesson = await findLessonById(req.params.id);
     if (!lesson) return res.status(404).json({ error: "Lesson not found." });
@@ -1640,7 +1648,7 @@ app.post("/api/lessons/:id/toggle-completed", authenticateUser, requireWorkspace
   }
 });
 
-app.post("/api/lessons/:id/quiz-submit", authenticateUser, async (req: any, res: any) => {
+app.post("/api/lessons/:id/quiz-submit", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
   try {
     const lesson = await findLessonById(req.params.id);
     if (!lesson) return res.status(404).json({ error: "Lesson not found." });
@@ -1679,7 +1687,7 @@ app.post("/api/lessons/:id/quiz-submit", authenticateUser, async (req: any, res:
   }
 });
 
-app.post("/api/lessons/:id/assignment-submit", authenticateUser, async (req: any, res: any) => {
+app.post("/api/lessons/:id/assignment-submit", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
   try {
     const lesson = await findLessonById(req.params.id);
     if (!lesson) return res.status(404).json({ error: "Lesson not found." });
@@ -1800,7 +1808,47 @@ app.post("/api/chat", authenticateUser, requireWorkspacePermission(WorkspacePerm
   }
 });
 
-app.get("/api/gamification/leaderboard", authenticateUser, async (req: any, res: any) => {
+// ─── Channel Routes ─────────────────────────────────────────
+app.get("/api/channels", authenticateUser, requireWorkspacePermission(WorkspacePermission.CHAT_PARTICIPATION), async (req: any, res: any) => {
+  try {
+    const workspaceId = req.query.workspaceId as string;
+    if (!workspaceId) return res.status(400).json({ error: "Missing workspaceId." });
+    const channels = await findChannelsByWorkspace(workspaceId);
+    res.json({ channels });
+  } catch (err) {
+    console.error("Get channels error:", err);
+    res.status(500).json({ error: "Failed to fetch channels." });
+  }
+});
+
+app.post("/api/channels", authenticateUser, requireWorkspacePermission(WorkspacePermission.MODERATE_CHAT), async (req: any, res: any) => {
+  try {
+    const { workspaceId, name, description } = req.body;
+    if (!workspaceId || !name) return res.status(400).json({ error: "workspaceId and name required." });
+    const channel = await createChannel({
+      workspace_id: workspaceId,
+      name: name.startsWith("#") ? name : `# ${name}`,
+      description: description || "",
+      created_by: req.user.id,
+    });
+    res.json({ success: true, channel });
+  } catch (err) {
+    console.error("Create channel error:", err);
+    res.status(500).json({ error: "Failed to create channel." });
+  }
+});
+
+app.delete("/api/channels/:id", authenticateUser, requireWorkspacePermission(WorkspacePermission.MODERATE_CHAT), async (req: any, res: any) => {
+  try {
+    await deleteChannel(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete channel error:", err);
+    res.status(500).json({ error: "Failed to delete channel." });
+  }
+});
+
+app.get("/api/gamification/leaderboard", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const workspaceId = req.query.workspaceId as string || req.query.communityId as string;
     if (!workspaceId) return res.status(400).json({ error: "Missing workspace context." });
@@ -1962,12 +2010,12 @@ app.get("/api/payments/mrr-stats", authenticateUser, async (req: any, res: any) 
   try {
     const isSuperAdmin = req.user.platformRole === "super_admin";
     const members = await findWorkspaceMembers("");
-    const isCreator = members.some(
-      (m: any) => m.user_id === req.user.id && ["creator", "admin"].includes(m.role)
+    const isOwner = members.some(
+      (m: any) => m.user_id === req.user.id && ["owner", "admin"].includes(m.role)
     );
 
-    if (!isSuperAdmin && !isCreator) {
-      return res.status(403).json({ error: "Access denied. Creator/Admin only." });
+    if (!isSuperAdmin && !isOwner) {
+      return res.status(403).json({ error: "Access denied. Owner/Admin only." });
     }
 
     const commsCount = (await query("SELECT COUNT(*) as c FROM workspaces WHERE owner_id = $1", [req.user.id])).rows[0]?.c || 0;
@@ -2037,7 +2085,7 @@ app.get("/api/rbac/workspaces/:workspaceId/members", authenticateUser, async (re
     }
 
     const isPrivileged = req.user.platformRole === "super_admin" ||
-      ["creator", "admin", "moderator"].includes(member?.role);
+      ["owner", "admin", "moderator"].includes(member?.role);
 
     const members = await findWorkspaceMembers(workspaceId);
     const enriched = [];
@@ -2078,8 +2126,8 @@ app.post("/api/rbac/workspaces/:workspaceId/members/:userId/role", authenticateU
     const target = await findWorkspaceMember(workspaceId, userId);
     if (!target) return res.status(404).json({ error: "Member not found." });
 
-    if (target.role === "creator" && req.user.platformRole !== "super_admin") {
-      return res.status(403).json({ error: "Cannot alter creator role." });
+    if (target.role === "owner" && req.user.platformRole !== "super_admin") {
+      return res.status(403).json({ error: "Cannot alter owner role." });
     }
 
     const oldRole = target.role;
@@ -2088,8 +2136,9 @@ app.post("/api/rbac/workspaces/:workspaceId/members/:userId/role", authenticateU
     await addAuditLog(req.user.id, req.user.fullName, "ROLE_UPDATED", `Changed user ${userId} role from '${oldRole}' to '${role}'.`, workspaceId);
 
     let legacyRole = "member";
-    if (role === "creator") legacyRole = "creator";
+    if (role === "owner") legacyRole = "owner";
     else if (role === "admin") legacyRole = "admin";
+    else if (role === "instructor") legacyRole = "instructor";
     else if (role === "moderator") legacyRole = "moderator";
     await updateUser(userId, { role: legacyRole });
 
@@ -2154,7 +2203,7 @@ app.post("/api/rbac/workspaces/:workspaceId/members/:userId/ban", authenticateUs
 
     const target = await findWorkspaceMember(workspaceId, userId);
     if (!target) return res.status(404).json({ error: "Member not found." });
-    if (target.role === "creator") return res.status(403).json({ error: "Cannot ban creator." });
+    if (target.role === "owner") return res.status(403).json({ error: "Cannot ban owner." });
 
     await updateWorkspaceMember(workspaceId, userId, { status });
     await addAuditLog(req.user.id, req.user.fullName, status === "banned" ? "MEMBER_BANNED" : "MEMBER_MUTED", `Member ${userId} status set to '${status}'.`, workspaceId);
@@ -2388,29 +2437,13 @@ app.post("/api/database/migrate", authenticateUser, async (req: any, res: any) =
   res.json({ success: true, message: `PostgreSQL schema verified. Seeded: ${seeded}` });
 });
 
-// Backward compatibility stubs for old CloudPanel endpoints
-app.get("/api/cloudpanel/status", async (_req, res) => {
-  res.json({
-    configured: false,
-    connected: false,
-    message: "CloudPanel MySQL replaced by PostgreSQL. See /api/database/status.",
-  });
-});
-
-app.post("/api/cloudpanel/trigger-migration", (_req, res) => {
-  res.json({
-    success: false,
-    message: "CloudPanel MySQL removed. Using PostgreSQL directly. Run `npm run migrate` to seed data.",
-  });
-});
-
 // ═══════════════════════════════════════════════════════════════
 // COMMUNITY TRANSFORMATION ROUTES
 // ═══════════════════════════════════════════════════════════════
 
 // ─── Spaces ──────────────────────────────────────────
 
-app.get("/api/spaces", authenticateUser, async (req: any, res: any) => {
+app.get("/api/spaces", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_RESOURCES), async (req: any, res: any) => {
   try {
     const communityId = req.query.workspaceId as string || extractWorkspaceId(req);
     if (!communityId) return res.status(400).json({ error: "Missing workspace context." });
@@ -2462,7 +2495,7 @@ app.delete("/api/spaces/:id", authenticateUser, requireWorkspacePermission(Works
 
 // ─── Posts (spaces-aware) ────────────────────────────
 
-app.get("/api/community/posts", authenticateUser, async (req: any, res: any) => {
+app.get("/api/community/posts", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const workspaceId = req.query.workspaceId as string || extractWorkspaceId(req);
     if (!workspaceId) return res.status(400).json({ error: "Missing workspace context." });
@@ -2479,7 +2512,7 @@ app.get("/api/community/posts", authenticateUser, async (req: any, res: any) => 
   }
 });
 
-app.post("/api/community/posts", authenticateUser, async (req: any, res: any) => {
+app.post("/api/community/posts", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const workspaceId = req.body.workspaceId || extractWorkspaceId(req);
     if (!workspaceId) return res.status(400).json({ error: "Missing workspace context." });
@@ -2519,7 +2552,7 @@ app.post("/api/community/posts", authenticateUser, async (req: any, res: any) =>
 
 // ─── Reactions ───────────────────────────────────────
 
-app.post("/api/community/posts/:id/reactions", authenticateUser, async (req: any, res: any) => {
+app.post("/api/community/posts/:id/reactions", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { reaction } = req.body;
@@ -2537,7 +2570,7 @@ app.post("/api/community/posts/:id/reactions", authenticateUser, async (req: any
   }
 });
 
-app.get("/api/community/posts/:id/reactions", authenticateUser, async (req: any, res: any) => {
+app.get("/api/community/posts/:id/reactions", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const counts = await getPostReactions(req.params.id);
     res.json({ reactions: counts });
@@ -2548,7 +2581,7 @@ app.get("/api/community/posts/:id/reactions", authenticateUser, async (req: any,
 
 // ─── Threaded Comments ───────────────────────────────
 
-app.get("/api/community/posts/:postId/comments", authenticateUser, async (req: any, res: any) => {
+app.get("/api/community/posts/:postId/comments", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const comments = await findCommentsThreaded(req.params.postId);
     res.json({ comments });
@@ -2558,7 +2591,7 @@ app.get("/api/community/posts/:postId/comments", authenticateUser, async (req: a
   }
 });
 
-app.post("/api/community/comments/:id/reactions", authenticateUser, async (req: any, res: any) => {
+app.post("/api/community/comments/:id/reactions", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { reaction } = req.body;
@@ -2572,7 +2605,7 @@ app.post("/api/community/comments/:id/reactions", authenticateUser, async (req: 
 
 // ─── XP System ───────────────────────────────────────
 
-app.get("/api/community/xp/history", authenticateUser, async (req: any, res: any) => {
+app.get("/api/community/xp/history", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const history = await getXpHistory(req.user.id);
     res.json({ history });
@@ -2581,7 +2614,7 @@ app.get("/api/community/xp/history", authenticateUser, async (req: any, res: any
   }
 });
 
-app.get("/api/community/leaderboard", authenticateUser, async (req: any, res: any) => {
+app.get("/api/community/leaderboard", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const workspaceId = req.query.workspaceId as string || extractWorkspaceId(req);
     const period = (req.query.period as string) || "all";
@@ -2594,113 +2627,9 @@ app.get("/api/community/leaderboard", authenticateUser, async (req: any, res: an
   }
 });
 
-// ─── Challenges ──────────────────────────────────────
-
-app.get("/api/challenges", authenticateUser, async (req: any, res: any) => {
-  try {
-    const workspaceId = req.query.workspaceId as string || extractWorkspaceId(req);
-    if (!workspaceId) return res.status(400).json({ error: "Missing workspace context." });
-    const challenges = await findChallengesByWorkspace(workspaceId);
-    res.json({ challenges });
-  } catch (err) {
-    console.error("Fetch challenges error:", err);
-    res.status(500).json({ error: "Failed to fetch challenges." });
-  }
-});
-
-app.post("/api/challenges", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
-  try {
-    const workspaceId = req.body.workspaceId || extractWorkspaceId(req);
-    if (!workspaceId) return res.status(400).json({ error: "Missing workspace context." });
-    const { title, description, icon, color, challengeType, durationDays, xpReward, startsAt, tasks } = req.body;
-    if (!title || !durationDays) return res.status(400).json({ error: "Title and durationDays required." });
-
-    const startDate = startsAt ? new Date(startsAt) : new Date();
-    const endDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
-
-    const challenge = await createChallenge({
-      workspace_id: workspaceId, title, description, icon, color,
-      challenge_type: challengeType || "daily", duration_days: durationDays,
-      xp_reward: xpReward || 100, starts_at: startDate, ends_at: endDate,
-      created_by: req.user.id,
-    });
-
-    if (tasks && Array.isArray(tasks)) {
-      for (let i = 0; i < tasks.length; i++) {
-        const t = tasks[i];
-        await createChallengeTask({
-          challenge_id: challenge.id, title: t.title, description: t.description,
-          day: t.day || Math.floor(i / 3) + 1, task_type: t.taskType || "custom",
-          xp_per_completion: t.xpPerCompletion || 10, sort_order: i,
-        });
-      }
-    }
-
-    await addAuditLog(req.user.id, req.user.fullName, "CHALLENGE_CREATED", `Created challenge '${title}'`, workspaceId);
-    res.json({ success: true, challenge });
-  } catch (err) {
-    console.error("Create challenge error:", err);
-    res.status(500).json({ error: "Failed to create challenge." });
-  }
-});
-
-app.get("/api/challenges/:id", authenticateUser, async (req: any, res: any) => {
-  try {
-    const challenge = await findChallengeById(req.params.id);
-    if (!challenge) return res.status(404).json({ error: "Challenge not found." });
-    const tasks = await findChallengeTasks(req.params.id);
-    const participants = await getChallengeLeaderboard(req.params.id);
-    res.json({ challenge, tasks, participants });
-  } catch (err) {
-    console.error("Fetch challenge error:", err);
-    res.status(500).json({ error: "Failed to fetch challenge." });
-  }
-});
-
-app.post("/api/challenges/:id/join", authenticateUser, async (req: any, res: any) => {
-  try {
-    const participant = await joinChallenge(req.params.id, req.user.id);
-    if (!participant) return res.status(400).json({ error: "Already joined or challenge not found." });
-    res.json({ success: true, participant });
-  } catch (err) {
-    console.error("Join challenge error:", err);
-    res.status(500).json({ error: "Failed to join challenge." });
-  }
-});
-
-app.post("/api/challenges/:id/tasks/:taskId/complete", authenticateUser, async (req: any, res: any) => {
-  try {
-    const challenge = await findChallengeById(req.params.id);
-    if (!challenge) return res.status(404).json({ error: "Challenge not found." });
-
-    const participant = await completeChallengeTask(req.params.id, req.user.id, req.params.taskId);
-    if (!participant) return res.status(400).json({ error: "Not a participant." });
-
-    const task = (await query("SELECT * FROM challenge_tasks WHERE id = $1", [req.params.taskId])).rows[0];
-    if (task) {
-      const xpResult = await addXp(req.user.id, challenge.workspace_id, task.xp_per_completion || 10, `Challenge task: ${task.title}`, "challenge", req.params.id);
-      if (xpResult.leveledUp) {
-        await createNotification({ user_id: req.user.id, title: `Level Up! You're now level ${xpResult.level}`, message: "Keep going!", type: "level_up" });
-      }
-    }
-
-    if (participant.is_completed) {
-      await createNotification({ user_id: req.user.id, title: `Challenge Complete! 🎉`, message: `You finished "${challenge.title}"`, type: "level_up" });
-      await awardBadge(req.user.id, "Challenge Conqueror", challenge.workspace_id);
-      await addXp(req.user.id, challenge.workspace_id, challenge.xp_reward || 100, `Completed challenge: ${challenge.title}`, "challenge", req.params.id);
-      await logActivity(challenge.workspace_id, req.user.id, "challenge_completed", `Completed challenge "${challenge.title}"`, "challenge", req.params.id);
-    }
-
-    res.json({ success: true, participant });
-  } catch (err) {
-    console.error("Complete task error:", err);
-    res.status(500).json({ error: "Failed to complete task." });
-  }
-});
-
 // ─── Lesson Discussions ──────────────────────────────
 
-app.get("/api/lessons/:id/discussions", authenticateUser, async (req: any, res: any) => {
+app.get("/api/lessons/:id/discussions", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
   try {
     const discussions = await findLessonDiscussions(req.params.id);
     res.json({ discussions });
@@ -2709,7 +2638,7 @@ app.get("/api/lessons/:id/discussions", authenticateUser, async (req: any, res: 
   }
 });
 
-app.post("/api/lessons/:id/discussions", authenticateUser, async (req: any, res: any) => {
+app.post("/api/lessons/:id/discussions", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
   try {
     const { content, parentId } = req.body;
     if (!content) return res.status(400).json({ error: "Content is required." });
@@ -2723,7 +2652,7 @@ app.post("/api/lessons/:id/discussions", authenticateUser, async (req: any, res:
   }
 });
 
-app.get("/api/lessons/:id/notes", authenticateUser, async (req: any, res: any) => {
+app.get("/api/lessons/:id/notes", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
   try {
     const note = await findLessonNote(req.params.id, req.user.id);
     res.json({ note });
@@ -2732,7 +2661,7 @@ app.get("/api/lessons/:id/notes", authenticateUser, async (req: any, res: any) =
   }
 });
 
-app.put("/api/lessons/:id/notes", authenticateUser, async (req: any, res: any) => {
+app.put("/api/lessons/:id/notes", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
   try {
     const { content, timestampSeconds } = req.body;
     if (!content) return res.status(400).json({ error: "Content is required." });
@@ -2746,7 +2675,7 @@ app.put("/api/lessons/:id/notes", authenticateUser, async (req: any, res: any) =
 
 // ─── Community Feed ──────────────────────────────────
 
-app.get("/api/community/feed", authenticateUser, async (req: any, res: any) => {
+app.get("/api/community/feed", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const workspaceId = req.query.workspaceId as string || extractWorkspaceId(req);
     if (!workspaceId) return res.status(400).json({ error: "Missing workspace context." });
@@ -2761,7 +2690,7 @@ app.get("/api/community/feed", authenticateUser, async (req: any, res: any) => {
 
 // ─── Member Activity ─────────────────────────────────
 
-app.get("/api/community/activity", authenticateUser, async (req: any, res: any) => {
+app.get("/api/community/activity", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_FEED), async (req: any, res: any) => {
   try {
     const workspaceId = req.query.workspaceId as string || extractWorkspaceId(req);
     if (!workspaceId) return res.status(400).json({ error: "Missing workspace context." });
@@ -2778,15 +2707,10 @@ app.get("/api/community/activity", authenticateUser, async (req: any, res: any) 
 
 // ─── Creator Analytics ───────────────────────────────
 
-app.get("/api/analytics/community-health", authenticateUser, async (req: any, res: any) => {
+app.get("/api/analytics/community-health", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_ANALYTICS), async (req: any, res: any) => {
   try {
     const workspaceId = req.query.workspaceId as string || extractWorkspaceId(req);
     if (!workspaceId) return res.status(400).json({ error: "Missing workspace context." });
-
-    const userWithRoles = { ...req.user, platformRole: req.user.platformRole, workspaceRoles: req.user.workspaceRoles || {} };
-    if (!can(WorkspacePermission.VIEW_ANALYTICS as any, userWithRoles, workspaceId)) {
-      return res.status(403).json({ error: "Forbidden." });
-    }
 
     const health = await getCommunityHealthScore(workspaceId);
     res.json({ health });
@@ -2835,8 +2759,85 @@ async function startServer() {
     }
   }, 15 * 60 * 1000);
 
-  const server = app.listen(PORT, "0.0.0.0", () => {
+  const server = http.createServer(app);
+  const io = new SocketServer(server, {
+    cors: { origin: "*", methods: ["GET", "POST"] },
+  });
+
+  // ─── Socket.io Real-Time Chat ─────────────────────────────
+  const onlineUsers = new Map<string, Set<string>>(); // channelId -> Set<socketId>
+  const userSocketMap = new Map<string, string>(); // userId -> socketId
+
+  io.on("connection", (socket) => {
+    let currentUserId: string | null = null;
+
+    socket.on("identify", (userId: string) => {
+      currentUserId = userId;
+      userSocketMap.set(userId, socket.id);
+    });
+
+    socket.on("join_channel", (channelId: string) => {
+      socket.join(channelId);
+      if (!onlineUsers.has(channelId)) onlineUsers.set(channelId, new Set());
+      onlineUsers.get(channelId)!.add(socket.id);
+
+      // Broadcast online count to room
+      io.to(channelId).emit("online_count", onlineUsers.get(channelId)?.size || 0);
+
+      // Broadcast user joined
+      if (currentUserId) {
+        socket.to(channelId).emit("user_joined", { userId: currentUserId, channelId });
+      }
+    });
+
+    socket.on("leave_channel", (channelId: string) => {
+      socket.leave(channelId);
+      onlineUsers.get(channelId)?.delete(socket.id);
+      io.to(channelId).emit("online_count", onlineUsers.get(channelId)?.size || 0);
+      if (currentUserId) {
+        socket.to(channelId).emit("user_left", { userId: currentUserId, channelId });
+      }
+    });
+
+    socket.on("send_message", async (data: { channelId: string; content: string; senderName: string; senderAvatar: string }) => {
+      try {
+        const msg = await createMessage({
+          sender_id: currentUserId || "unknown",
+          sender_name: data.senderName,
+          sender_avatar: data.senderAvatar,
+          recipient_id: data.channelId,
+          content: data.content,
+        });
+        const message = rowToMessage(msg);
+        io.to(data.channelId).emit("new_message", message);
+      } catch (err) {
+        console.error("Socket send_message error:", err);
+      }
+    });
+
+    socket.on("typing", (data: { channelId: string; userName: string }) => {
+      socket.to(data.channelId).emit("user_typing", { userId: currentUserId, userName: data.userName, channelId: data.channelId });
+    });
+
+    socket.on("stop_typing", (data: { channelId: string }) => {
+      socket.to(data.channelId).emit("user_stop_typing", { userId: currentUserId, channelId: data.channelId });
+    });
+
+    socket.on("disconnect", () => {
+      if (currentUserId) userSocketMap.delete(currentUserId);
+      // Clean up online users
+      for (const [channelId, sockets] of onlineUsers.entries()) {
+        if (sockets.delete(socket.id)) {
+          io.to(channelId).emit("online_count", sockets.size);
+          io.to(channelId).emit("user_left", { userId: currentUserId, channelId });
+        }
+      }
+    });
+  });
+
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Socket.io attached for real-time chat`);
     console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
   });
 

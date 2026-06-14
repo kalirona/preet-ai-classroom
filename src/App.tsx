@@ -85,6 +85,7 @@ import CreatorCouponsView from "./components/CreatorCouponsView";
 import ModerationCenter from "./components/ModerationCenter";
 import ReportsView from "./components/ReportsView";
 import NotificationsView from "./components/NotificationsView";
+import SupportView from "./components/SupportView";
 import { SocketProvider } from "./components/SocketProvider";
 
 import { Sparkles, X, ArrowRight } from "lucide-react";
@@ -614,6 +615,12 @@ export default function App() {
           onMarkNotificationsRead={handleMarkNotificationsRead}
           openOnboarding={() => setShowOnboarding(true)}
           openCreateCommunity={() => setShowCreateCommunity(true)}
+          onTabChange={(tab) => {
+            if (canAccessTab(tab, currentUser, activeCommunityId)) {
+              setActiveTab(tab);
+              window.location.hash = tab;
+            }
+          }}
           onToggleSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           onLogout={handleLogout}
         />
@@ -658,7 +665,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "course-builder" && (
+          {activeTab === "course-builder" && canAccessTab("course-builder", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <ClassroomView
                 currentUser={currentUser}
@@ -669,9 +676,13 @@ export default function App() {
                 isCourseBuilderOnly={true}
               />
             </ErrorBoundary>
-          )}
+          ) : activeTab === "course-builder" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Course Builder is restricted to Owner or Admin.
+            </div>
+          ) : null}
 
-          {activeTab === "analytics" && (
+          {activeTab === "analytics" && canAccessTab("analytics", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <ClassroomView
                 currentUser={currentUser}
@@ -682,7 +693,11 @@ export default function App() {
                 isAnalyticsOnly={true}
               />
             </ErrorBoundary>
-          )}
+          ) : activeTab === "analytics" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Analytics is restricted to Owner or Admin.
+            </div>
+          ) : null}
 
           {activeTab === "calendar" && (
             <ErrorBoundary>
@@ -696,23 +711,31 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "members" && (
+          {activeTab === "members" && canAccessTab("members", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <MembersView
                 currentUser={currentUser}
                 activeCommunityId={activeCommunityId}
               />
             </ErrorBoundary>
-          )}
+          ) : activeTab === "members" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Members is restricted to Owner, Admin, or Moderator.
+            </div>
+          ) : null}
 
-          {activeTab === "students" && (
+          {activeTab === "students" && canAccessTab("students", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <MembersView
                 currentUser={currentUser}
                 activeCommunityId={activeCommunityId}
               />
             </ErrorBoundary>
-          )}
+          ) : activeTab === "students" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Students is restricted to Instructor.
+            </div>
+          ) : null}
 
           {activeTab === "chat" && (
             <ErrorBoundary>
@@ -867,6 +890,7 @@ export default function App() {
               analytics: "analytics",
               security: "security",
               logs: "logs",
+              settings: "settings",
             };
             const section = superAdminTabs[activeTab];
             if (section && canAccessTab("superadmin", currentUser, activeCommunityId)) {
@@ -909,6 +933,12 @@ export default function App() {
               403 Forbidden - Moderation is restricted to Owner, Admin, or Moderator.
             </div>
           ) : null}
+
+          {activeTab === "support" && (
+            <ErrorBoundary>
+              <SupportView currentUser={currentUser} activeCommunityId={activeCommunityId} />
+            </ErrorBoundary>
+          )}
         </main>
 
       </div>
@@ -941,52 +971,76 @@ export default function App() {
             </div>
 
             {/* Stepper details */}
-            <div className="p-6 space-y-5 max-h-[380px] overflow-y-auto">
+            <div className="p-6 space-y-5 max-h-[420px] overflow-y-auto">
               
               <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm flex items-center justify-center shrink-0">
                   1
                 </div>
                 <div>
-                  <h4 className="text-base font-medium text-slate-900">Create your community</h4>
+                  <h4 className="text-base font-medium text-slate-900">Explore the Feed</h4>
                   <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
-                    Click <strong>"+ New Community"</strong> in the header to set up your own space with custom colors and branding.
+                    The <strong>Feed</strong> is where community members share posts, ask questions, and discuss topics. Try creating a post or reacting to one.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm flex items-center justify-center shrink-0">
                   2
                 </div>
                 <div>
-                  <h4 className="text-base font-medium text-slate-900">Try different roles</h4>
+                  <h4 className="text-base font-medium text-slate-900">Browse Courses</h4>
                   <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
-                    Use the role switcher in the header to see how each role experiences the platform — from creator tools to student view.
+                    Head to <strong>Classroom</strong> to see available courses. Each course has modules and lessons. As an admin, you can also create new courses from the Course Builder.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm flex items-center justify-center shrink-0">
                   3
                 </div>
                 <div>
-                  <h4 className="text-base font-medium text-slate-900">AI-powered content</h4>
+                  <h4 className="text-base font-medium text-slate-900">Create Your Community</h4>
                   <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
-                    Use the AI assistant to draft posts, build course outlines, and generate lesson plans from the Classroom tab.
+                    Click <strong>"+ New Community"</strong> in the header to set up your own space — choose a name, URL, and theme colors.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm flex items-center justify-center shrink-0">
                   4
                 </div>
                 <div>
-                  <h4 className="text-base font-medium text-slate-900">Track revenue</h4>
+                  <h4 className="text-base font-medium text-slate-900">Try Different Roles</h4>
                   <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
-                    In the Creator Hub, you can simulate paid memberships and see how revenue tracking works in real time.
+                    Use the <strong>role switcher</strong> in the header to see how each role experiences the platform — from creator tools to student view.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm flex items-center justify-center shrink-0">
+                  5
+                </div>
+                <div>
+                  <h4 className="text-base font-medium text-slate-900">Use the AI Assistant</h4>
+                  <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+                    Open <strong>Chat</strong> and try the AI Copilot to draft posts, build course outlines, or get help with content creation.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm flex items-center justify-center shrink-0">
+                  6
+                </div>
+                <div>
+                  <h4 className="text-base font-medium text-slate-900">Track Your Progress</h4>
+                  <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+                    Earn XP by participating. Check your <strong>Profile</strong> to see your level and achievements. Visit <strong>Settings</strong> to customize your community.
                   </p>
                 </div>
               </div>

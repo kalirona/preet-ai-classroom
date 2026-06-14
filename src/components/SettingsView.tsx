@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Community, User, UserRole } from "../types";
 import { 
   Settings, Sliders, ShieldCheck, Mail, Link2, Award, Clock, Users, Database, Sparkles, Check, 
-  Globe, Palette, Shield, CreditCard, ChevronRight, PlayCircle, PlusCircle, Trash, RefreshCw, AlertCircle
+  Palette, Shield, CreditCard, ChevronRight, PlayCircle, PlusCircle, Trash, RefreshCw, AlertCircle
 } from "lucide-react";
 
 interface SettingsViewProps {
@@ -201,111 +201,24 @@ export default function SettingsView({ currentUser, activeCommunity, onUpdateCom
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Community name</label>
-                  <input
-                    type="text"
-                    value={commName}
-                    onChange={(e) => setCommName(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">URL</label>
-                  <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 px-3 py-2.5">
-                    <input
-                      type="text"
-                      value={commSubdomain}
-                      onChange={(e) => setCommSubdomain(e.target.value)}
-                      className="w-full bg-transparent border-none text-sm text-slate-900 focus:outline-none"
-                    />
-                    <span className="text-sm text-slate-400 font-mono">.skool.sh</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Branding Icon Symbol</label>
-                  <input
-                    type="text"
-                    value={commLogo}
-                    onChange={(e) => setCommLogo(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Branding Theme Accent</label>
-                  <select
-                    value={commPrimary}
-                    onChange={(e) => setCommPrimary(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-2.5 py-2.5 text-sm text-slate-900 focus:outline-none"
-                  >
-                    <option value="indigo-600">Pure Indigo</option>
-                    <option value="emerald-600">Zen Emerald Green</option>
-                    <option value="blue-700">Navy Blue</option>
-                    <option value="rose-600">Rose Red</option>
-                    <option value="amber-600">Amber Gold</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Custom Domain</label>
-                  <input
-                    type="text"
-                    value={customDomain}
-                    onChange={(e) => setCustomDomain(e.target.value)}
-                    placeholder="your-custom.skool.io"
-                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none"
-                  />
-                </div>
-
-                <div className="col-span-full">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                  <textarea
-                    value={commDesc}
-                    onChange={(e) => setCommDesc(e.target.value)}
-                    rows={3}
-                    placeholder="Brief description of your community..."
-                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-5">
-                <h5 className="text-sm font-semibold text-slate-900 mb-3">Theme Colors</h5>
-                <div className="grid grid-cols-5 gap-3">
-                  {[
-                    { name: "Indigo", value: "indigo-600" },
-                    { name: "Emerald", value: "emerald-600" },
-                    { name: "Blue", value: "blue-700" },
-                    { name: "Rose", value: "rose-600" },
-                    { name: "Amber", value: "amber-600" }
-                  ].map(color => (
-                    <button
-                      key={color.name}
-                      onClick={() => setCommPrimary(color.value)}
-                      className={`h-10 rounded-lg border-2 transition-all ${commPrimary === color.value ? "border-slate-900 scale-105" : "border-slate-200 hover:border-slate-300"}`}
-                      style={{ backgroundColor: color.value === "indigo-600" ? "#4F46E5" : 
-                                             color.value === "emerald-600" ? "#10B981" :
-                                             color.value === "blue-700" ? "#2563EB" :
-                                             color.value === "rose-600" ? "#E11D48" :
-                                             color.value === "amber-600" ? "#D97706" : "#6B7280" }}
-                    />
-                  ))}
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Community name</label>
+                <input
+                  type="text"
+                  value={commName}
+                  onChange={(e) => setCommName(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">URL</label>
-                <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 px-3 py-2">
+                <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 px-3 py-2.5">
                   <input
                     type="text"
                     value={commSubdomain}
                     onChange={(e) => setCommSubdomain(e.target.value)}
-                    className="w-full bg-transparent border-none text-sm text-slate-950 focus:outline-none font-mono"
+                    className="w-full bg-transparent border-none text-sm text-slate-900 focus:outline-none"
                   />
                   <span className="text-sm text-slate-400 font-mono">.skool.sh</span>
                 </div>
@@ -314,52 +227,74 @@ export default function SettingsView({ currentUser, activeCommunity, onUpdateCom
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Branding Icon Symbol</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Branding Icon</label>
                 <input
                   type="text"
                   value={commLogo}
                   onChange={(e) => setCommLogo(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-950 focus:outline-none"
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Branding Theme Accent</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Theme Accent</label>
                 <select
                   value={commPrimary}
                   onChange={(e) => setCommPrimary(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-2 py-2 text-xs text-gray-950 focus:outline-none"
+                  className="w-full border border-slate-200 rounded-xl px-2.5 py-2.5 text-sm text-slate-900 focus:outline-none"
                 >
-                  <option value="indigo-600">Pure Indigo</option>
-                  <option value="emerald-600">Zen Emerald Green</option>
-                  <option value="blue-700">Enterprise blue</option>
-                  <option value="rose-600">Neon Rose Red</option>
-                  <option value="slate-900">Charcoal Slate</option>
+                  <option value="indigo-600">Indigo</option>
+                  <option value="emerald-600">Emerald</option>
+                  <option value="blue-700">Blue</option>
+                  <option value="rose-600">Rose</option>
+                  <option value="amber-600">Amber</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">SEO Custom white-label domain name</label>
-                <div className="flex items-center border border-gray-200 rounded-xl bg-gray-50 px-3 py-1.5 gap-1.5 focus-within:ring-1 focus-within:ring-indigo-500">
-                  <Globe className="w-3.5 h-3.5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="e.g. academy.mycompany.com"
-                    value={customDomain}
-                    onChange={(e) => setCustomDomain(e.target.value)}
-                    className="w-full bg-transparent border-none text-xs text-gray-950 focus:outline-none font-mono"
+                <label className="block text-sm font-medium text-slate-700 mb-1">Custom Domain</label>
+                <input
+                  type="text"
+                  value={customDomain}
+                  onChange={(e) => setCustomDomain(e.target.value)}
+                  placeholder="your-custom.skool.io"
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-5">
+              <h5 className="text-sm font-semibold text-slate-900 mb-3">Theme Colors</h5>
+              <div className="grid grid-cols-5 gap-3">
+                {[
+                  { name: "Indigo", value: "indigo-600" },
+                  { name: "Emerald", value: "emerald-600" },
+                  { name: "Blue", value: "blue-700" },
+                  { name: "Rose", value: "rose-600" },
+                  { name: "Amber", value: "amber-600" }
+                ].map(color => (
+                  <button
+                    key={color.name}
+                    onClick={() => setCommPrimary(color.value)}
+                    className={`h-10 rounded-lg border-2 transition-all ${commPrimary === color.value ? "border-slate-900 scale-105" : "border-slate-200 hover:border-slate-300"}`}
+                    style={{ backgroundColor: color.value === "indigo-600" ? "#4F46E5" : 
+                                           color.value === "emerald-600" ? "#10B981" :
+                                           color.value === "blue-700" ? "#2563EB" :
+                                           color.value === "rose-600" ? "#E11D48" :
+                                           color.value === "amber-600" ? "#D97706" : "#6B7280" }}
                   />
-                </div>
+                ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-755 mb-1">SaaS Space Landing Hero description</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <textarea
                 rows={3}
                 value={commDesc}
                 onChange={(e) => setCommDesc(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-950 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans leading-relaxed"
+                placeholder="Brief description of your community..."
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none resize-none"
               />
             </div>
           </div>

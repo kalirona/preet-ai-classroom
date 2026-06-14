@@ -198,6 +198,19 @@ export async function createSchema() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS channels (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_by TEXT REFERENCES users(id),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_channels_workspace ON channels(workspace_id);
+
     CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -965,6 +978,28 @@ export async function createMessage(msg: Partial<DbRow>): Promise<DbRow> {
     [id, msg.sender_id, msg.sender_name, msg.sender_avatar || null, msg.recipient_id, msg.content]
   );
   return result.rows[0];
+}
+
+export async function findChannelsByWorkspace(workspaceId: string): Promise<DbRow[]> {
+  const result = await query(
+    "SELECT * FROM channels WHERE workspace_id = $1 ORDER BY created_at ASC",
+    [workspaceId]
+  );
+  return result.rows;
+}
+
+export async function createChannel(ch: Partial<DbRow>): Promise<DbRow> {
+  const id = ch.id || `ch-${Date.now()}`;
+  const result = await query(
+    `INSERT INTO channels (id, workspace_id, name, description, created_by)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [id, ch.workspace_id, ch.name, ch.description || null, ch.created_by || null]
+  );
+  return result.rows[0];
+}
+
+export async function deleteChannel(id: string): Promise<void> {
+  await query("DELETE FROM channels WHERE id = $1", [id]);
 }
 
 export async function findNotificationsByUser(userId: string): Promise<DbRow[]> {
