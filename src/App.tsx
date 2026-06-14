@@ -119,6 +119,8 @@ export default function App() {
   const [newCommLogo, setNewCommLogo] = useState("🚀");
   const [newCommPrice, setNewCommPrice] = useState(49);
   const [newCommCategoryInput, setNewCommCategoryInput] = useState("AI Builders, General discussions");
+  const [newCommDesc, setNewCommDesc] = useState("");
+  const [newCommPrimary, setNewCommPrimary] = useState("indigo-600");
   const [isCreatingComm, setIsCreatingComm] = useState(false);
 
   // Core boot loader
@@ -495,8 +497,10 @@ export default function App() {
         body: JSON.stringify({
           name: newCommName,
           subdomain: newCommSub.toLowerCase().replace(/\s+/g, "-"),
-          logoUrl: newCommLogo,
+          description: newCommDesc,
+          primaryColor: newCommPrimary,
           priceMonthly: newCommPrice,
+          logoUrl: newCommLogo,
           categories: cats
         })
       });
@@ -508,8 +512,10 @@ export default function App() {
         // Reset states
         setNewCommName("");
         setNewCommSub("");
+        setNewCommDesc("");
         setNewCommLogo("🚀");
         setNewCommPrice(49);
+        setNewCommPrimary("indigo-600");
         setNewCommCategoryInput("AI Builders, General discussions");
         setShowCreateCommunity(false);
 
@@ -1069,18 +1075,28 @@ export default function App() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl border border-gray-200 w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
             
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">New Community</h2>
-                <p className="text-sm text-slate-400 mt-0.5">Set up a space for your community</p>
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">New Community</h2>
+                  <p className="text-sm text-slate-400 mt-0.5">Set up a space for your community</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowCreateCommunity(false);
+                    // Reset form
+                    setNewCommName("");
+                    setNewCommSub("");
+                    setNewCommDesc("");
+                    setNewCommLogo("🚀");
+                    setNewCommPrice(49);
+                    setNewCommPrimary("indigo-600");
+                    setNewCommCategoryInput("AI Builders, General discussions");
+                  }}
+                  className="p-1 rounded-full hover:bg-gray-150 text-gray-400"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={() => setShowCreateCommunity(false)}
-                className="p-1 rounded-full hover:bg-gray-150 text-gray-400"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
             <form onSubmit={handleCreateCommunitySubmit}>
               <div className="p-6 space-y-4">
@@ -1094,6 +1110,17 @@ export default function App() {
                     value={newCommName}
                     onChange={(e) => setNewCommName(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Brief description of your community..."
+                    value={newCommDesc}
+                    onChange={(e) => setNewCommDesc(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 resize-none"
                   />
                 </div>
 
@@ -1142,15 +1169,31 @@ export default function App() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Topics</label>
-                    <input
-                      type="text"
-                      placeholder="React, Next.js, AI"
-                      value={newCommCategoryInput}
-                      onChange={(e) => setNewCommCategoryInput(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300"
-                    />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Theme Color</label>
+                    <select
+                      value={newCommPrimary}
+                      onChange={(e) => setNewCommPrimary(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl px-2.5 py-2.5 text-sm text-slate-900 focus:outline-none"
+                    >
+                      <option value="indigo-600">Indigo</option>
+                      <option value="emerald-600">Emerald</option>
+                      <option value="blue-700">Blue</option>
+                      <option value="rose-600">Rose</option>
+                      <option value="amber-500">Amber</option>
+                      <option value="slate-800">Slate</option>
+                    </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Topics (comma-separated)</label>
+                  <input
+                    type="text"
+                    placeholder="React, Next.js, AI"
+                    value={newCommCategoryInput}
+                    onChange={(e) => setNewCommCategoryInput(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300"
+                  />
                 </div>
 
                 <p className="text-sm text-slate-400 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -1162,7 +1205,17 @@ export default function App() {
               <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowCreateCommunity(false)}
+                  onClick={() => {
+                    setShowCreateCommunity(false);
+                    // Reset form
+                    setNewCommName("");
+                    setNewCommSub("");
+                    setNewCommDesc("");
+                    setNewCommLogo("🚀");
+                    setNewCommPrice(49);
+                    setNewCommPrimary("indigo-600");
+                    setNewCommCategoryInput("AI Builders, General discussions");
+                  }}
                   className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50"
                 >
                   Cancel

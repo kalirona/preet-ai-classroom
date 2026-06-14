@@ -1007,7 +1007,7 @@ app.get("/api/communities", authenticateUser, async (req: any, res: any) => {
 
 app.post("/api/communities", authenticateUser, async (req: any, res: any) => {
   try {
-    const { name, subdomain, description, primaryColor, priceMonthly, isPremium, isPrivate } = req.body;
+    const { name, subdomain, description, primaryColor, priceMonthly, isPremium, isPrivate, logoUrl, categories } = req.body;
     if (!name || !subdomain) return res.status(400).json({ error: "Name and subdomain are required." });
 
     const existing = await findWorkspaceBySubdomain(subdomain);
@@ -1016,13 +1016,18 @@ app.post("/api/communities", authenticateUser, async (req: any, res: any) => {
     const colors = ["emerald-600", "indigo-600", "blue-700", "rose-600", "amber-500", "slate-800"];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
+    // Parse categories from client (comma-separated string) or use defaults
+    const parsedCategories = categories 
+      ? (typeof categories === 'string' ? categories.split(',').map(c => c.trim()).filter(Boolean) : categories)
+      : ["Introductions", "General Discussions", "Resource Vault", "Action Plan"];
+
     const newComm = await createWorkspace({
       id: `comm-${Date.now()}`,
       name,
       subdomain: subdomain.toLowerCase().replace(/[^a-z0-9-]/g, ""),
       description: description || "Welcome to our new community!",
       branding: {
-        logoUrl: name.substring(0, 2).toUpperCase(),
+        logoUrl: logoUrl || name.substring(0, 2).toUpperCase(),
         primaryColor: primaryColor || randomColor,
         secondaryColor: "slate-900", accentColor: "indigo-400",
         bannerUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800",
@@ -1031,7 +1036,7 @@ app.post("/api/communities", authenticateUser, async (req: any, res: any) => {
       owner_id: req.user.id,
       is_premium: isPremium || false,
       price_monthly: parseFloat(priceMonthly) || 0,
-      categories: ["Introductions", "General Discussions", "Resource Vault", "Action Plan"],
+      categories: parsedCategories,
       is_private: isPrivate || false,
     });
 
