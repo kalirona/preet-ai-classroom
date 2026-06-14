@@ -582,27 +582,39 @@ app.post("/api/auth/login", async (req, res) => {
 
     const emailLower = email.toLowerCase().trim();
 
+    // Demo accounts bypass lockout
+    const demoEmails = [
+      "creator@example.com",
+      "instructor@example.com", 
+      "lincolnflores223@gmail.com",
+      "moderator@example.com",
+      "admin@example.com"
+    ];
+    const isDemoAccount = demoEmails.includes(emailLower);
+
     const attempt = await getLoginAttempts(emailLower);
-    if (attempt && attempt.locked_until && new Date(attempt.locked_until) > new Date()) {
+    if (!isDemoAccount && attempt && attempt.locked_until && new Date(attempt.locked_until) > new Date()) {
       const minutesLeft = Math.ceil((new Date(attempt.locked_until).getTime() - Date.now()) / 60000);
       return res.status(423).json({ error: `Account locked. Try again in ${minutesLeft} minutes.` });
     }
 
     const user = await findUserByEmail(emailLower);
     if (!user) {
-      await upsertLoginAttempts(emailLower, null);
+      if (!isDemoAccount) await upsertLoginAttempts(emailLower, null);
       return res.status(400).json({ error: "No account found with this email." });
     }
 
     if (!user.password_hash) {
-      await upsertLoginAttempts(emailLower, null);
+      if (!isDemoAccount) await upsertLoginAttempts(emailLower, null);
       return res.status(400).json({ error: "Account has no password set. Use Google sign-in." });
     }
 
     const valid = await verifyPassword(password, user.password_hash);
     if (!valid) {
-      const lockedUntil = (attempt?.count || 0) >= 4 ? new Date(Date.now() + 5 * 60 * 1000) : null;
-      await upsertLoginAttempts(emailLower, lockedUntil);
+      if (!isDemoAccount) {
+        const lockedUntil = (attempt?.count || 0) >= 4 ? new Date(Date.now() + 5 * 60 * 1000) : null;
+        await upsertLoginAttempts(emailLower, lockedUntil);
+      }
       return res.status(400).json({ error: "Invalid password." });
     }
 
