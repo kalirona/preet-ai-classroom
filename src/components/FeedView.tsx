@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Community, Post, Comment, UserRole } from "../types";
+import { Community, Post, Comment, WorkspaceRole } from "../types";
 import { MessageSquare, ThumbsUp, Pin, Volume2, Search, ArrowRight, MessageCircle, Sparkles, Send, Eye, X, Loader2 } from "lucide-react";
 
 interface FeedViewProps {
-  userRole: UserRole;
+  userRole: WorkspaceRole;
   activeCommunity: Community | null;
   posts: Post[];
   onLikePost: (id: string) => void;
@@ -259,7 +259,7 @@ export default function FeedView({
                         Announcement
                       </span>
                     )}
-                    {onPinPost && (userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN || userRole === UserRole.MODERATOR) && (
+                    {onPinPost && (userRole === WorkspaceRole.ADMIN || userRole === WorkspaceRole.OWNER || userRole === WorkspaceRole.MODERATOR) && (
                       <button
                         onClick={() => onPinPost(post.id)}
                         className="text-gray-400 hover:text-amber-500 p-1"

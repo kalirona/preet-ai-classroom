@@ -46,7 +46,7 @@ import { createOrder, captureOrder, verifyWebhook } from "./server/paypal.js";
 
 import {
   User, Community, Post, Comment, Course, Module, Lesson, LiveEvent,
-  DirectMessage, Notification, Transaction, UserRole, PlatformRole,
+  DirectMessage, Notification, Transaction, PlatformRole,
   WorkspaceRole, PlatformPermission, WorkspacePermission,
   PLATFORM_ROLE_PERMISSIONS, WORKSPACE_ROLE_PERMISSIONS, can,
 } from "./src/types";
@@ -928,7 +928,7 @@ app.post("/api/auth/onboarding", authenticateUser, async (req: any, res: any) =>
     if (bio) fields.bio = bio;
 
     let platformRole = "user";
-    if (role === UserRole.SUPER_ADMIN) platformRole = "super_admin";
+    if (role === "super_admin") platformRole = "super_admin";
     fields.platform_role = platformRole;
 
     await updateUser(req.user.id, fields);
@@ -944,8 +944,8 @@ app.post("/api/auth/onboarding", authenticateUser, async (req: any, res: any) =>
         if (comm) await updateWorkspace(targetCommunityId, { members_count: (comm.members_count || 0) + 1 });
 
         let wsRole = "member";
-        if (role === UserRole.SUPER_ADMIN) wsRole = "owner";
-        else if (role === UserRole.ADMIN) wsRole = "admin";
+        if (role === "super_admin") wsRole = "owner";
+        else if (role === "admin") wsRole = "admin";
         else if (role === "instructor") wsRole = "instructor";
         else if (role === UserRole.MODERATOR) wsRole = "moderator";
 

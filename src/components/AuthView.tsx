@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { User, UserRole } from "../types";
+import { User } from "../types";
 import { 
   KeyRound, Mail, User as UserIcon, Keyboard, Info, AlertCircle, Sparkles, 
   ArrowRight, ShieldCheck, HelpCircle, Trophy, Globe, Layers, Eye, EyeOff, Loader2

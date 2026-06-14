@@ -3,13 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export enum UserRole {
-  SUPER_ADMIN = "super_admin",
-  ADMIN = "admin",
-  MODERATOR = "moderator",
-  MEMBER = "member"
-}
-
 export enum PlatformRole {
   SUPER_ADMIN = "super_admin",
   USER = "user"
@@ -220,7 +213,6 @@ export interface User {
   email: string;
   username: string;
   fullName: string;
-  role: UserRole; // Legacy fallback
   platformRole: PlatformRole; // Enterprise global platform role
   workspaceRoles?: Record<string, WorkspaceRole>; // Dictionary of active workspace membership roles
   avatarUrl: string;

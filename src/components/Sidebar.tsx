@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Community, User, UserRole, PlatformRole, WorkspaceRole } from "../types";
+import { Community, User, PlatformRole, WorkspaceRole } from "../types";
 import { 
   MessageSquare, BookOpen, Calendar, Trophy, BarChart3, Star, Layers, Sparkles, X, ChevronDown, 
   Menu, Info, Users, ShieldAlert, LogOut, FileText, Settings, Bookmark, Bell, ShoppingCart, UserCheck, ChevronLeft, ChevronRight, HelpCircle, Shield, Database,

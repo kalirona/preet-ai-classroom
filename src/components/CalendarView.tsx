@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { LiveEvent, UserRole } from "../types";
-import { Calendar, Video, Clock, Check, Plus, Users, Globe, ExternalLink, X, MapPin, Sparkles } from "lucide-react";
+import { LiveEvent, WorkspaceRole } from "../types";
 
 interface CalendarViewProps {
-  userRole: UserRole;
+  userRole: WorkspaceRole;
   activeCommunityId: string;
   events: LiveEvent[];
   onAddEvent: (event: LiveEvent) => void;
@@ -88,7 +87,7 @@ export default function CalendarView({
         </div>
 
         {/* Schedule Action Bento Widget for admins vs Student RSVP stats card */}
-        {userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN ? (
+        {userRole === WorkspaceRole.OWNER || userRole === WorkspaceRole.ADMIN || userRole === WorkspaceRole.INSTRUCTOR ? (
           <div className="col-span-12 md:col-span-4 bg-indigo-600 rounded-2xl p-6 text-white shadow-sm flex flex-col justify-between">
             <div>
               <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-100 font-mono">Creator Classrooms</h3>

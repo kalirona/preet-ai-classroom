@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Community, User, UserRole } from "../types";
+import { Community, User, WorkspaceRole } from "../types";
 import { 
   Settings, Sliders, ShieldCheck, Mail, Link2, Award, Clock, Users, Database, Sparkles, Check, 
   Palette, Shield, CreditCard, ChevronRight, PlayCircle, PlusCircle, Trash, RefreshCw, AlertCircle

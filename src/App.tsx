@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User, Community, Post, LiveEvent, Notification, UserRole, Course, PlatformRole, WorkspaceRole } from "./types";
+import { User, Community, Post, LiveEvent, Notification, Course, PlatformRole, WorkspaceRole } from "./types";
 
 // Strict Client-Side Role-Based Tab Guard
 export function canAccessTab(tab: string, user: User | null, activeCommunityId: string): boolean {
@@ -650,7 +650,7 @@ export default function App() {
           {(activeTab === "home" || activeTab === "feed" || activeTab === "community") && (
             <ErrorBoundary>
               <FeedView
-                userRole={currentUser?.role || UserRole.MEMBER}
+                userRole={currentUser?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER}
                 activeCommunity={activeCommunity}
                 posts={posts}
                 onLikePost={handleLikePost}
@@ -709,7 +709,7 @@ export default function App() {
           {activeTab === "calendar" && (
             <ErrorBoundary>
               <CalendarView
-                userRole={currentUser?.role || UserRole.MEMBER}
+                userRole={currentUser?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER}
                 activeCommunityId={activeCommunityId}
                 events={events}
                 onAddEvent={(evt) => setEvents([evt, ...events])}
