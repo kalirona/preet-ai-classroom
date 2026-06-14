@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { User, UserRole, Notification } from "../types";
+import { User, WorkspaceRole, Notification } from "../types";
 import { Bell, HelpCircle, Trophy, ShieldCheck, Menu, LogOut, Settings, Palette, User as UserIcon, Plus, Search } from "lucide-react";
 
 interface HeaderProps {
   user: User | null;
-  onRoleChange: (role: UserRole) => void;
+  onRoleChange: (role: WorkspaceRole) => void;
   activeCommunity: any;
   notifications: Notification[];
   onMarkNotificationsRead: () => void;
@@ -16,18 +16,16 @@ interface HeaderProps {
 }
 
 const roleLabel: Record<string, string> = {
-  super_admin: "Super Admin",
-  admin: "Admin",
   owner: "Creator",
+  admin: "Admin",
   instructor: "Instructor",
   moderator: "Moderator",
   member: "Member",
 };
 
 const roleColor: Record<string, string> = {
-  super_admin: "bg-indigo-100 text-indigo-700",
-  admin: "bg-amber-100 text-amber-700",
   owner: "bg-emerald-100 text-emerald-700",
+  admin: "bg-amber-100 text-amber-700",
   instructor: "bg-cyan-100 text-cyan-700",
   moderator: "bg-purple-100 text-purple-700",
   member: "bg-slate-100 text-slate-600",
@@ -100,15 +98,16 @@ export default function Header({
       <div className="flex items-center gap-3">
         {/* Role Switcher */}
         <select
-          value={user?.role || UserRole.MEMBER}
-          onChange={(e) => onRoleChange(e.target.value as UserRole)}
+          value={user?.workspaceRoles?.[activeCommunity?.id] || WorkspaceRole.MEMBER}
+          onChange={(e) => onRoleChange(e.target.value as WorkspaceRole)}
           className="text-sm bg-slate-50 text-slate-700 border border-slate-200 rounded-lg py-1.5 px-3 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 cursor-pointer hidden sm:block"
           id="role-picker-testing"
         >
-          <option value={UserRole.SUPER_ADMIN}>Super Admin</option>
-          <option value={UserRole.ADMIN}>Admin</option>
-          <option value={UserRole.MODERATOR}>Moderator</option>
-          <option value={UserRole.MEMBER}>Member</option>
+          <option value={WorkspaceRole.OWNER}>Creator</option>
+          <option value={WorkspaceRole.ADMIN}>Admin</option>
+          <option value={WorkspaceRole.INSTRUCTOR}>Instructor</option>
+          <option value={WorkspaceRole.MODERATOR}>Moderator</option>
+          <option value={WorkspaceRole.MEMBER}>Member</option>
         </select>
 
         {/* New Community Button */}

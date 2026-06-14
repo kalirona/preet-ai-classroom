@@ -89,6 +89,7 @@ import SupportView from "./components/SupportView";
 import { SocketProvider } from "./components/SocketProvider";
 
 import { Sparkles, X, ArrowRight } from "lucide-react";
+import { WorkspaceRole } from "./types";
 
 export default function App() {
   // Global Workspace states
@@ -285,7 +286,7 @@ export default function App() {
   };
 
   // Handle Role Switcher changes
-  const handleRoleChange = async (newRole: UserRole) => {
+  const handleRoleChange = async (newRole: WorkspaceRole) => {
     if (!currentUser) return;
     try {
       const res = await fetch("/api/auth/switch-role", {

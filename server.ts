@@ -868,17 +868,21 @@ app.put("/api/auth/profile", authenticateUser, async (req: any, res: any) => {
   }
 });
 
-app.post("/api/auth/switch-role", authenticateUser, requirePlatformPermission(PlatformPermission.MANAGE_USERS), async (req: any, res: any) => {
+// Self-service role switch for testing (no Super Admin required)
+app.post("/api/auth/switch-role", authenticateUser, async (req: any, res: any) => {
   try {
     const { role, userId } = req.body;
     const targetId = userId || req.user.id;
     if (!role) return res.status(400).json({ error: "Role is required." });
 
-    if (!Object.values(UserRole).includes(role as UserRole)) {
+    // Accept both WorkspaceRole and UserRole values
+    const validRoles = ["owner", "admin", "instructor", "moderator", "member", "super_admin"];
+    if (!validRoles.includes(role)) {
       return res.status(400).json({ error: "Invalid role." });
     }
 
-    if (role === UserRole.SUPER_ADMIN && req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    // Super Admin role still requires Super Admin platform role
+    if (role === "super_admin" && req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
       return res.status(403).json({ error: "Only super admins can assign super_admin role." });
     }
 
@@ -886,17 +890,18 @@ app.post("/api/auth/switch-role", authenticateUser, requirePlatformPermission(Pl
     if (!target) return res.status(404).json({ error: "User not found." });
 
     let platformRole = "user";
-    if (role === UserRole.SUPER_ADMIN) platformRole = "super_admin";
+    if (role === "super_admin") platformRole = "super_admin";
 
     await updateUser(target.id, { role, platform_role: platformRole });
 
     const workspaceId = req.headers["x-workspace-id"] || null;
     if (workspaceId) {
       let wsRole = "member";
-      if (role === UserRole.SUPER_ADMIN) wsRole = "owner";
-      else if (role === UserRole.ADMIN) wsRole = "admin";
+      if (role === "super_admin") wsRole = "owner";
+      else if (role === "admin") wsRole = "admin";
       else if (role === "instructor") wsRole = "instructor";
-      else if (role === UserRole.MODERATOR) wsRole = "moderator";
+      else if (role === "moderator") wsRole = "moderator";
+      else wsRole = "member";
 
       const existing = await findWorkspaceMember(workspaceId, target.id);
       if (existing) {
