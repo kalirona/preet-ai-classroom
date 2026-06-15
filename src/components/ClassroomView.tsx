@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Course, Lesson, Comment } from "../types";
+import { Course, Lesson, Comment, CourseStatus, CourseType, DifficultyLevel } from "../types";
 import { 
   BookOpen, PlayCircle, CheckCircle, Lock, Download, Sparkles, Send, Box, ChevronRight, 
   GraduationCap, CreditCard, ShieldCheck, HelpCircle, Award, Flame, ClipboardList, PenTool, FileText, RefreshCw, X, ArrowUp, ArrowDown, Trash2, Plus
@@ -165,24 +165,70 @@ export default function ClassroomView({
   const [newCourseDesc, setNewCourseDesc] = useState("");
   const [newCourseCover, setNewCourseCover] = useState("");
   const [newCoursePremium, setNewCoursePremium] = useState(false);
+  const [newCourseType, setNewCourseType] = useState<CourseType>("flagship");
+  const [newCourseDifficulty, setNewCourseDifficulty] = useState<DifficultyLevel>("beginner");
+  const [newCoursePrice, setNewCoursePrice] = useState(0);
+  const [newCourseCategory, setNewCourseCategory] = useState("");
 
-  // Course status tracking (Published vs Draft)
-  const [courseStatuses, setCourseStatuses] = useState<Record<string, "published" | "draft">>(() => {
-    const initial: Record<string, "published" | "draft"> = {};
-    if (courses) {
-      courses.forEach(c => {
-        initial[c.id] = c.id.includes("mastery") || c.id.includes("security") ? "published" : "draft";
+  // Course status tracking - uses real course.status from API
+  const handleToggleCourseStatus = async (courseId: string, newStatus: CourseStatus) => {
+    try {
+      const res = await fetch(`/api/courses/${courseId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
       });
+      if (res.ok) {
+        onRefreshCourses();
+      }
+    } catch (err) {
+      console.error("Failed to toggle course status:", err);
     }
-    return initial;
-  });
+  };
 
-  const toggleCourseStatus = (courseId: string) => {
-    setCourseStatuses(prev => {
-      const current = prev[courseId] || "published";
-      const nextStatus = current === "published" ? "draft" : "published";
-      return { ...prev, [courseId]: nextStatus };
-    });
+  // Get display-friendly status label
+  const getStatusLabel = (status?: CourseStatus): string => {
+    switch (status) {
+      case "published": return "Published";
+      case "draft": return "Draft";
+      case "scheduled": return "Scheduled";
+      case "archived": return "Archived";
+      default: return "Draft";
+    }
+  };
+
+  // Get status badge color
+  const getStatusColor = (status?: CourseStatus): string => {
+    switch (status) {
+      case "published": return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "draft": return "bg-slate-50 text-slate-600 border-slate-200";
+      case "scheduled": return "bg-amber-50 text-amber-700 border-amber-200";
+      case "archived": return "bg-red-50 text-red-600 border-red-200";
+      default: return "bg-slate-50 text-slate-600 border-slate-200";
+    }
+  };
+
+  // Get course type display label
+  const getCourseTypeLabel = (type?: CourseType): string => {
+    switch (type) {
+      case "mini_course": return "Mini Course";
+      case "flagship": return "Flagship";
+      case "workshop": return "Workshop";
+      case "membership": return "Membership";
+      case "coaching": return "Coaching";
+      case "challenge": return "Challenge";
+      default: return "Flagship";
+    }
+  };
+
+  // Get difficulty level color
+  const getDifficultyColor = (level?: DifficultyLevel): string => {
+    switch (level) {
+      case "beginner": return "bg-emerald-50 text-emerald-700";
+      case "intermediate": return "bg-amber-50 text-amber-700";
+      case "advanced": return "bg-red-50 text-red-600";
+      default: return "bg-slate-50 text-slate-600";
+    }
   };
 
   // Gutenberg Block Definition
@@ -454,12 +500,23 @@ export default function ClassroomView({
       isPremiumOnly: premium,
       modulesCount: 1,
       enrolledCount: 0,
+      status: "draft",
+      courseType: newCourseType,
+      price: newCoursePrice,
+      certificateEnabled: false,
+      estimatedHours: 0,
+      difficultyLevel: newCourseDifficulty,
+      tags: [],
+      category: newCourseCategory || undefined,
+      creatorName: currentUser?.fullName,
+      creatorAvatar: currentUser?.avatarUrl,
       modules: [
         {
           id: "mod_init_" + Math.random().toString(36).substring(2, 7),
           courseId: "crs_new",
           title: "Module 1: Getting Started",
           index: 0,
+          isFreePreview: true,
           lessons: [
             {
               id: "les_init_" + Math.random().toString(36).substring(2, 7),
@@ -470,6 +527,7 @@ export default function ClassroomView({
               textContent: "Modify this template playbook introduction.",
               index: 0,
               isLocked: false,
+              isFreePreview: true,
               contentType: "video"
             }
           ]
@@ -482,8 +540,12 @@ export default function ClassroomView({
     setNewCourseDesc("");
     setNewCourseCover("");
     setNewCoursePremium(false);
+    setNewCourseType("flagship");
+    setNewCourseDifficulty("beginner");
+    setNewCoursePrice(0);
+    setNewCourseCategory("");
     setSelectedBuilderCourse(newCourse);
-    onAddCourse(newCourse); // Call parent callback
+    onAddCourse(newCourse);
   };
 
   // Payments checking effects
@@ -817,8 +879,16 @@ export default function ClassroomView({
   const [manualDesc, setManualDesc] = useState("");
   const [manualCover, setManualCover] = useState("https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600");
   const [manualPremium, setManualPremium] = useState(false);
+  const [manualCourseType, setManualCourseType] = useState<CourseType>("flagship");
+  const [manualDifficulty, setManualDifficulty] = useState<DifficultyLevel>("beginner");
+  const [manualPrice, setManualPrice] = useState(0);
+  const [manualCategory, setManualCategory] = useState("");
+  const [manualCertificateEnabled, setManualCertificateEnabled] = useState(false);
+  const [manualEstimatedHours, setManualEstimatedHours] = useState(0);
   const [manualModules, setManualModules] = useState<Array<{
     title: string;
+    description?: string;
+    isFreePreview?: boolean;
     lessons: Array<{
       title: string;
       durationMinutes: number;
@@ -826,13 +896,17 @@ export default function ClassroomView({
       videoUrl: string;
       attachments: string[];
       isLocked?: boolean;
+      isFreePreview?: boolean;
       contentType: "video" | "text" | "download" | "quiz" | "assignment";
       quizQuestions?: Array<{ question: string; options: string[]; answerIndex: number }>;
       assignmentInstructions?: string;
+      passingScore?: number;
     }>;
   }>>([
     {
       title: "Module 1: Fundamental Syntax Rules",
+      description: "",
+      isFreePreview: false,
       lessons: [
         { 
           title: "Intro Lecture Overview", 
@@ -840,7 +914,9 @@ export default function ClassroomView({
           textContent: "Welcome message introducing structural patterns.", 
           videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", 
           attachments: [],
-          contentType: "video"
+          contentType: "video",
+          isFreePreview: false,
+          passingScore: 70,
         }
       ]
     }
@@ -1411,11 +1487,19 @@ export default function ClassroomView({
         description: manualDesc,
         coverUrl: manualCover,
         isPremiumOnly: manualPremium,
+        courseType: manualCourseType || "flagship",
+        difficultyLevel: manualDifficulty || "beginner",
+        price: manualPrice || 0,
+        category: manualCategory || null,
+        certificateEnabled: manualCertificateEnabled || false,
+        estimatedHours: manualEstimatedHours || 0,
         modules: manualModules.map((m, mIdx) => ({
           id: `mod-${mIdx}-${Date.now()}`,
           courseId: editingCourseId || "",
           title: m.title,
+          description: m.description || null,
           index: mIdx,
+          isFreePreview: m.isFreePreview || false,
           lessons: m.lessons.map((l, lIdx) => ({
             id: `ls-${mIdx}-${lIdx}-${Date.now()}`,
             moduleId: "",
@@ -1425,10 +1509,12 @@ export default function ClassroomView({
             textContent: l.textContent,
             attachments: l.attachments || [],
             isLocked: l.isLocked || false,
+            isFreePreview: l.isFreePreview || false,
             index: lIdx,
             contentType: l.contentType || "video",
             quizQuestions: l.contentType === "quiz" ? l.quizQuestions : undefined,
-            assignmentInstructions: l.contentType === "assignment" ? l.textContent : undefined
+            assignmentInstructions: l.contentType === "assignment" ? l.textContent : undefined,
+            passingScore: l.passingScore || 70,
           }))
         }))
       };
@@ -1446,9 +1532,17 @@ export default function ClassroomView({
         setManualName("");
         setManualDesc("");
         setManualPremium(false);
+        setManualCourseType("flagship");
+        setManualDifficulty("beginner");
+        setManualPrice(0);
+        setManualCategory("");
+        setManualCertificateEnabled(false);
+        setManualEstimatedHours(0);
         setManualModules([
           {
             title: "Module 1: Fundamental Syntax Rules",
+            description: "",
+            isFreePreview: false,
             lessons: [
               { 
                 title: "Intro Lecture Overview", 
@@ -1456,7 +1550,9 @@ export default function ClassroomView({
                 textContent: "Welcome message introducing structural patterns.", 
                 videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", 
                 attachments: [],
-                contentType: "video"
+                contentType: "video",
+                isFreePreview: false,
+                passingScore: 70,
               }
             ]
           }
@@ -3160,6 +3256,7 @@ export default function ClassroomView({
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {localCourses.map((course) => {
+                          const courseStatus = (course.status || "draft") as CourseStatus;
                           return (
                             <div key={course.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs hover:border-indigo-350 hover:shadow-md transition-all flex flex-col group relative" id={`course-grid-card-${course.id}`}>
                               <div className="h-40 bg-gray-105 relative overflow-hidden shrink-0">
@@ -3170,10 +3267,30 @@ export default function ClassroomView({
                                   className="w-full h-full object-cover group-hover:scale-102 transition duration-300"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent"></div>
+                                
+                                {/* Status badge */}
+                                <div className="absolute top-3 left-3 z-10">
+                                  <span className={`text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded border font-mono ${getStatusColor(courseStatus)}`}>
+                                    {getStatusLabel(courseStatus)}
+                                  </span>
+                                </div>
+
+                                {/* Course type badge */}
+                                <div className="absolute top-3 right-3 z-10">
+                                  <span className="text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-black/60 text-white font-mono">
+                                    {getCourseTypeLabel(course.courseType)}
+                                  </span>
+                                </div>
+
                                 <div className="absolute bottom-3 left-3 text-white flex gap-1.5 items-center z-10 font-mono">
                                   <span className="text-[9.5px] font-bold tracking-wider uppercase bg-black/60 px-2 py-0.5 rounded">
                                     {course.modules?.length || 0} Modules
                                   </span>
+                                  {course.difficultyLevel && course.difficultyLevel !== "beginner" && (
+                                    <span className={`text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded ${getDifficultyColor(course.difficultyLevel)}`}>
+                                      {course.difficultyLevel}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
@@ -3185,12 +3302,24 @@ export default function ClassroomView({
                                   <p className="text-[11px] text-gray-500 leading-relaxed font-sans line-clamp-3">
                                     {course.description}
                                   </p>
+                                  {course.category && (
+                                    <span className="text-[9px] font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded inline-block">
+                                      {course.category}
+                                    </span>
+                                  )}
                                 </div>
 
                                 <div className="pt-4 border-t border-gray-100 flex items-center justify-between font-mono">
-                                  <span className="text-[10px] text-gray-400">
-                                    👤 {course.enrolledCount} Pupils
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-gray-400">
+                                      👤 {course.enrolledCount} Pupils
+                                    </span>
+                                    {course.price > 0 && (
+                                      <span className="text-[10px] font-bold text-emerald-600">
+                                        ${course.price}/mo
+                                      </span>
+                                    )}
+                                  </div>
                                   
                                   <button
                                     onClick={() => handleSelectCourse(course)}
@@ -3222,7 +3351,7 @@ export default function ClassroomView({
                   </button>
                 </div>
 
-                <div className="space-y-3.5 text-xs">
+                <div className="space-y-3.5 text-xs max-h-[60vh] overflow-y-auto pr-1">
                   <div className="space-y-1">
                     <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Syllabus Name</label>
                     <input
@@ -3255,6 +3384,59 @@ export default function ClassroomView({
                       onChange={(e) => setNewCourseCover(e.target.value)}
                       className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 font-mono"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Course Type</label>
+                      <select
+                        value={newCourseType}
+                        onChange={(e) => setNewCourseType(e.target.value as CourseType)}
+                        className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 text-xs"
+                      >
+                        <option value="mini_course">Mini Course</option>
+                        <option value="flagship">Flagship</option>
+                        <option value="workshop">Workshop</option>
+                        <option value="membership">Membership</option>
+                        <option value="coaching">Coaching</option>
+                        <option value="challenge">Challenge</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Difficulty</label>
+                      <select
+                        value={newCourseDifficulty}
+                        onChange={(e) => setNewCourseDifficulty(e.target.value as DifficultyLevel)}
+                        className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 text-xs"
+                      >
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Price ($)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={newCoursePrice}
+                        onChange={(e) => setNewCoursePrice(Number(e.target.value))}
+                        className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Category</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Web Development"
+                        value={newCourseCategory}
+                        onChange={(e) => setNewCourseCategory(e.target.value)}
+                        className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 text-xs"
+                      />
+                    </div>
                   </div>
 
                 </div>

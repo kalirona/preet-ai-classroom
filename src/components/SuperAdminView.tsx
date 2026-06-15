@@ -696,8 +696,6 @@ export default function SuperAdminView({ currentUser, communities, activeSection
                               className="border border-slate-200 bg-white text-xs px-2.5 py-1.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer disabled:opacity-40 font-semibold text-slate-600 transition"
                             >
                               <option value="user">User</option>
-                              <option value="owner">Owner</option>
-                              <option value="support_staff">Support Staff</option>
                               <option value="super_admin">Super Admin</option>
                             </select>
 
@@ -1312,71 +1310,361 @@ export default function SuperAdminView({ currentUser, communities, activeSection
             {/* SECTION 13: SYSTEM SETTINGS */}
             {/* ========================================================== */}
             {activeSection === "settings" && (
-              <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">System Settings</h3>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Region, database, and backup configuration.</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">Region</label>
-                      <select
-                        value={deploymentRegion}
-                        onChange={(e) => setDeploymentRegion(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold font-mono text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
-                      >
-                        <option value="gcp-us-central1">US Central (Iowa)</option>
-                        <option value="gcp-asia-southeast1">Asia Pacific (Singapore)</option>
-                        <option value="gcp-europe-west3">Europe (Frankfurt)</option>
-                        <option value="gcp-local-sandbox">Local Sandbox</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-3 flex flex-col justify-end">
-                      <div className="flex items-center justify-between text-xs py-1.5 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
-                        <div>
-                          <span className="font-bold text-slate-900 block">Debug Logging</span>
-                          <span className="text-[10px] text-slate-400 leading-none">Verbose console output in memory</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDebugLogPiles(!debugLogPiles)}
-                          className={`w-9 h-5.5 rounded-full transition relative shrink-0 cursor-pointer ${debugLogPiles ? "bg-indigo-600" : "bg-slate-200"}`}
-                        >
-                          <span className={`w-4 h-4 rounded-full bg-white absolute top-0.75 transition-all duration-150 ${debugLogPiles ? "left-4.5" : "left-1"}`} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 space-y-3">
-                    <h4 className="text-xs font-bold text-slate-900 font-mono">Backup Recovery Keys</h4>
-                    <div className="bg-slate-900 rounded-xl p-4 font-mono text-[10px] text-slate-300 space-y-2 relative overflow-hidden">
-                      <div className="flex justify-between items-center text-slate-500 border-b border-slate-800 pb-2">
-                        <span className="text-[8.5px] uppercase font-bold tracking-wider">Recovery Keys</span>
-                        <span>SHA-256 Encrypted</span>
-                      </div>
-                      <div>
-                        <span>KEY_A: </span><code className="text-emerald-400 font-bold">SHA256::f23b2c...a891</code>
-                      </div>
-                      <div>
-                        <span>KEY_B: </span><code className="text-emerald-400 font-bold">SHA256::e910bd...d451</code>
-                      </div>
-                      <p className="text-slate-500 text-[9.5px] leading-relaxed pt-1.5 font-sans">
-                        Auto-generated on startup for encrypted database recovery. Keep secure.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <SettingsSection currentUser={currentUser} />
             )}
 
           </div>
 
       </div>
 
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS SECTION (sub-component with its own state + API calls)
+// ═══════════════════════════════════════════════════════════════
+function SettingsSection({ currentUser }: { currentUser: User | null }) {
+  const [settings, setSettings] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [backupKeys, setBackupKeys] = useState<string[]>([]);
+  const [platformStats, setPlatformStats] = useState<any>(null);
+
+  async function loadSettings() {
+    setIsLoading(true);
+    try {
+      const [settingsRes, statsRes] = await Promise.all([
+        fetch("/api/platform/settings"),
+        fetch("/api/platform/stats"),
+      ]);
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
+        setSettings(data.settings);
+      }
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setPlatformStats(data);
+      }
+    } catch (err) {
+      console.error("Failed to load settings:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function loadBackupKeys() {
+    try {
+      const res = await fetch("/api/platform/backup-keys");
+      if (res.ok) {
+        const data = await res.json();
+        setBackupKeys(data.keys);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  useEffect(() => {
+    loadSettings();
+    loadBackupKeys();
+  }, []);
+
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    setSaveMsg("");
+    try {
+      const res = await fetch("/api/platform/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        setSaveMsg("Settings saved successfully.");
+        setTimeout(() => setSaveMsg(""), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleToggleMaintenance = async () => {
+    try {
+      const res = await fetch("/api/platform/toggle-maintenance", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setSettings((prev: any) => ({ ...prev, maintenanceMode: data.maintenanceMode }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRotateKeys = async () => {
+    try {
+      const res = await fetch("/api/platform/backup-rotate", { method: "POST" });
+      if (res.ok) {
+        await loadBackupKeys();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+          <div className="py-12 text-center text-slate-400 font-mono text-xs">Loading settings...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!settings) return null;
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-150">
+      {/* Platform Stats Overview */}
+      {platformStats && (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
+            <span className="text-sm font-semibold text-slate-500">Users</span>
+            <span className="text-lg font-bold text-slate-900 block mt-2">{platformStats.users}</span>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
+            <span className="text-sm font-semibold text-slate-500">Workspaces</span>
+            <span className="text-lg font-bold text-slate-900 block mt-2">{platformStats.workspaces}</span>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
+            <span className="text-sm font-semibold text-slate-500">Members</span>
+            <span className="text-lg font-bold text-slate-900 block mt-2">{platformStats.members}</span>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
+            <span className="text-sm font-semibold text-slate-500">Posts</span>
+            <span className="text-lg font-bold text-slate-900 block mt-2">{platformStats.posts}</span>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
+            <span className="text-sm font-semibold text-slate-500">Courses</span>
+            <span className="text-lg font-bold text-slate-900 block mt-2">{platformStats.courses}</span>
+          </div>
+        </div>
+      )}
+
+      {/* General Settings */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">General Settings</h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Platform name, region, and core configuration.</p>
+          </div>
+          {saveMsg && (
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg">{saveMsg}</span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">Platform Name</label>
+            <input
+              type="text"
+              value={settings.platformName || ""}
+              onChange={(e) => setSettings({ ...settings, platformName: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">Support Email</label>
+            <input
+              type="email"
+              value={settings.supportEmail || ""}
+              onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">Deployment Region</label>
+            <select
+              value={settings.deploymentRegion || "gcp-us-central1"}
+              onChange={(e) => setSettings({ ...settings, deploymentRegion: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold font-mono text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+            >
+              <option value="gcp-us-central1">US Central (Iowa)</option>
+              <option value="gcp-asia-southeast1">Asia Pacific (Singapore)</option>
+              <option value="gcp-europe-west3">Europe (Frankfurt)</option>
+              <option value="gcp-local-sandbox">Local Sandbox</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">Max Upload (MB)</label>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={settings.maxUploadMb || 50}
+              onChange={(e) => setSettings({ ...settings, maxUploadMb: parseInt(e.target.value) })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">Session Timeout (hours)</label>
+            <input
+              type="number"
+              min={1}
+              max={720}
+              value={settings.sessionTimeoutHours || 24}
+              onChange={(e) => setSettings({ ...settings, sessionTimeoutHours: parseInt(e.target.value) })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">Webhook URL</label>
+            <input
+              type="url"
+              placeholder="https://hooks.example.com/events"
+              value={settings.webhookUrl || ""}
+              onChange={(e) => setSettings({ ...settings, webhookUrl: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition placeholder:text-slate-300"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSaveSettings}
+          disabled={isSaving}
+          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition disabled:opacity-40"
+        >
+          {isSaving ? "Saving..." : "Save Settings"}
+        </button>
+      </div>
+
+      {/* Security & Access Toggles */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+        <div className="border-b border-slate-100 pb-3">
+          <h3 className="text-lg font-semibold text-slate-900">Security & Access</h3>
+          <p className="text-[10px] text-slate-400 mt-0.5">Toggle platform-wide security policies and access controls.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            { key: "maintenanceMode", label: "Maintenance Mode", desc: "Blocks all non-admin access to the platform", isDanger: true },
+            { key: "registrationEnabled", label: "Open Registration", desc: "Allow new users to create accounts" },
+            { key: "debugLogging", label: "Debug Logging", desc: "Verbose console output for troubleshooting" },
+            { key: "mfaRequired", label: "Enforce MFA", desc: "Require multi-factor auth for all users" },
+          ].map(({ key, label, desc, isDanger }) => (
+            <div key={key} className="flex items-center justify-between bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">{label}</span>
+                <span className="text-[10px] text-slate-400 leading-none">{desc}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (key === "maintenanceMode") {
+                    handleToggleMaintenance();
+                  } else {
+                    setSettings((prev: any) => ({ ...prev, [key]: !prev[key] }));
+                  }
+                }}
+                className={`w-11 h-6 rounded-full transition relative shrink-0 cursor-pointer ${
+                  key === "maintenanceMode"
+                    ? settings[key] ? "bg-red-600" : "bg-slate-200"
+                    : settings[key] ? "bg-indigo-600" : "bg-slate-200"
+                }`}
+              >
+                <span className={`w-4.5 h-4.5 rounded-full bg-white absolute top-0.75 transition-all duration-150 ${settings[key] ? "left-5.5" : "left-1"}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* SMTP Configuration */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+        <div className="border-b border-slate-100 pb-3">
+          <h3 className="text-lg font-semibold text-slate-900">Email (SMTP)</h3>
+          <p className="text-[10px] text-slate-400 mt-0.5">Configure outgoing email server for notifications and password resets.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">SMTP Host</label>
+            <input
+              type="text"
+              placeholder="smtp.gmail.com"
+              value={settings.smtpHost || ""}
+              onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition placeholder:text-slate-300"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">SMTP Port</label>
+            <input
+              type="number"
+              placeholder="587"
+              value={settings.smtpPort || 587}
+              onChange={(e) => setSettings({ ...settings, smtpPort: parseInt(e.target.value) })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">SMTP Username</label>
+            <input
+              type="text"
+              placeholder="user@gmail.com"
+              value={settings.smtpUser || ""}
+              onChange={(e) => setSettings({ ...settings, smtpUser: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition placeholder:text-slate-300"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-slate-400 block uppercase font-mono">SMTP Password</label>
+            <input
+              type="password"
+              placeholder="********"
+              value={settings.smtpPass || ""}
+              onChange={(e) => setSettings({ ...settings, smtpPass: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition placeholder:text-slate-300"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Backup Recovery Keys */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">Backup Recovery Keys</h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Encrypted database recovery credentials. Keep secure and rotate regularly.</p>
+          </div>
+          <button
+            onClick={handleRotateKeys}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-gray-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Rotate Keys
+          </button>
+        </div>
+
+        <div className="bg-slate-900 rounded-xl p-4 font-mono text-[10px] text-slate-300 space-y-2 relative overflow-hidden">
+          <div className="flex justify-between items-center text-slate-500 border-b border-slate-800 pb-2">
+            <span className="text-[8.5px] uppercase font-bold tracking-wider">Recovery Keys</span>
+            <span>SHA-256 Encrypted</span>
+          </div>
+          {backupKeys.map((key, idx) => (
+            <div key={idx}>
+              <span>KEY_{String.fromCharCode(65 + idx)}: </span>
+              <code className="text-emerald-400 font-bold">{key}</code>
+            </div>
+          ))}
+          <p className="text-slate-500 text-[9.5px] leading-relaxed pt-1.5 font-sans">
+            Auto-generated encrypted recovery tokens for database restoration. Store offline securely.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

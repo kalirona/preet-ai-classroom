@@ -86,6 +86,7 @@ import ModerationCenter from "./components/ModerationCenter";
 import ReportsView from "./components/ReportsView";
 import NotificationsView from "./components/NotificationsView";
 import SupportView from "./components/SupportView";
+import StudentsView from "./components/StudentsView";
 import { SocketProvider } from "./components/SocketProvider";
 
 import { Sparkles, X, ArrowRight } from "lucide-react";
@@ -733,7 +734,7 @@ export default function App() {
 
           {activeTab === "students" && canAccessTab("students", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
-              <MembersView
+              <StudentsView
                 currentUser={currentUser}
                 activeCommunityId={activeCommunityId}
               />

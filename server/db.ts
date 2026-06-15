@@ -143,6 +143,22 @@ export async function createSchema() {
       is_premium_only BOOLEAN DEFAULT false,
       modules_count INTEGER DEFAULT 0,
       enrolled_count INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'draft',
+      course_type TEXT DEFAULT 'flagship',
+      scheduled_at TIMESTAMPTZ,
+      published_at TIMESTAMPTZ,
+      archived_at TIMESTAMPTZ,
+      price DECIMAL(10,2) DEFAULT 0,
+      certificate_enabled BOOLEAN DEFAULT false,
+      estimated_hours DECIMAL(5,1) DEFAULT 0,
+      difficulty_level TEXT DEFAULT 'beginner',
+      max_enrollments INTEGER,
+      tags TEXT[] DEFAULT '{}',
+      category TEXT,
+      creator_name TEXT,
+      creator_avatar TEXT,
+      average_rating DECIMAL(3,2) DEFAULT 0,
+      completion_rate DECIMAL(5,2) DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -151,7 +167,9 @@ export async function createSchema() {
       id TEXT PRIMARY KEY,
       course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
-      index INTEGER DEFAULT 0
+      description TEXT,
+      index INTEGER DEFAULT 0,
+      is_free_preview BOOLEAN DEFAULT false
     );
 
     CREATE TABLE IF NOT EXISTS lessons (
@@ -164,11 +182,53 @@ export async function createSchema() {
       text_content TEXT,
       index INTEGER DEFAULT 0,
       is_locked BOOLEAN DEFAULT false,
+      is_free_preview BOOLEAN DEFAULT false,
       attachments TEXT[] DEFAULT '{}',
       content_type TEXT DEFAULT 'video',
       quiz_questions JSONB DEFAULT '[]',
       assignment_instructions TEXT,
+      passing_score INTEGER DEFAULT 70,
       created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS course_enrollments (
+      id TEXT PRIMARY KEY,
+      course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      status TEXT DEFAULT 'active',
+      progress DECIMAL(5,2) DEFAULT 0,
+      completed_lessons TEXT[] DEFAULT '{}',
+      started_at TIMESTAMPTZ DEFAULT NOW(),
+      completed_at TIMESTAMPTZ,
+      last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
+      certificate_issued BOOLEAN DEFAULT false,
+      certificate_url TEXT,
+      grade TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(course_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS course_resources (
+      id TEXT PRIMARY KEY,
+      module_id TEXT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT,
+      file_url TEXT NOT NULL,
+      file_type TEXT NOT NULL,
+      file_size INTEGER,
+      download_count INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS course_certificates (
+      id TEXT PRIMARY KEY,
+      enrollment_id TEXT NOT NULL REFERENCES course_enrollments(id) ON DELETE CASCADE,
+      course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      issued_at TIMESTAMPTZ DEFAULT NOW(),
+      certificate_url TEXT,
+      credential_id TEXT UNIQUE NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS events (
@@ -280,6 +340,14 @@ export async function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_modules_course ON modules(course_id);
     CREATE INDEX IF NOT EXISTS idx_lessons_module ON lessons(module_id);
+    CREATE INDEX IF NOT EXISTS idx_courses_status ON courses(workspace_id, status);
+    CREATE INDEX IF NOT EXISTS idx_courses_type ON courses(course_type);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_course ON course_enrollments(course_id);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_user ON course_enrollments(user_id);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_workspace ON course_enrollments(workspace_id);
+    CREATE INDEX IF NOT EXISTS idx_resources_module ON course_resources(module_id);
+    CREATE INDEX IF NOT EXISTS idx_certificates_user ON course_certificates(user_id);
+    CREATE INDEX IF NOT EXISTS idx_certificates_course ON course_certificates(course_id);
 
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
       id SERIAL PRIMARY KEY,
@@ -760,11 +828,16 @@ export async function findCoursesWithContent(workspaceId: string): Promise<any[]
     `SELECT
       c.id AS course_id, c.workspace_id, c.name, c.description, c.cover_url,
       c.is_premium_only, c.modules_count, c.enrolled_count, c.created_at,
+      c.status, c.course_type, c.scheduled_at, c.published_at, c.archived_at,
+      c.price, c.certificate_enabled, c.estimated_hours, c.difficulty_level,
+      c.max_enrollments, c.tags, c.category, c.creator_name, c.creator_avatar,
+      c.average_rating, c.completion_rate,
       m.id AS module_id, m.title AS module_title, m.index AS module_index,
+      m.description AS module_description, m.is_free_preview AS module_is_free_preview,
       l.id AS lesson_id, l.module_id AS lesson_module_id, l.title AS lesson_title,
       l.duration_minutes, l.video_url, l.text_content, l.index AS lesson_index,
-      l.is_locked, l.attachments, l.content_type, l.quiz_questions,
-      l.assignment_instructions
+      l.is_locked, l.is_free_preview, l.attachments, l.content_type, l.quiz_questions,
+      l.assignment_instructions, l.passing_score
     FROM courses c
     LEFT JOIN modules m ON m.course_id = c.id
     LEFT JOIN lessons l ON l.module_id = m.id
@@ -786,6 +859,22 @@ export async function findCoursesWithContent(workspaceId: string): Promise<any[]
         modules_count: row.modules_count,
         enrolled_count: row.enrolled_count,
         created_at: row.created_at,
+        status: row.status || "draft",
+        course_type: row.course_type || "flagship",
+        scheduled_at: row.scheduled_at,
+        published_at: row.published_at,
+        archived_at: row.archived_at,
+        price: parseFloat(row.price || "0"),
+        certificate_enabled: row.certificate_enabled,
+        estimated_hours: parseFloat(row.estimated_hours || "0"),
+        difficulty_level: row.difficulty_level || "beginner",
+        max_enrollments: row.max_enrollments,
+        tags: row.tags || [],
+        category: row.category,
+        creator_name: row.creator_name,
+        creator_avatar: row.creator_avatar,
+        average_rating: parseFloat(row.average_rating || "0"),
+        completion_rate: parseFloat(row.completion_rate || "0"),
         modules: [],
       });
     }
@@ -794,7 +883,11 @@ export async function findCoursesWithContent(workspaceId: string): Promise<any[]
     const course = courseMap.get(row.course_id)!;
     let module = course.modules.find((m: any) => m.id === row.module_id);
     if (!module) {
-      module = { id: row.module_id, title: row.module_title, index: row.module_index, lessons: [] };
+      module = {
+        id: row.module_id, title: row.module_title, index: row.module_index,
+        description: row.module_description, isFreePreview: row.module_is_free_preview,
+        lessons: [], resources: [],
+      };
       course.modules.push(module);
     }
     if (row.lesson_id) {
@@ -803,10 +896,12 @@ export async function findCoursesWithContent(workspaceId: string): Promise<any[]
         title: row.lesson_title, durationMinutes: row.duration_minutes,
         videoUrl: row.video_url, textContent: row.text_content,
         index: row.lesson_index, isLocked: row.is_locked,
+        isFreePreview: row.is_free_preview,
         attachments: row.attachments || [],
         contentType: row.content_type,
         quizQuestions: typeof row.quiz_questions === "string" ? JSON.parse(row.quiz_questions) : row.quiz_questions || [],
         assignmentInstructions: row.assignment_instructions,
+        passingScore: row.passing_score,
       });
     }
   }
@@ -822,12 +917,20 @@ export async function findCourseById(id: string): Promise<DbRow | null> {
 export async function createCourse(course: Partial<DbRow>): Promise<DbRow> {
   const id = course.id || `course-${Date.now()}`;
   const result = await query(
-    `INSERT INTO courses (id, workspace_id, name, description, cover_url, is_premium_only, modules_count, enrolled_count)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    `INSERT INTO courses (id, workspace_id, name, description, cover_url, is_premium_only, modules_count, enrolled_count,
+     status, course_type, scheduled_at, price, certificate_enabled, estimated_hours, difficulty_level,
+     max_enrollments, tags, category, creator_name, creator_avatar)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *`,
     [
       id, course.workspace_id, course.name, course.description || "",
       course.cover_url || null, course.is_premium_only || false,
       course.modules_count || 0, course.enrolled_count || 0,
+      course.status || "draft", course.course_type || "flagship",
+      course.scheduled_at || null, course.price || 0,
+      course.certificate_enabled || false, course.estimated_hours || 0,
+      course.difficulty_level || "beginner", course.max_enrollments || null,
+      course.tags || [], course.category || null,
+      course.creator_name || null, course.creator_avatar || null,
     ]
   );
   return result.rows[0];
@@ -860,6 +963,145 @@ export async function deleteCourse(id: string): Promise<void> {
   await query("DELETE FROM courses WHERE id = $1", [id]);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// COURSE ENROLLMENTS
+// ═══════════════════════════════════════════════════════════════
+
+export async function findEnrollmentsByCourse(courseId: string): Promise<DbRow[]> {
+  const result = await query(
+    `SELECT ce.*, u.full_name, u.avatar_url, u.email
+     FROM course_enrollments ce
+     JOIN users u ON u.id = ce.user_id
+     WHERE ce.course_id = $1
+     ORDER BY ce.started_at DESC`,
+    [courseId]
+  );
+  return result.rows;
+}
+
+export async function findEnrollmentsByUser(userId: string): Promise<DbRow[]> {
+  const result = await query(
+    `SELECT ce.*, c.name AS course_name, c.cover_url, c.course_type
+     FROM course_enrollments ce
+     JOIN courses c ON c.id = ce.course_id
+     WHERE ce.user_id = $1
+     ORDER BY ce.last_accessed_at DESC`,
+    [userId]
+  );
+  return result.rows;
+}
+
+export async function findEnrollment(courseId: string, userId: string): Promise<DbRow | null> {
+  const result = await query(
+    "SELECT * FROM course_enrollments WHERE course_id = $1 AND user_id = $2",
+    [courseId, userId]
+  );
+  return result.rows[0] || null;
+}
+
+export async function createEnrollment(enrollment: Partial<DbRow>): Promise<DbRow> {
+  const id = enrollment.id || `enroll-${Date.now()}`;
+  const result = await query(
+    `INSERT INTO course_enrollments (id, course_id, user_id, workspace_id, status, progress, completed_lessons)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (course_id, user_id) DO UPDATE SET last_accessed_at = NOW()
+     RETURNING *`,
+    [
+      id, enrollment.course_id, enrollment.user_id, enrollment.workspace_id,
+      enrollment.status || "active", enrollment.progress || 0,
+      enrollment.completed_lessons || [],
+    ]
+  );
+  return result.rows[0];
+}
+
+export async function updateEnrollment(id: string, fields: Record<string, any>): Promise<DbRow | null> {
+  const setClauses: string[] = [];
+  const values: any[] = [];
+  let idx = 1;
+  for (const [key, val] of Object.entries(fields)) {
+    if (val !== undefined) {
+      setClauses.push(`${key} = $${idx}`);
+      values.push(val);
+      idx++;
+    }
+  }
+  if (setClauses.length === 0) return findEnrollment(fields.course_id, fields.user_id);
+  values.push(id);
+  const result = await query(
+    `UPDATE course_enrollments SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING *`,
+    values
+  );
+  return result.rows[0] || null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COURSE RESOURCES
+// ═══════════════════════════════════════════════════════════════
+
+export async function findResourcesByModule(moduleId: string): Promise<DbRow[]> {
+  const result = await query(
+    "SELECT * FROM course_resources WHERE module_id = $1 ORDER BY created_at ASC",
+    [moduleId]
+  );
+  return result.rows;
+}
+
+export async function createResource(resource: Partial<DbRow>): Promise<DbRow> {
+  const id = resource.id || `res-${Date.now()}`;
+  const result = await query(
+    `INSERT INTO course_resources (id, module_id, title, description, file_url, file_type, file_size)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [
+      id, resource.module_id, resource.title, resource.description || null,
+      resource.file_url, resource.file_type, resource.file_size || null,
+    ]
+  );
+  return result.rows[0];
+}
+
+export async function deleteResource(id: string): Promise<void> {
+  await query("DELETE FROM course_resources WHERE id = $1", [id]);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COURSE CERTIFICATES
+// ═══════════════════════════════════════════════════════════════
+
+export async function findCertificateByEnrollment(enrollmentId: string): Promise<DbRow | null> {
+  const result = await query(
+    "SELECT * FROM course_certificates WHERE enrollment_id = $1",
+    [enrollmentId]
+  );
+  return result.rows[0] || null;
+}
+
+export async function createCertificate(cert: Partial<DbRow>): Promise<DbRow> {
+  const id = cert.id || `cert-${Date.now()}`;
+  const credentialId = `CRED-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  const result = await query(
+    `INSERT INTO course_certificates (id, enrollment_id, course_id, user_id, certificate_url, credential_id)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [
+      id, cert.enrollment_id, cert.course_id, cert.user_id,
+      cert.certificate_url || null, credentialId,
+    ]
+  );
+  return result.rows[0];
+}
+
+export async function findCertificatesByUser(userId: string): Promise<DbRow[]> {
+  const result = await query(
+    `SELECT cc.*, c.name AS course_name, c.course_type
+     FROM course_certificates cc
+     JOIN courses c ON c.id = cc.course_id
+     WHERE cc.user_id = $1
+     ORDER BY cc.issued_at DESC`,
+    [userId]
+  );
+  return result.rows;
+}
+
 export async function findModulesByCourse(courseId: string): Promise<DbRow[]> {
   const result = await query("SELECT * FROM modules WHERE course_id = $1 ORDER BY index ASC", [courseId]);
   return result.rows;
@@ -868,8 +1110,8 @@ export async function findModulesByCourse(courseId: string): Promise<DbRow[]> {
 export async function createModule(mod: Partial<DbRow>): Promise<DbRow> {
   const id = mod.id || `mod-${Date.now()}`;
   const result = await query(
-    "INSERT INTO modules (id, course_id, title, index) VALUES ($1, $2, $3, $4) RETURNING *",
-    [id, mod.course_id, mod.title, mod.index || 0]
+    "INSERT INTO modules (id, course_id, title, description, index, is_free_preview) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+    [id, mod.course_id, mod.title, mod.description || null, mod.index || 0, mod.is_free_preview || false]
   );
   return result.rows[0];
 }
@@ -887,16 +1129,18 @@ export async function findLessonById(id: string): Promise<DbRow | null> {
 export async function createLesson(lesson: Partial<DbRow>): Promise<DbRow> {
   const id = lesson.id || `les-${Date.now()}`;
   const result = await query(
-    `INSERT INTO lessons (id, module_id, workspace_id, title, duration_minutes, video_url, text_content, index, is_locked, attachments, content_type, quiz_questions, assignment_instructions)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+    `INSERT INTO lessons (id, module_id, workspace_id, title, duration_minutes, video_url, text_content, index, is_locked, is_free_preview, attachments, content_type, quiz_questions, assignment_instructions, passing_score)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
     [
       id, lesson.module_id, lesson.workspace_id, lesson.title,
       lesson.duration_minutes || 0, lesson.video_url || "",
       lesson.text_content || "", lesson.index || 0,
-      lesson.is_locked || false, lesson.attachments || [],
+      lesson.is_locked || false, lesson.is_free_preview || false,
+      lesson.attachments || [],
       lesson.content_type || "video",
       JSON.stringify(lesson.quiz_questions || []),
       lesson.assignment_instructions || null,
+      lesson.passing_score || 70,
     ]
   );
   return result.rows[0];

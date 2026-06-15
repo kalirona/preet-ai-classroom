@@ -16,6 +16,43 @@ export enum WorkspaceRole {
   MEMBER = "member"
 }
 
+export enum CourseStatus {
+  DRAFT = "draft",
+  SCHEDULED = "scheduled",
+  PUBLISHED = "published",
+  ARCHIVED = "archived"
+}
+
+export enum CourseType {
+  MINI_COURSE = "mini_course",
+  FLAGSHIP = "flagship",
+  WORKSHOP = "workshop",
+  MEMBERSHIP = "membership",
+  COACHING = "coaching",
+  CHALLENGE = "challenge"
+}
+
+export enum LessonContentType {
+  VIDEO = "video",
+  TEXT = "text",
+  DOWNLOAD = "download",
+  QUIZ = "quiz",
+  ASSIGNMENT = "assignment"
+}
+
+export enum EnrollmentStatus {
+  ACTIVE = "active",
+  COMPLETED = "completed",
+  PAUSED = "paused",
+  DROPPED = "dropped"
+}
+
+export enum DifficultyLevel {
+  BEGINNER = "beginner",
+  INTERMEDIATE = "intermediate",
+  ADVANCED = "advanced"
+}
+
 export enum PlatformPermission {
   ACCESS_PLATFORM_ADMIN = "access_platform_admin",
   VIEW_GLOBAL_ANALYTICS = "view_global_analytics",
@@ -310,6 +347,17 @@ export interface QuizQuestion {
   question: string;
   options: string[];
   answerIndex: number;
+  explanation?: string;
+}
+
+export interface CourseQuiz {
+  id: string;
+  lessonId: string;
+  title: string;
+  questions: QuizQuestion[];
+  passingScore: number;
+  maxAttempts: number;
+  timeLimitMinutes?: number;
 }
 
 export interface Lesson {
@@ -317,22 +365,39 @@ export interface Lesson {
   moduleId: string;
   title: string;
   durationMinutes: number;
-  videoUrl: string; // Bunny Stream, Vimeo or placeholder YouTube
+  videoUrl: string;
   textContent: string;
   index: number;
   isLocked: boolean;
-  attachments?: string[]; // Array of strings (e.g. PDF names, resource titles)
-  contentType?: "video" | "text" | "download" | "quiz" | "assignment";
+  isFreePreview: boolean;
+  attachments?: string[];
+  contentType?: LessonContentType;
   quizQuestions?: QuizQuestion[];
   assignmentInstructions?: string;
+  passingScore?: number;
 }
 
 export interface Module {
   id: string;
   courseId: string;
   title: string;
+  description?: string;
   index: number;
+  isFreePreview: boolean;
   lessons: Lesson[];
+  resources?: CourseResource[];
+}
+
+export interface CourseResource {
+  id: string;
+  moduleId: string;
+  title: string;
+  description?: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize?: number;
+  downloadCount: number;
+  createdAt: string;
 }
 
 export interface Course {
@@ -345,6 +410,49 @@ export interface Course {
   modulesCount: number;
   enrolledCount: number;
   modules: Module[];
+  // New course architecture fields
+  status: CourseStatus;
+  courseType: CourseType;
+  scheduledAt?: string;
+  publishedAt?: string;
+  archivedAt?: string;
+  price: number;
+  certificateEnabled: boolean;
+  estimatedHours: number;
+  difficultyLevel: DifficultyLevel;
+  maxEnrollments?: number;
+  tags: string[];
+  category?: string;
+  creatorName?: string;
+  creatorAvatar?: string;
+  averageRating?: number;
+  completionRate?: number;
+}
+
+export interface CourseEnrollment {
+  id: string;
+  courseId: string;
+  userId: string;
+  workspaceId: string;
+  status: EnrollmentStatus;
+  progress: number;
+  completedLessons: string[];
+  startedAt: string;
+  completedAt?: string;
+  lastAccessedAt: string;
+  certificateIssued: boolean;
+  certificateUrl?: string;
+  grade?: string;
+}
+
+export interface CourseCertificate {
+  id: string;
+  enrollmentId: string;
+  courseId: string;
+  userId: string;
+  issuedAt: string;
+  certificateUrl: string;
+  credentialId: string;
 }
 
 export interface LiveEvent {

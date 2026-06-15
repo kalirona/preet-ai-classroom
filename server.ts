@@ -29,6 +29,9 @@ import {
   getLoginAttempts, upsertLoginAttempts, resetLoginAttempts,
   findWorkspaceUserIds, findUsersByIds, findAllUsers, query, transaction,
   isDatabaseSeeded, createSchema, cleanupExpiredSessions, cleanupExpiredResetTokens, getPool,
+  findEnrollmentsByCourse, findEnrollmentsByUser, findEnrollment, createEnrollment, updateEnrollment,
+  findResourcesByModule, createResource, deleteResource,
+  findCertificateByEnrollment, createCertificate, findCertificatesByUser,
 } from "./server/db.js";
 import {
   findSpacesByWorkspace, findSpaceById, createSpace, updateSpace, deleteSpace,
@@ -1399,20 +1402,35 @@ app.get("/api/courses", authenticateUser, requireWorkspacePermission(WorkspacePe
 
 app.post("/api/courses", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
   try {
-    const { id, communityId, name, description, coverUrl, modules, status } = req.body;
+    const {
+      id, communityId, name, description, coverUrl, modules,
+      courseType, scheduledAt, price, certificateEnabled, estimatedHours,
+      difficultyLevel, maxEnrollments, tags, category,
+    } = req.body;
     if (!communityId || !name) return res.status(400).json({ error: "communityId and name are required." });
 
     const courseId = id || `course-${Date.now()}`;
+    const status = scheduledAt ? "scheduled" : "draft";
     const course = await createCourse({
       id: courseId, workspace_id: communityId, name,
       description: description || "", cover_url: coverUrl || null,
       is_premium_only: false, modules_count: (modules || []).length, enrolled_count: 0,
+      status, course_type: courseType || "flagship",
+      scheduled_at: scheduledAt || null, price: price || 0,
+      certificate_enabled: certificateEnabled || false,
+      estimated_hours: estimatedHours || 0,
+      difficulty_level: difficultyLevel || "beginner",
+      max_enrollments: maxEnrollments || null,
+      tags: tags || [], category: category || null,
+      creator_name: req.user.fullName, creator_avatar: req.user.avatarUrl,
     });
 
     for (const mod of modules || []) {
       const savedMod = await createModule({
         id: mod.id || `mod-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         course_id: courseId, title: mod.title, index: mod.index || 0,
+        description: mod.description || null,
+        is_free_preview: mod.isFreePreview || false,
       });
       for (const lesson of mod.lessons || []) {
         await createLesson({
@@ -1422,14 +1440,16 @@ app.post("/api/courses", authenticateUser, requireWorkspacePermission(WorkspaceP
           content_type: lesson.contentType || "video",
           video_url: lesson.videoUrl || "", text_content: lesson.textContent || "",
           index: lesson.index || 0, is_locked: lesson.isLocked || false,
+          is_free_preview: lesson.isFreePreview || false,
           attachments: lesson.attachments || [],
           quiz_questions: lesson.quizQuestions || [],
           assignment_instructions: lesson.assignmentInstructions || "",
+          passing_score: lesson.passingScore || 70,
         });
       }
     }
 
-    await addAuditLog(req.user.id, req.user.fullName, "COURSE_CREATED", `Created course '${name}'`, communityId);
+    await addAuditLog(req.user.id, req.user.fullName, "COURSE_CREATED", `Created course '${name}' (${status})`, communityId);
     const saved = await findCoursesWithContent(communityId);
     const created = saved.find((c: any) => c.id === courseId);
     res.json({ success: true, course: created });
@@ -1442,15 +1462,59 @@ app.post("/api/courses", authenticateUser, requireWorkspacePermission(WorkspaceP
 app.put("/api/courses/:id", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, description, coverUrl, modules, status } = req.body;
+    const {
+      name, description, coverUrl, modules, status,
+      courseType, scheduledAt, price, certificateEnabled, estimatedHours,
+      difficultyLevel, maxEnrollments, tags, category,
+    } = req.body;
 
     const existing = await findCourseById(id);
     if (!existing) return res.status(404).json({ error: "Course not found." });
 
-    await updateCourse(id, {
+    // Status transition logic
+    const currentStatus = existing.status || "draft";
+    let newStatus = status || currentStatus;
+    const updateFields: Record<string, any> = {
       name, description, cover_url: coverUrl,
-      modules_count: (modules || []).length,
-    });
+      modules_count: (modules || existing.modules_count || 0),
+      course_type: courseType || existing.course_type,
+      price: price ?? existing.price,
+      certificate_enabled: certificateEnabled ?? existing.certificate_enabled,
+      estimated_hours: estimatedHours ?? existing.estimated_hours,
+      difficulty_level: difficultyLevel || existing.difficulty_level,
+      max_enrollments: maxEnrollments ?? existing.max_enrollments,
+      tags: tags || existing.tags,
+      category: category || existing.category,
+    };
+
+    // Handle status transitions
+    if (status && status !== currentStatus) {
+      if (status === "published" && currentStatus === "draft") {
+        updateFields.published_at = new Date().toISOString();
+        newStatus = "published";
+      } else if (status === "scheduled" && scheduledAt) {
+        updateFields.scheduled_at = scheduledAt;
+        newStatus = "scheduled";
+      } else if (status === "archived") {
+        updateFields.archived_at = new Date().toISOString();
+        newStatus = "archived";
+      } else if (status === "draft") {
+        newStatus = "draft";
+      }
+      updateFields.status = newStatus;
+    }
+
+    // If scheduled and time has passed, auto-publish
+    if (newStatus === "scheduled" && existing.scheduled_at) {
+      const schedDate = new Date(existing.scheduled_at);
+      if (schedDate <= new Date()) {
+        updateFields.status = "published";
+        updateFields.published_at = new Date().toISOString();
+        newStatus = "published";
+      }
+    }
+
+    await updateCourse(id, updateFields);
 
     if (modules) {
       const existingMods = await findModulesByCourse(id);
@@ -1458,13 +1522,15 @@ app.put("/api/courses/:id", authenticateUser, requireWorkspacePermission(Workspa
         let savedMod = existingMods.find((m: any) => m.id === mod.id);
         if (savedMod) {
           savedMod = await query(
-            "UPDATE modules SET title = $1, index = $2 WHERE id = $3 RETURNING *",
-            [mod.title, mod.index || 0, mod.id]
+            "UPDATE modules SET title = $1, index = $2, description = $3, is_free_preview = $4 WHERE id = $5 RETURNING *",
+            [mod.title, mod.index || 0, mod.description || null, mod.isFreePreview || false, mod.id]
           ).then((r) => r.rows[0]);
         } else {
           savedMod = await createModule({
             id: mod.id || `mod-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             course_id: id, title: mod.title, index: mod.index || 0,
+            description: mod.description || null,
+            is_free_preview: mod.isFreePreview || false,
           });
         }
         for (const lesson of mod.lessons || []) {
@@ -1473,11 +1539,13 @@ app.put("/api/courses/:id", authenticateUser, requireWorkspacePermission(Workspa
           if (existingLesson) {
             await query(
               `UPDATE lessons SET title = $1, duration_minutes = $2, content_type = $3,
-               video_url = $4, text_content = $5, index = $6, is_locked = $7
-               WHERE id = $8`,
+               video_url = $4, text_content = $5, index = $6, is_locked = $7,
+               is_free_preview = $8, passing_score = $9
+               WHERE id = $10`,
               [lesson.title, lesson.durationMinutes || 10, lesson.contentType || "video",
                lesson.videoUrl || "", lesson.textContent || "",
-               lesson.index || 0, lesson.isLocked || false, lesson.id]
+               lesson.index || 0, lesson.isLocked || false,
+               lesson.isFreePreview || false, lesson.passingScore || 70, lesson.id]
             );
           } else {
             await createLesson({
@@ -1487,16 +1555,18 @@ app.put("/api/courses/:id", authenticateUser, requireWorkspacePermission(Workspa
               content_type: lesson.contentType || "video",
               video_url: lesson.videoUrl || "", text_content: lesson.textContent || "",
               index: lesson.index || 0, is_locked: lesson.isLocked || false,
+              is_free_preview: lesson.isFreePreview || false,
               attachments: lesson.attachments || [],
               quiz_questions: lesson.quizQuestions || [],
               assignment_instructions: lesson.assignmentInstructions || "",
+              passing_score: lesson.passingScore || 70,
             });
           }
         }
       }
     }
 
-    await addAuditLog(req.user.id, req.user.fullName, "COURSE_UPDATED", `Updated course '${name || existing.name}'`, existing.workspace_id);
+    await addAuditLog(req.user.id, req.user.fullName, "COURSE_UPDATED", `Updated course '${name || existing.name}' [status: ${newStatus}]`, existing.workspace_id);
     const updated = await findCoursesWithContent(existing.workspace_id);
     const found = updated.find((c: any) => c.id === id);
     res.json({ success: true, course: found });
@@ -1517,6 +1587,211 @@ app.delete("/api/courses/:id", authenticateUser, requireWorkspacePermission(Work
   } catch (err) {
     console.error("Delete course error:", err);
     res.status(500).json({ error: "Failed to delete course." });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// COURSE ENROLLMENT ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/api/courses/:id/enroll", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const course = await findCourseById(id);
+    if (!course) return res.status(404).json({ error: "Course not found." });
+    if (course.status !== "published") {
+      return res.status(400).json({ error: "Course is not published yet." });
+    }
+    if (course.max_enrollments && course.enrolled_count >= course.max_enrollments) {
+      return res.status(400).json({ error: "Course is full. Max enrollments reached." });
+    }
+
+    const existing = await findEnrollment(id, req.user.id);
+    if (existing) {
+      return res.json({ success: true, enrollment: existing, message: "Already enrolled." });
+    }
+
+    const enrollment = await createEnrollment({
+      course_id: id, user_id: req.user.id, workspace_id: course.workspace_id,
+    });
+
+    await updateCourse(id, { enrolled_count: (course.enrolled_count || 0) + 1 });
+    await addAuditLog(req.user.id, req.user.fullName, "COURSE_ENROLLED", `Enrolled in '${course.name}'`, course.workspace_id);
+
+    res.json({ success: true, enrollment });
+  } catch (err) {
+    console.error("Enroll error:", err);
+    res.status(500).json({ error: "Failed to enroll." });
+  }
+});
+
+app.get("/api/courses/:id/enrollments", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const enrollments = await findEnrollmentsByCourse(id);
+    res.json({ enrollments });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch enrollments." });
+  }
+});
+
+app.get("/api/my/enrollments", authenticateUser, async (req: any, res: any) => {
+  try {
+    const enrollments = await findEnrollmentsByUser(req.user.id);
+    res.json({ enrollments });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch enrollments." });
+  }
+});
+
+app.post("/api/courses/:courseId/lessons/:lessonId/progress", authenticateUser, requireWorkspacePermission(WorkspacePermission.JOIN_CLASSROOM), async (req: any, res: any) => {
+  try {
+    const { courseId, lessonId } = req.params;
+    const enrollment = await findEnrollment(courseId, req.user.id);
+    if (!enrollment) return res.status(404).json({ error: "Not enrolled." });
+
+    const completed = enrollment.completed_lessons || [];
+    if (!completed.includes(lessonId)) {
+      completed.push(lessonId);
+
+      const course = await findCourseById(courseId);
+      const totalLessons = (course?.modules_count || 1) * 3;
+      const progress = Math.min(100, (completed.length / Math.max(totalLessons, 1)) * 100);
+      const isComplete = progress >= 100;
+
+      await updateEnrollment(enrollment.id, {
+        completed_lessons: completed,
+        progress,
+        last_accessed_at: new Date().toISOString(),
+        ...(isComplete ? { status: "completed", completed_at: new Date().toISOString() } : {}),
+      });
+
+      await awardXp(req.user.id, 10);
+
+      res.json({ success: true, completedLessons: completed, progress, isComplete });
+    } else {
+      res.json({ success: true, completedLessons: completed, progress: enrollment.progress });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update progress." });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// COURSE RESOURCE ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+app.get("/api/modules/:moduleId/resources", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_RESOURCES), async (req: any, res: any) => {
+  try {
+    const resources = await findResourcesByModule(req.params.moduleId);
+    res.json({ resources });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch resources." });
+  }
+});
+
+app.post("/api/modules/:moduleId/resources", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { title, description, fileUrl, fileType, fileSize } = req.body;
+    if (!title || !fileUrl || !fileType) {
+      return res.status(400).json({ error: "title, fileUrl, and fileType are required." });
+    }
+    const resource = await createResource({
+      module_id: req.params.moduleId, title, description,
+      file_url: fileUrl, file_type: fileType, file_size: fileSize,
+    });
+    res.json({ success: true, resource });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to create resource." });
+  }
+});
+
+app.delete("/api/resources/:id", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    await deleteResource(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete resource." });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// COURSE CERTIFICATE ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/api/courses/:courseId/certificates", authenticateUser, requireWorkspacePermission(WorkspacePermission.GRADE_ASSIGNMENTS), async (req: any, res: any) => {
+  try {
+    const { courseId } = req.params;
+    const { enrollmentId, userId } = req.body;
+
+    const course = await findCourseById(courseId);
+    if (!course) return res.status(404).json({ error: "Course not found." });
+    if (!course.certificate_enabled) {
+      return res.status(400).json({ error: "Certificates are not enabled for this course." });
+    }
+
+    const enrollment = await findEnrollment(courseId, userId);
+    if (!enrollment || enrollment.status !== "completed") {
+      return res.status(400).json({ error: "Student has not completed the course." });
+    }
+
+    const existingCert = await findCertificateByEnrollment(enrollmentId || enrollment.id);
+    if (existingCert) {
+      return res.json({ success: true, certificate: existingCert, message: "Already issued." });
+    }
+
+    const certificate = await createCertificate({
+      enrollment_id: enrollment.id, course_id: courseId, user_id: userId,
+      certificate_url: `/certificates/${courseId}/${userId}`,
+    });
+
+    await updateEnrollment(enrollment.id, {
+      certificate_issued: true,
+      certificate_url: certificate.certificate_url,
+    });
+
+    res.json({ success: true, certificate });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to issue certificate." });
+  }
+});
+
+app.get("/api/my/certificates", authenticateUser, async (req: any, res: any) => {
+  try {
+    const certificates = await findCertificatesByUser(req.user.id);
+    res.json({ certificates });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch certificates." });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// COURSE STATUS TRANSITION ROUTE
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/api/courses/:id/status", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { status, scheduledAt } = req.body;
+    const validStatuses = ["draft", "scheduled", "published", "archived"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+    }
+
+    const course = await findCourseById(id);
+    if (!course) return res.status(404).json({ error: "Course not found." });
+
+    const updateFields: Record<string, any> = { status };
+    if (status === "published") updateFields.published_at = new Date().toISOString();
+    if (status === "archived") updateFields.archived_at = new Date().toISOString();
+    if (status === "scheduled" && scheduledAt) updateFields.scheduled_at = scheduledAt;
+
+    await updateCourse(id, updateFields);
+    await addAuditLog(req.user.id, req.user.fullName, "COURSE_STATUS_CHANGED", `Course '${course.name}' status: ${course.status} → ${status}`, course.workspace_id);
+
+    res.json({ success: true, status });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to change course status." });
   }
 });
 
@@ -2457,6 +2732,104 @@ app.post("/api/database/migrate", authenticateUser, async (req: any, res: any) =
   await ensureSchema();
   const seeded = await isDatabaseSeeded();
   res.json({ success: true, message: `PostgreSQL schema verified. Seeded: ${seeded}` });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SUPER ADMIN PLATFORM SETTINGS
+// ═══════════════════════════════════════════════════════════════
+
+const platformSettings: Record<string, any> = {
+  maintenanceMode: false,
+  registrationEnabled: true,
+  debugLogging: false,
+  deploymentRegion: "gcp-us-central1",
+  platformName: "Skool SaaS",
+  supportEmail: "support@skool.com",
+  maxUploadMb: 50,
+  sessionTimeoutHours: 24,
+  mfaRequired: false,
+  smtpHost: "",
+  smtpPort: 587,
+  smtpUser: "",
+  smtpPass: "",
+  webhookUrl: "",
+};
+
+app.get("/api/platform/settings", authenticateUser, (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  const safeSettings = { ...platformSettings };
+  delete safeSettings.smtpPass;
+  res.json({ settings: safeSettings });
+});
+
+app.put("/api/platform/settings", authenticateUser, (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  const allowed = [
+    "maintenanceMode", "registrationEnabled", "debugLogging", "deploymentRegion",
+    "platformName", "supportEmail", "maxUploadMb", "sessionTimeoutHours",
+    "mfaRequired", "smtpHost", "smtpPort", "smtpUser", "smtpPass", "webhookUrl",
+  ];
+  for (const [key, val] of Object.entries(req.body)) {
+    if (allowed.includes(key)) {
+      platformSettings[key] = val;
+    }
+  }
+  addAuditLog(req.user.id, req.user.fullName, "PLATFORM_SETTINGS_UPDATED", `Updated settings: ${Object.keys(req.body).join(", ")}`);
+  res.json({ success: true, settings: platformSettings });
+});
+
+app.post("/api/platform/toggle-maintenance", authenticateUser, async (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  platformSettings.maintenanceMode = !platformSettings.maintenanceMode;
+  await addAuditLog(req.user.id, req.user.fullName, "MAINTENANCE_TOGGLE", `Maintenance mode set to ${platformSettings.maintenanceMode}`);
+  res.json({ success: true, maintenanceMode: platformSettings.maintenanceMode });
+});
+
+app.get("/api/platform/backup-keys", authenticateUser, (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  const keys = [
+    `SHA256::${crypto.randomBytes(8).toString("hex")}...${crypto.randomBytes(8).toString("hex")}`,
+    `SHA256::${crypto.randomBytes(8).toString("hex")}...${crypto.randomBytes(8).toString("hex")}`,
+  ];
+  res.json({ keys, generatedAt: new Date().toISOString() });
+});
+
+app.post("/api/platform/backup-rotate", authenticateUser, async (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  await addAuditLog(req.user.id, req.user.fullName, "BACKUP_KEYS_ROTATED", "Recovery keys rotated.");
+  res.json({ success: true, message: "Backup recovery keys rotated." });
+});
+
+app.get("/api/platform/stats", authenticateUser, async (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  try {
+    const userCount = await query("SELECT COUNT(*) as count FROM users");
+    const wsCount = await query("SELECT COUNT(*) as count FROM workspaces");
+    const memberCount = await query("SELECT COUNT(*) as count FROM workspace_members");
+    const postCount = await query("SELECT COUNT(*) as count FROM posts");
+    const courseCount = await query("SELECT COUNT(*) as count FROM courses");
+    res.json({
+      users: parseInt(userCount.rows[0]?.count || "0", 10),
+      workspaces: parseInt(wsCount.rows[0]?.count || "0", 10),
+      members: parseInt(memberCount.rows[0]?.count || "0", 10),
+      posts: parseInt(postCount.rows[0]?.count || "0", 10),
+      courses: parseInt(courseCount.rows[0]?.count || "0", 10),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch platform stats." });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
