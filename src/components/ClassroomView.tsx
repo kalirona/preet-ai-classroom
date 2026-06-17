@@ -3228,126 +3228,197 @@ export default function ClassroomView({
               ) : (
                 /* STUDENT COURSE REGISTRY / BROWSER CATALOG */
                 <div id="student-courses-catalog" className="space-y-6">
-                  <div className="grid grid-cols-12 gap-6">
-                    <div className="col-span-12 lg:col-span-12 bg-white rounded-2xl border border-gray-200 p-6 shadow-xs flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold shrink-0 shadow-3xs">
-                        <GraduationCap className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-gray-900 font-display">Student Workspace Classroom</h2>
-                        <p className="text-xs text-gray-505 mt-0.5 font-sans leading-relaxed">
-                          Expand your professional acumen with modules, quiz exercises, and certified study resources.
+                  <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
+                      <div className="p-6 sm:p-8">
+                        <div className="mb-5 flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+                            <GraduationCap className="h-3.5 w-3.5" />
+                            Classroom
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            Modules first
+                          </span>
+                        </div>
+                        <h2 className="max-w-2xl text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
+                          Pick a classroom path, then move through each module like a Skool course.
+                        </h2>
+                        <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+                          Courses should feel like community learning hubs: clear modules, visible progress, lessons, resources, and discussion prompts all in one place.
                         </p>
+                      </div>
+
+                      <div className="border-t border-slate-200 bg-slate-950 p-6 text-white lg:border-l lg:border-t-0">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="rounded-xl bg-white/10 p-3">
+                            <span className="block text-xl font-bold">{localCourses.length}</span>
+                            <span className="text-[10px] text-slate-400">Courses</span>
+                          </div>
+                          <div className="rounded-xl bg-white/10 p-3">
+                            <span className="block text-xl font-bold">
+                              {localCourses.reduce((sum, course) => sum + (course.modules?.length || 0), 0)}
+                            </span>
+                            <span className="text-[10px] text-slate-400">Modules</span>
+                          </div>
+                          <div className="rounded-xl bg-white/10 p-3">
+                            <span className="block text-xl font-bold">
+                              {localCourses.reduce((sum, course) => sum + (course.modules?.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0) || 0), 0)}
+                            </span>
+                            <span className="text-[10px] text-slate-400">Lessons</span>
+                          </div>
+                        </div>
+                        <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
+                          <p className="text-xs font-semibold text-slate-200">Frontend recommendation</p>
+                          <p className="mt-1 text-[11px] leading-5 text-slate-400">
+                            Keep this page learner-facing. Put buying, enrollment, module previews, and progress here; keep editing in Course Builder.
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </section>
 
-                    <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-gray-400 tracking-wider font-mono uppercase">Courses</h3>
-                    
-                    {localCourses.length === 0 ? (
-                      <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center shadow-3xs">
-                        <BookOpen className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-                        <h4 className="text-sm font-bold text-gray-700">No courses yet</h4>
-                        <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
-                          Courses will appear here once they are created and published.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {localCourses.map((course) => {
-                          const courseStatus = (course.status || "draft") as CourseStatus;
-                          const progress = getCourseProgress(course);
-                          return (
-                            <div key={course.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs hover:border-indigo-350 hover:shadow-md transition-all flex flex-col group relative" id={`course-grid-card-${course.id}`}>
-                              <div className="h-40 bg-gray-105 relative overflow-hidden shrink-0">
+                  {localCourses.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm">
+                      <BookOpen className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+                      <h4 className="text-sm font-bold text-slate-800">No courses yet</h4>
+                      <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500">
+                        Courses will appear here once they are created and published.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                      {localCourses.map((course) => {
+                        const courseStatus = (course.status || "draft") as CourseStatus;
+                        const progress = getCourseProgress(course);
+                        const lessonCount = course.modules?.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0) || 0;
+                        const firstLesson = course.modules?.[0]?.lessons?.[0] || null;
+
+                        return (
+                          <article
+                            key={course.id}
+                            className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg"
+                            id={`course-grid-card-${course.id}`}
+                          >
+                            <div className="grid lg:grid-cols-[230px_1fr]">
+                              <div className="relative min-h-[220px] overflow-hidden bg-slate-100">
                                 <img
-                                  src={course.coverUrl}
+                                  src={course.coverUrl || "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80"}
                                   alt={course.name}
                                   referrerPolicy="no-referrer"
-                                  className="w-full h-full object-cover group-hover:scale-102 transition duration-300"
+                                  className="absolute inset-0 h-full w-full object-cover transition duration-500 hover:scale-105"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent"></div>
-                                
-                                {/* Status badge */}
-                                <div className="absolute top-3 left-3 z-10">
-                                  <span className={`text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded border font-mono ${getStatusColor(courseStatus)}`}>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                                <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+                                  <span className={`rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${getStatusColor(courseStatus)}`}>
                                     {getStatusLabel(courseStatus)}
                                   </span>
-                                </div>
-
-                                {/* Course type badge */}
-                                <div className="absolute top-3 right-3 z-10">
-                                  <span className="text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-black/60 text-white font-mono">
-                                    {getCourseTypeLabel(course.courseType)}
-                                  </span>
-                                </div>
-
-                                <div className="absolute bottom-3 left-3 text-white flex gap-1.5 items-center z-10 font-mono">
-                                  <span className="text-[9.5px] font-bold tracking-wider uppercase bg-black/60 px-2 py-0.5 rounded">
-                                    {course.modules?.length || 0} modules
-                                  </span>
-                                  {course.difficultyLevel && course.difficultyLevel !== "beginner" && (
-                                    <span className={`text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded ${getDifficultyColor(course.difficultyLevel)}`}>
-                                      {course.difficultyLevel}
+                                  {course.isPremiumOnly && (
+                                    <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">
+                                      Premium
                                     </span>
                                   )}
+                                </div>
+                                <div className="absolute bottom-4 left-4 right-4 text-white">
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">
+                                    {course.category || getCourseTypeLabel(course.courseType)}
+                                  </p>
+                                  <h3 className="mt-1 line-clamp-2 text-lg font-extrabold leading-tight">{course.name}</h3>
                                 </div>
                               </div>
 
-                              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                                <div className="space-y-1.5">
-                                  <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition truncate">
-                                    {course.name}
-                                  </h4>
-                                  <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
-                                    {course.description}
-                                  </p>
-                                  {course.category && (
-                                    <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded inline-block">
-                                      {course.category}
-                                    </span>
-                                  )}
+                              <div className="flex flex-col gap-5 p-5">
+                                <p className="line-clamp-2 text-sm leading-6 text-slate-600">
+                                  {course.description || "A focused classroom path with lessons, resources, and community discussion."}
+                                </p>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div className="rounded-xl bg-slate-50 p-3">
+                                    <span className="block text-base font-bold text-slate-950">{course.modules?.length || 0}</span>
+                                    <span className="text-[10px] font-medium text-slate-500">Modules</span>
+                                  </div>
+                                  <div className="rounded-xl bg-slate-50 p-3">
+                                    <span className="block text-base font-bold text-slate-950">{lessonCount}</span>
+                                    <span className="text-[10px] font-medium text-slate-500">Lessons</span>
+                                  </div>
+                                  <div className="rounded-xl bg-slate-50 p-3">
+                                    <span className="block text-base font-bold text-slate-950">{course.enrolledCount || 0}</span>
+                                    <span className="text-[10px] font-medium text-slate-500">Members</span>
+                                  </div>
                                 </div>
 
-                                {/* Progress bar */}
-                                {progress > 0 && (
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between text-[10px] font-mono">
-                                      <span className="text-gray-400">Progress</span>
-                                      <span className="text-emerald-600 font-semibold">{progress}%</span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                                        style={{ width: `${progress}%` }}
-                                      />
-                                    </div>
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-slate-500">Course progress</span>
+                                    <span className="font-bold text-slate-950">{progress}%</span>
                                   </div>
-                                )}
+                                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-indigo-600 transition-all duration-500"
+                                      style={{ width: `${progress}%` }}
+                                    />
+                                  </div>
+                                </div>
 
-                                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                                  <div className="flex items-center gap-3 text-xs text-gray-400">
-                                    <span>{course.enrolledCount} students</span>
-                                    {course.price > 0 && (
-                                      <span className="font-semibold text-emerald-600">${course.price}/mo</span>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                  {(course.modules || []).slice(0, 4).map((mod, modIdx) => {
+                                    const moduleLessons = mod.lessons || [];
+                                    const doneCount = moduleLessons.filter((lesson) => completedLessons.includes(lesson.id)).length;
+                                    const moduleProgress = moduleLessons.length ? Math.round((doneCount / moduleLessons.length) * 100) : 0;
+
+                                    return (
+                                      <button
+                                        key={mod.id}
+                                        type="button"
+                                        onClick={() => {
+                                          handleSelectCourse(course);
+                                          if (moduleLessons[0]) setActiveLesson(moduleLessons[0]);
+                                        }}
+                                        className="group/module rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-indigo-200 hover:bg-white"
+                                      >
+                                        <div className="flex items-start gap-2">
+                                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[10px] font-bold text-slate-700 shadow-sm">
+                                            {modIdx + 1}
+                                          </span>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="truncate text-xs font-bold text-slate-900 group-hover/module:text-indigo-700">
+                                              {mod.title}
+                                            </p>
+                                            <p className="mt-0.5 text-[10px] text-slate-500">
+                                              {moduleLessons.length} lessons / {moduleProgress}% done
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                <div className="flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="text-xs text-slate-500">
+                                    {course.price > 0 ? (
+                                      <span className="font-semibold text-emerald-700">${course.price}/mo</span>
+                                    ) : (
+                                      <span>Included in community</span>
                                     )}
                                   </div>
-                                  
                                   <button
-                                    onClick={() => handleSelectCourse(course)}
-                                    className="px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer bg-gray-900 hover:bg-indigo-600 text-white"
+                                    onClick={() => {
+                                      handleSelectCourse(course);
+                                      if (firstLesson) setActiveLesson(firstLesson);
+                                    }}
+                                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-indigo-700"
                                   >
-                                    Open <ChevronRight className="w-3.5 h-3.5" />
+                                    Open Classroom <ChevronRight className="h-3.5 w-3.5" />
                                   </button>
                                 </div>
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -3561,882 +3632,782 @@ export default function ClassroomView({
             </div>
           )}
 
-          {/* THREE-PANEL CORE LAYOUT */}
-          <div className="grid grid-cols-12 gap-5 items-start">
-               {/* PANEL 1: Left column -> Course modules, Progress, Continue Learning & Classroom Index Syllabus -- taking lg:col-span-3 */}
-            <div className="col-span-12 lg:col-span-3 bg-white rounded-2xl border border-gray-200 p-4 shadow-xs max-h-[85vh] overflow-y-auto space-y-6">
-              
-              {/* 1. Courses Section */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center px-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest font-mono text-gray-400">Courses</span>
-                  {hasStaffOverride && (
-                    <button 
-                      onClick={() => setShowManualModal(true)}
-                      className="text-[9px] font-bold text-indigo-600 hover:text-indigo-805 uppercase font-mono tracking-tight flex items-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" /> New
-                    </button>
-                  )}
+          {/* SKOOL-STYLE MODULE MAP */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Course path
+                </span>
+                <h3 className="mt-3 text-lg font-extrabold tracking-tight text-slate-950">
+                  Modules
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Browse the course like a Skool classroom: modules first, lesson cards inside each module, progress always visible.
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <span className="block text-base font-extrabold text-slate-950">{selectedCourse.modules?.length || 0}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Modules</span>
                 </div>
-                <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                  {courses.map((c) => {
-                    const isSelected = selectedCourse?.id === c.id;
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedCourse(c);
-                          if (c.modules?.[0]?.lessons?.[0]) {
-                            setActiveLesson(c.modules[0].lessons[0]);
-                          } else {
-                            setActiveLesson(null);
-                          }
-                        }}
-                        className={`w-full text-left py-2 px-2.5 rounded-xl text-[11px] font-medium transition flex items-center justify-between gap-1.5 ${
-                          isSelected 
-                            ? "bg-indigo-650 text-white font-bold shadow-sm" 
-                            : "hover:bg-gray-50 text-gray-650"
-                        }`}
-                      >
-                        <span className="truncate">{c.name}</span>
-                        {c.isPremiumOnly && (
-                          <span className={`text-[8px] px-1 py-0.2 rounded shrink-0 font-bold ${isSelected ? "bg-amber-400 text-black" : "bg-amber-100 text-amber-805"}`}>
-                            PRO
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <span className="block text-base font-extrabold text-slate-950">{courseSyllabusLessons.length}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Lessons</span>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <span className="block text-base font-extrabold text-slate-950">{progressPercent}%</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Done</span>
                 </div>
               </div>
-
-              {/* 2. Progress Section */}
-              <div className="space-y-2.5 bg-slate-50 border border-slate-100 rounded-2xl p-3.5 mt-2">
-                <span className="text-[9.5px] uppercase font-mono tracking-wider font-bold text-gray-400 block">Progress</span>
-                
-                <div>
-                  <div className="flex justify-between items-center text-[10.5px] font-mono mb-1">
-                    <span className="text-gray-500 font-medium">Completed</span>
-                    <span className="text-emerald-700 font-extrabold">{progressPercent}%</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full transition-all duration-350" 
-                      style={{ width: `${progressPercent}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-[10px] pt-1">
-                  <div className="bg-white border border-gray-100 rounded-lg p-1.5 text-center">
-                    <span className="text-gray-400 block text-[7.5px] uppercase tracking-wider font-mono">Streak</span>
-                    <span className="font-extrabold text-orange-600 flex items-center justify-center gap-0.5 mt-0.5">
-                      🔥 {currentUser?.streak || 5} Days
-                    </span>
-                  </div>
-                  <div className="bg-white border border-gray-100 rounded-lg p-1.5 text-center">
-                    <span className="text-gray-400 block text-[7.5px] uppercase tracking-wider font-mono">Level</span>
-                    <span className="font-extrabold text-indigo-650 block mt-0.5">
-                      ⭐ Lvl {currentUser?.level || 1}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Continue Learning Section */}
-              {(() => {
-                let nextLesson: Lesson | null = null;
-                if (selectedCourse?.modules) {
-                  for (const m of selectedCourse.modules) {
-                    if (m.lessons) {
-                      for (const l of m.lessons) {
-                        if (!completedLessons.includes(l.id)) {
-                          nextLesson = l;
-                          break;
-                        }
-                      }
-                    }
-                    if (nextLesson) break;
-                  }
-                }
-                
-                if (!nextLesson) {
-                  return (
-                    <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl text-center text-[11px] text-emerald-800 font-bold mt-2">
-                      🏆 Course Completed!
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="bg-indigo-50 border border-indigo-100 p-3.5 rounded-2xl space-y-2 mt-2">
-                    <div className="flex gap-1.5 items-center">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping shrink-0" />
-                      <span className="text-[9px] font-bold text-indigo-700 uppercase tracking-widest font-mono">Continue Learning</span>
-                    </div>
-                    <div>
-                      <h5 className="text-[11px] font-bold text-indigo-950 truncate">{nextLesson.title}</h5>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveLesson(nextLesson)}
-                      className="w-full text-center py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-bold uppercase transition"
-                    >
-                      Resume
-                    </button>
-                  </div>
-                );
-              })()}
-
-              {/* 4. Curriculum Index Tree */}
-              <div className="border-t border-gray-100 pt-4 space-y-3 mt-4">
-                <div className="flex justify-between items-center px-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-gray-400">Curriculum</span>
-                  <span className="text-[9px] bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.2 rounded font-mono">
-                    {completedInActiveCourse.length}/{courseSyllabusLessons.length} completed
-                  </span>
-                </div>
-                
-                <div className="space-y-4">
-                  {selectedCourse?.modules?.map((mod, i) => (
-                    <div key={mod.id} className="space-y-1.5">
-                      <div className="font-bold text-gray-900 text-[11px] flex items-center gap-1 border-b border-gray-55 pb-1">
-                        <span className="w-2 h-2 rounded-sm bg-indigo-650 shrink-0"></span>
-                        <span className="truncate">{mod.title}</span>
-                      </div>
-
-                      <div className="pl-1.5 border-l border-gray-100 space-y-0.5">
-                        {mod.lessons?.map((ls) => {
-                          const isActive = activeLesson?.id === ls.id;
-                          const isDone = completedLessons.includes(ls.id);
-                          return (
-                            <button
-                              key={ls.id}
-                              type="button"
-                              onClick={() => setActiveLesson(ls)}
-                              className={`w-full text-left py-1.5 px-2 rounded-xl text-[10.5px] flex justify-between items-center group transition ${
-                                isActive 
-                                  ? "bg-indigo-600 text-white font-bold" 
-                                  : "hover:bg-gray-55 text-gray-650"
-                              }`}
-                            >
-                              <span className="truncate pr-1 flex items-center gap-1">
-                                {ls.isLocked ? (
-                                  <Lock className={`w-2.5 h-2.5 ${isActive ? "text-white" : "text-amber-500"}`} />
-                                ) : isDone ? (
-                                  <CheckCircle className={`w-3 h-3 ${isActive ? "text-white" : "text-emerald-500"}`} />
-                                ) : (
-                                  <PlayCircle className={`w-3 h-3 ${isActive ? "text-white" : "text-gray-400"}`} />
-                                )}
-                                <span className="truncate">{ls.title}</span>
-                              </span>
-
-                              <span className={`text-[7.5px] font-mono font-bold capitalize px-1 py-0.2 rounded ml-0.5 shrink-0 ${
-                                isActive 
-                                  ? "bg-white/20 text-white" 
-                                  : ls.contentType === "quiz" 
-                                    ? "bg-purple-50 text-purple-650 font-bold" 
-                                    : ls.contentType === "assignment" 
-                                      ? "bg-amber-50 text-amber-655 font-bold" 
-                                      : "bg-gray-100 text-gray-500"
-                              }`}>
-                                {ls.contentType || "video"}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
             </div>
 
-            {/* PANEL 2: Middle area -> Lesson content details (Lesson Video Player, Notion content playbook, Quiz, Assignment) -- taking lg:col-span-6 */}
-            <div className="col-span-12 lg:col-span-6 space-y-5">
-              
-              {/* Media viewer or blocked panel */}
-              <div className="bg-gray-950 aspect-video rounded-2xl overflow-hidden relative border border-gray-900 shadow-md">
-                {isFetchingLesson ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-slate-900/60 backdrop-blur-xs">
-                    <RefreshCw className="w-10 h-10 text-indigo-400 animate-spin mb-3" />
-                    <span className="text-xs font-mono text-indigo-200">Loading lesson...</span>
-                  </div>
-                ) : lessonFetchError ? (
-                  <div className="absolute inset-0 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
-                    <Lock className="w-12 h-12 text-rose-500 mb-3" />
-                    <h4 className="text-sm font-bold font-display text-rose-450 mb-1">Access Denied</h4>
-                    <p className="text-[11px] text-gray-400 max-w-sm mt-1 mb-4 leading-relaxed">
-                      {lessonFetchError}
-                    </p>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {selectedCourse.modules?.map((mod, moduleIndex) => {
+                const moduleLessons = mod.lessons || [];
+                const doneCount = moduleLessons.filter((lesson) => completedLessons.includes(lesson.id)).length;
+                const moduleProgress = moduleLessons.length ? Math.round((doneCount / moduleLessons.length) * 100) : 0;
+                const activeInModule = moduleLessons.some((lesson) => lesson.id === activeLesson?.id);
+
+                return (
+                  <article
+                    key={mod.id}
+                    className={`rounded-2xl border p-4 transition ${
+                      activeInModule
+                        ? "border-indigo-200 bg-indigo-50/60 shadow-sm"
+                        : "border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white"
+                    }`}
+                  >
                     <button
-                      onClick={() => setSelectedCourse(null)}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-xs transition cursor-pointer"
+                      type="button"
+                      onClick={() => {
+                        if (moduleLessons[0]) setActiveLesson(moduleLessons[0]);
+                      }}
+                      className="flex w-full items-start gap-3 text-left"
                     >
-                      Back to Courses
+                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold ${
+                        activeInModule ? "bg-indigo-600 text-white" : "bg-white text-slate-700 shadow-sm"
+                      }`}>
+                        {moduleIndex + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-extrabold text-slate-950">{mod.title}</span>
+                        <span className="mt-1 block text-xs font-medium text-slate-500">
+                          {doneCount}/{moduleLessons.length} lessons complete
+                        </span>
+                      </span>
                     </button>
-                  </div>
-                ) : activeLessonDetails ? (
-                  activeLessonDetails.isLocked && !hasStaffOverride ? (
-                    <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
-                      <Lock className="w-10 h-10 text-amber-500 mb-3 animate-bounce" />
-                      <h4 className="text-sm font-bold font-display text-amber-400">Lesson Locked</h4>
+
+                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-indigo-600"
+                        style={{ width: `${moduleProgress}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      {moduleLessons.map((ls, lessonIndex) => {
+                        const isActive = activeLesson?.id === ls.id;
+                        const isDone = completedLessons.includes(ls.id);
+                        return (
+                          <button
+                            key={ls.id}
+                            type="button"
+                            onClick={() => setActiveLesson(ls)}
+                            className={`min-h-[82px] rounded-xl border p-3 text-left transition ${
+                              isActive
+                                ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold ${
+                                isActive ? "bg-white/20 text-white" : isDone ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                              }`}>
+                                {isDone ? <CheckCircle className="h-3 w-3" /> : lessonIndex + 1}
+                              </span>
+                              {ls.isLocked ? (
+                                <Lock className={`h-3.5 w-3.5 ${isActive ? "text-white/80" : "text-amber-500"}`} />
+                              ) : (
+                                <PlayCircle className={`h-3.5 w-3.5 ${isActive ? "text-white/80" : "text-slate-400"}`} />
+                              )}
+                            </div>
+                            <span className="mt-2 line-clamp-2 block text-[11px] font-bold leading-snug">
+                              {ls.title}
+                            </span>
+                            <span className={`mt-1 block text-[8px] font-bold uppercase ${
+                              isActive ? "text-white/70" : "text-slate-400"
+                            }`}>
+                              {ls.contentType || "video"} / {ls.durationMinutes}m
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* FULL-WIDTH MODULE GRID */}
+          {selectedCourse?.modules && selectedCourse.modules.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-gray-900">Course modules</h3>
+                <span className="text-[10px] text-gray-400 font-medium">
+                  {completedInActiveCourse.length}/{courseSyllabusLessons.length} completed
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {selectedCourse.modules.map((mod, modIdx) => {
+                  const moduleLessons = mod.lessons || [];
+                  const doneCount = moduleLessons.filter((l) => completedLessons.includes(l.id)).length;
+                  const moduleProgress = moduleLessons.length ? Math.round((doneCount / moduleLessons.length) * 100) : 0;
+                  const isActiveModule = moduleLessons.some((l) => l.id === activeLesson?.id);
+                  return (
+                    <button
+                      key={mod.id}
+                      type="button"
+                      onClick={() => {
+                        const firstUnfinished = moduleLessons.find((l) => !completedLessons.includes(l.id)) || moduleLessons[0];
+                        if (firstUnfinished) setActiveLesson(firstUnfinished);
+                      }}
+                      className={`group text-left rounded-xl border p-4 transition hover:shadow-md ${
+                        isActiveModule 
+                          ? "border-indigo-200 bg-indigo-50/50 shadow-sm" 
+                          : "border-gray-200 bg-white hover:border-indigo-200"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                          moduleProgress === 100
+                            ? "bg-emerald-100 text-emerald-700"
+                            : isActiveModule
+                              ? "bg-indigo-100 text-indigo-700"
+                              : "bg-gray-100 text-gray-500"
+                        }`}>
+                          {moduleProgress === 100 ? <CheckCircle className="w-4 h-4" /> : modIdx + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-xs font-bold truncate ${
+                            isActiveModule ? "text-indigo-700" : "text-gray-900 group-hover:text-indigo-700"
+                          }`}>
+                            {mod.title}
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {doneCount}/{moduleLessons.length} lessons
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            moduleProgress === 100 ? "bg-emerald-500" : "bg-indigo-500"
+                          }`}
+                          style={{ width: `${moduleProgress}%` }}
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* LESSON CONTENT + NOTES + COMMENTS + RESOURCES */}
+          <div className="space-y-5">
+            {/* Lesson content (video/quiz/assignment/text) */}
+            {activeLesson && (
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                {/* Media viewer or blocked panel */}
+                <div className="bg-gray-950 aspect-video rounded-2xl overflow-hidden relative border border-gray-900 shadow-md">
+                  {isFetchingLesson ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-slate-900/60 backdrop-blur-xs">
+                      <RefreshCw className="w-10 h-10 text-indigo-400 animate-spin mb-3" />
+                      <span className="text-xs font-mono text-indigo-200">Loading lesson...</span>
+                    </div>
+                  ) : lessonFetchError ? (
+                    <div className="absolute inset-0 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
+                      <Lock className="w-12 h-12 text-rose-500 mb-3" />
+                      <h4 className="text-sm font-bold font-display text-rose-450 mb-1">Access Denied</h4>
                       <p className="text-[11px] text-gray-400 max-w-sm mt-1 mb-4 leading-relaxed">
-                        Complete previous lessons to unlock this lesson.
+                        {lessonFetchError}
                       </p>
                       <button
-                        onClick={() => handleToggleCompleted(activeLessonDetails.id)}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 font-bold rounded-xl text-xs transition cursor-pointer"
+                        onClick={() => setSelectedCourse(null)}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-xs transition cursor-pointer"
                       >
-                        Unlock Lesson
+                        Back to Courses
                       </button>
                     </div>
-                  ) : activeLessonDetails.contentType === "video" && activeLessonDetails.videoUrl ? (
-                    (activeLessonDetails.videoUrl.includes("youtube.com") || activeLessonDetails.videoUrl.includes("embed") || activeLessonDetails.videoUrl.includes("movie.mp4")) ? (
-                      <iframe
-                        src={activeLessonDetails.videoUrl.includes("movie.mp4") ? "https://www.youtube.com/embed/dQw4w9WgXcQ" : activeLessonDetails.videoUrl}
-                        title="Course Player Clip"
-                        className="w-full h-full border-0"
-                        allowFullScreen
-                      />
+                  ) : activeLessonDetails ? (
+                    activeLessonDetails.isLocked && !hasStaffOverride ? (
+                      <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
+                        <Lock className="w-10 h-10 text-amber-500 mb-3 animate-bounce" />
+                        <h4 className="text-sm font-bold font-display text-amber-400">Lesson Locked</h4>
+                        <p className="text-[11px] text-gray-400 max-w-sm mt-1 mb-4 leading-relaxed">
+                          Complete previous lessons to unlock this lesson.
+                        </p>
+                        <button
+                          onClick={() => handleToggleCompleted(activeLessonDetails.id)}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 font-bold rounded-xl text-xs transition cursor-pointer"
+                        >
+                          Unlock Lesson
+                        </button>
+                      </div>
+                    ) : activeLessonDetails.contentType === "video" && activeLessonDetails.videoUrl ? (
+                      (activeLessonDetails.videoUrl.includes("youtube.com") || activeLessonDetails.videoUrl.includes("embed") || activeLessonDetails.videoUrl.includes("movie.mp4")) ? (
+                        <iframe
+                          src={activeLessonDetails.videoUrl.includes("movie.mp4") ? "https://www.youtube.com/embed/dQw4w9WgXcQ" : activeLessonDetails.videoUrl}
+                          title="Course Player Clip"
+                          className="w-full h-full border-0"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <video
+                          src={`/api/lessons/${activeLessonDetails.id}/stream`}
+                          controls
+                          controlsList="nodownload"
+                          onContextMenu={(e) => e.preventDefault()}
+                          className="w-full h-full object-cover"
+                        />
+                      )
                     ) : (
-                      <video
-                        src={`/api/lessons/${activeLessonDetails.id}/stream`}
-                        controls
-                        controlsList="nodownload"
-                        onContextMenu={(e) => e.preventDefault()}
-                        className="w-full h-full object-cover"
-                      />
+                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 to-slate-900 flex flex-col justify-center items-center p-6 text-center text-white">
+                        {activeLessonDetails.contentType === "quiz" ? (
+                          <>
+                            <ClipboardList className="w-12 h-12 text-purple-400 mb-3 animate-pulse" />
+                            <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-purple-200">Quiz</h4>
+                            <p className="text-[11px] text-indigo-200/80 max-w-sm mt-1">
+                              Complete the quiz below to test your knowledge.
+                            </p>
+                          </>
+                        ) : activeLessonDetails.contentType === "assignment" ? (
+                          <>
+                            <PenTool className="w-12 h-12 text-amber-400 mb-3 animate-pulse" />
+                            <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-amber-200">Assignment</h4>
+                            <p className="text-[11px] text-amber-200/85 max-w-sm mt-1">
+                              Complete the assignment below to demonstrate your skills.
+                            </p>
+                          </>
+                        ) : activeLessonDetails.contentType === "download" ? (
+                          <>
+                            <Download className="w-12 h-12 text-emerald-400 mb-3 animate-bounce" />
+                            <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-emerald-200">Resources</h4>
+                            <p className="text-[11px] text-emerald-250/80 max-w-sm mt-1">
+                              Downloadable resources for this lesson.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-12 h-12 text-indigo-400 mb-3" />
+                            <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-indigo-200">Reading</h4>
+                            <p className="text-[11px] text-indigo-200/80 max-w-sm mt-1">
+                              Read through the lesson material below.
+                            </p>
+                          </>
+                        )}
+                      </div>
                     )
                   ) : (
-                    /* Elegant placeholder graphics for Non-Video Interactive items */
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 to-slate-900 flex flex-col justify-center items-center p-6 text-center text-white">
-                      {activeLessonDetails.contentType === "quiz" ? (
-                        <>
-                          <ClipboardList className="w-12 h-12 text-purple-400 mb-3 animate-pulse" />
-                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-purple-200">Quiz</h4>
-                          <p className="text-[11px] text-indigo-200/80 max-w-sm mt-1">
-                            Complete the quiz below to test your knowledge.
-                          </p>
-                        </>
-                      ) : activeLessonDetails.contentType === "assignment" ? (
-                        <>
-                          <PenTool className="w-12 h-12 text-amber-400 mb-3 animate-pulse" />
-                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-amber-200">Assignment</h4>
-                          <p className="text-[11px] text-amber-200/85 max-w-sm mt-1">
-                            Complete the assignment below to demonstrate your skills.
-                          </p>
-                        </>
-                      ) : activeLessonDetails.contentType === "download" ? (
-                        <>
-                          <Download className="w-12 h-12 text-emerald-400 mb-3 animate-bounce" />
-                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-emerald-200">Resources</h4>
-                          <p className="text-[11px] text-emerald-250/80 max-w-sm mt-1">
-                            Downloadable resources for this lesson.
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="w-12 h-12 text-indigo-400 mb-3" />
-                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-indigo-200">Reading</h4>
-                          <p className="text-[11px] text-indigo-200/80 max-w-sm mt-1">
-                            Read through the lesson material below.
-                          </p>
-                        </>
-                      )}
+                    <div className="absolute inset-0 flex items-center justify-center text-white">
+                      <PlayCircle className="w-12 h-12 text-gray-700 animate-pulse" />
                     </div>
-                  )
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-white">
-                    <PlayCircle className="w-12 h-12 text-gray-700 animate-pulse" />
+                  )}
+                </div>
+
+                {/* Lesson details panel */}
+                {activeLessonDetails && (
+                  <div className="p-6 space-y-6">
+                    {/* Title and navigation */}
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-100 pb-5">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] uppercase font-mono tracking-widest bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded">
+                            Lesson {courseSyllabusLessons.findIndex(l => l.id === activeLessonDetails.id) + 1}
+                          </span>
+                          <span className="text-[9px] uppercase font-mono tracking-wider text-gray-400">
+                            ⏱️ {activeLessonDetails.durationMinutes} min
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-bold text-gray-900 leading-tight font-display mt-1">{activeLessonDetails.title}</h3>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => {
+                            const allLessons = courseSyllabusLessons;
+                            const idx = allLessons.findIndex(l => l.id === activeLessonDetails.id);
+                            if (idx > 0) setActiveLesson(allLessons[idx - 1]);
+                          }}
+                          disabled={courseSyllabusLessons.findIndex(l => l.id === activeLessonDetails.id) === 0}
+                          className="px-3 py-2 rounded-xl border border-gray-250 text-gray-700 hover:bg-gray-50 text-[11px] font-bold font-sans transition disabled:opacity-45 cursor-pointer"
+                        >
+                          ← Previous
+                        </button>
+
+                        {activeLessonDetails.contentType !== "quiz" && activeLessonDetails.contentType !== "assignment" && (
+                          <button
+                            onClick={() => handleToggleCompleted(activeLessonDetails.id)}
+                            disabled={completedLessons.includes(activeLessonDetails.id)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                              completedLessons.includes(activeLessonDetails.id)
+                                ? "bg-green-50 text-green-700 border border-green-200 cursor-not-allowed font-medium"
+                                : "bg-indigo-600 hover:bg-indigo-750 text-white cursor-pointer shadow-md shadow-indigo-100"
+                            }`}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            {completedLessons.includes(activeLessonDetails.id) ? "Completed" : "Mark Complete"}
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            const allLessons = courseSyllabusLessons;
+                            const idx = allLessons.findIndex(l => l.id === activeLessonDetails.id);
+                            if (idx < allLessons.length - 1) setActiveLesson(allLessons[idx + 1]);
+                          }}
+                          disabled={courseSyllabusLessons.findIndex(l => l.id === activeLessonDetails.id) >= courseSyllabusLessons.length - 1}
+                          className="px-3 py-2 rounded-xl bg-gray-900 text-white hover:bg-indigo-650 text-[11px] font-bold font-sans transition disabled:opacity-45 cursor-pointer"
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Lesson Content */}
+                    <div>
+                      <h4 className="text-[10px] font-bold text-indigo-950 font-mono uppercase tracking-wider mb-2">Lesson Content</h4>
+                      <div className="space-y-2 border-l-2 border-indigo-100 pl-4 py-1">
+                        {renderRichTextPlaybook(activeLessonDetails.textContent)}
+                      </div>
+                    </div>
+
+                    {/* Quiz section */}
+                    {activeLessonDetails.contentType === "quiz" && (
+                      <div className="bg-purple-50/40 p-5 rounded-2xl border border-purple-100 space-y-4">
+                        <div className="flex items-center justify-between border-b border-purple-100 pb-1.5">
+                          <h4 className="text-xs font-bold font-mono text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
+                            <ClipboardList className="w-4 h-4 text-purple-600" /> Quiz
+                          </h4>
+                          <span className="text-[9.5px] font-bold font-mono text-purple-700">70% to pass</span>
+                        </div>
+
+                        <div className="space-y-4 text-xs font-sans">
+                          {(activeLessonDetails.quizQuestions || []).map((q, qIdx) => {
+                            const isCurrectAnswerSubmitted = quizSubmitted && (quizResults?.results?.[qIdx]?.isCorrect === true);
+                            const isWrongAnswerSubmitted = quizSubmitted && (quizResults?.results?.[qIdx]?.isCorrect === false);
+                            return (
+                              <div key={qIdx} className="space-y-2 bg-white p-4 rounded-xl border border-purple-50">
+                                <p className="font-bold text-gray-800 leading-snug">
+                                  Q{qIdx + 1}: {q.question}
+                                </p>
+                                <div className="space-y-1.5 pt-1">
+                                  {q.options.map((opt, optIdx) => {
+                                    const isSelected = quizSelectedAnswers[qIdx] === optIdx;
+                                    const isTheCorrectIndex = quizSubmitted && optIdx === q.answerIndex;
+                                    return (
+                                      <button
+                                        key={optIdx}
+                                        type="button"
+                                        disabled={quizSubmitted}
+                                        onClick={() => setQuizSelectedAnswers({ ...quizSelectedAnswers, [qIdx]: optIdx })}
+                                        className={`w-full text-left p-2.5 rounded-lg border text-[11px] transition flex items-center justify-between gap-2 ${
+                                          isTheCorrectIndex 
+                                            ? "bg-emerald-50 border-emerald-250 text-emerald-850 font-semibold"
+                                            : isSelected
+                                              ? quizSubmitted && isWrongAnswerSubmitted
+                                                ? "bg-rose-50 border-rose-250 text-rose-850 font-medium"
+                                                : "bg-purple-100 border-purple-400 text-purple-900 font-bold"
+                                              : "hover:bg-gray-50 border-gray-150 text-gray-650"
+                                        }`}
+                                      >
+                                        <span>{opt}</span>
+                                        {isTheCorrectIndex && <span className="text-[9px] font-mono font-bold text-emerald-600">Correct</span>}
+                                        {isSelected && !isTheCorrectIndex && quizSubmitted && <span className="text-[9px] font-mono font-bold text-rose-500">Your answer</span>}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {quizSubmitted && quizResults && (
+                          <div className={`p-4 rounded-xl border ${
+                            quizResults.passed 
+                              ? "bg-emerald-50/50 border-emerald-200 text-emerald-950" 
+                              : "bg-rose-50/50 border-rose-150 text-rose-950"
+                          } text-xs leading-relaxed space-y-1`}>
+                            <div className="flex justify-between items-center font-bold">
+                              <span>Results</span>
+                              <span className={`text-sm font-mono font-bold uppercase ${quizResults.passed ? "text-emerald-700" : "text-rose-700"}`}>
+                                {quizResults.passed ? "Passed" : "Failed"}
+                              </span>
+                            </div>
+                            <p className="text-[11px] mt-1 text-gray-600">
+                              You scored <strong>{Math.round(quizResults.percent)}%</strong> ({quizResults.correctCount} / {quizResults.totalQuestions}).
+                              {quizResults.passed ? " You passed the quiz!" : " Review the material and try again."}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 justify-end pt-2">
+                          {quizSubmitted ? (
+                            <button
+                              type="button"
+                              onClick={() => { setQuizSubmitted(false); setQuizSelectedAnswers({}); setQuizResults(null); }}
+                              className="px-4 py-2 bg-white hover:bg-gray-55 shadow-xs border border-purple-200 text-purple-750 font-bold text-[11px] rounded-xl transition cursor-pointer"
+                            >
+                              Retake
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleQuizSubmit}
+                              disabled={isSubmittingQuiz || Object.keys(quizSelectedAnswers).length < (activeLessonDetails.quizQuestions?.length || 0)}
+                              className="px-5 py-2 bg-purple-650 hover:bg-purple-750 text-white rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                            >
+                              {isSubmittingQuiz ? "Submitting..." : "Submit Answers"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Assignment section */}
+                    {activeLessonDetails.contentType === "assignment" && (
+                      <div className="bg-amber-50/40 p-5 rounded-2xl border border-amber-100 space-y-4">
+                        <div className="flex items-center justify-between border-b border-amber-150 pb-1.5">
+                          <h4 className="text-xs font-bold font-mono text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
+                            <ClipboardList className="w-4 h-4 text-amber-600" /> Assignment
+                          </h4>
+                        </div>
+
+                        <div className="bg-white border rounded-xl p-4 text-xs shadow-xs space-y-2">
+                          <label className="text-[10px] font-mono uppercase tracking-widest font-bold text-gray-400">Instructions</label>
+                          <p className="font-semibold text-gray-750 font-sans leading-relaxed whitespace-pre-line">
+                            {activeLessonDetails.assignmentInstructions || activeLessonDetails.textContent}
+                          </p>
+                        </div>
+
+                        {assignmentSubmission ? (
+                          <div className="space-y-4">
+                            <div className="bg-white border-2 border-amber-400 rounded-xl p-4 shadow-sm space-y-2 relative">
+                              <span className="absolute top-3 right-3 text-sm font-mono font-bold text-amber-500 bg-amber-50 border border-amber-200 px-3 py-1 rounded-md shadow-lg rotate-3 uppercase">
+                                Grade {assignmentSubmission.grade || "A+"}
+                              </span>
+                              <h5 className="font-bold text-gray-900 flex items-center gap-1">
+                                <CheckCircle className="w-4 h-4 text-emerald-500" /> Assignment Graded
+                              </h5>
+                              <div className="pt-2 border-t border-gray-50 text-[11px] text-gray-500">
+                                <strong className="text-gray-700 block mb-1">Your submission:</strong>
+                                <p className="bg-gray-50 p-2.5 rounded-lg border italic">{assignmentSubmission.text}</p>
+                              </div>
+                              <div className="pt-3 border-t border-gray-50 leading-relaxed text-[11px] text-indigo-950">
+                                <span className="text-[9px] font-mono font-bold block uppercase text-indigo-500 mb-0.5">Instructor feedback</span>
+                                <p className="font-medium bg-indigo-50/50 p-2.5 rounded-lg border border-indigo-100">{assignmentSubmission.feedback}</p>
+                              </div>
+                            </div>
+                            <div className="bg-emerald-50 border border-emerald-250 p-3 rounded-xl flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                              <p className="text-[10.5px] text-emerald-850">Assignment submitted successfully (+20 XP).</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleAssignmentSubmit} className="space-y-4 font-sans text-xs">
+                            <div className="space-y-1.5">
+                              <label className="block text-[10px] font-mono font-bold tracking-widest text-gray-400 uppercase">Your response</label>
+                              <textarea
+                                rows={3}
+                                required
+                                placeholder="Write your answer here..."
+                                value={assignmentText}
+                                onChange={(e) => setAssignmentText(e.target.value)}
+                                className="w-full bg-white border border-gray-250 px-3.5 py-2 rounded-xl text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                              />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <label className="block text-[10px] font-mono font-bold text-gray-400 uppercase">Attachment (optional):</label>
+                                <select
+                                  value={assignmentFile}
+                                  onChange={(e) => setAssignmentFile(e.target.value)}
+                                  className="w-full bg-white border border-gray-250 px-3 py-1.5 rounded-xl text-[11px] text-gray-700 focus:outline-none"
+                                >
+                                  <option value="redis_compaction_blueprint.pdf">redis_compaction_blueprint.pdf</option>
+                                  <option value="sliding_context_window.ts">sliding_context_window.ts</option>
+                                  <option value="starter_cookbox.md">starter_cookbox.md</option>
+                                </select>
+                              </div>
+                              <div className="flex items-end">
+                                <button
+                                  type="submit"
+                                  disabled={isSubmittingAssignment || !assignmentText.trim()}
+                                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40"
+                                >
+                                  {isSubmittingAssignment ? "Submitting..." : "Submit Assignment"}
+                                </button>
+                              </div>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Attachments */}
+                    {activeLessonDetails.attachments && activeLessonDetails.attachments.length > 0 && (
+                      <div className="pt-5 border-t border-gray-100">
+                        <h4 className="text-xs font-bold text-gray-805 uppercase tracking-wider font-mono mb-3 flex items-center gap-1.5 text-indigo-950">
+                          <Download className="w-4 h-4 text-indigo-600" /> Attachments
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {activeLessonDetails.attachments.map((file, fIdx) => (
+                            <div key={fIdx} className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between gap-2 hover:bg-gray-100 transition">
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold text-gray-800 truncate block font-sans" title={file}>
+                                  {file}
+                                </span>
+                                <span className="text-[9px] text-gray-450 font-mono block">Resource file</span>
+                              </div>
+                              <a
+                                href={`/api/lessons/${activeLessonDetails.id}/downloads/${encodeURIComponent(file)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-bold transition flex items-center gap-1 shrink-0 cursor-pointer"
+                              >
+                                <Download className="w-3 h-3" /> Download
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
+            )}
 
-              {/* DETAILS PANEL FOR THE CURRENT LESSON */}
-              {activeLessonDetails && (
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs space-y-6">
-                  
-                  {/* Title and main top actions */}
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-100 pb-5 mb-5 shrink-0">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] uppercase font-mono tracking-widest bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded">
-                          Lesson {activeLessonDetails.index + 1}
-                        </span>
-                        <span className="text-[9px] uppercase font-mono tracking-wider text-gray-400">
-                          ⏱️ {activeLessonDetails.durationMinutes} min
-                        </span>
-                      </div>
-                      <h3 className="text-sm font-bold text-gray-900 leading-tight font-display mt-1">{activeLessonDetails.title}</h3>
-                    </div>
-
-                    {/* Complete Navigation Suite (Prev, Complete, Next) */}
-                    <div className="flex items-center gap-2 shrink-0 select-none">
-                      <button
-                        onClick={handlePrevLesson}
-                        disabled={!hasPrevLesson}
-                        className="px-3 py-2 rounded-xl border border-gray-250 text-gray-700 hover:bg-gray-50 text-[11px] font-bold font-sans transition disabled:opacity-45 disabled:hover:bg-transparent cursor-pointer flex items-center gap-0.5"
-                      >
-                        ← Previous
-                      </button>
-
-                      {activeLessonDetails.contentType !== "quiz" && activeLessonDetails.contentType !== "assignment" && (
-                        <button
-                          onClick={() => handleToggleCompleted(activeLessonDetails.id)}
-                          disabled={completedLessons.includes(activeLessonDetails.id)}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
-                            completedLessons.includes(activeLessonDetails.id)
-                              ? "bg-green-50 text-green-700 border border-green-200 cursor-not-allowed font-medium"
-                              : "bg-indigo-600 hover:bg-indigo-750 text-white cursor-pointer shadow-md shadow-indigo-100 font-bold"
-                          }`}
-                        >
-                          <CheckCircle className="w-4 h-4 shrink-0" />
-                          {completedLessons.includes(activeLessonDetails.id) ? "Completed" : "Mark Complete"}
-                        </button>
-                      )}
-
-                      <button
-                        onClick={handleNextLesson}
-                        disabled={!hasNextLesson}
-                        className="px-3 py-2 rounded-xl bg-gray-900 border border-transparent text-white hover:bg-indigo-650 text-[11px] font-bold font-sans transition disabled:opacity-45 disabled:hover:bg-gray-950 cursor-pointer flex items-center gap-0.5"
-                      >
-                        Next →
-                      </button>
-                    </div>
+            {/* Discussion + Notes + Resources grid */}
+            {activeLesson && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {/* Discussion */}
+                <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex flex-col h-[480px]">
+                  <div className="border-b border-gray-55 pb-2 mb-2 shrink-0">
+                    <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-indigo-600 block">Discussion</span>
+                    <h4 className="text-xs font-bold text-gray-900 font-display flex items-center gap-1 mt-0.5">
+                      💬 Discussion ({lessonComments.length})
+                    </h4>
                   </div>
-
-                  {/* NOTION STYLE TEXT PLAYBOOK DISPLAY BLOCK */}
-                  <div className="p-1">
-                    <h4 className="text-[10px] font-bold text-indigo-950 font-mono uppercase tracking-wider mb-2">Lesson Content</h4>
-                    <div className="space-y-2 border-l-2 border-indigo-100 pl-4 py-1">
-                      {renderRichTextPlaybook(activeLessonDetails.textContent)}
-                    </div>
-                  </div>
-
-                  {/* CUSTOM LESSON TYPE 1: INTERACTIVE MCQ QUIZ CONTAINER */}
-                  {activeLessonDetails.contentType === "quiz" && (
-                    <div className="bg-purple-50/40 p-5 rounded-2xl border border-purple-100 space-y-4 animate-in fade-in duration-200">
-                      <div className="flex items-center justify-between border-b border-purple-100 pb-1.5">
-                        <h4 className="text-xs font-bold font-mono text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
-                          <ClipboardList className="w-4 h-4 text-purple-600" /> Quiz
-                        </h4>
-                        <span className="text-[9.5px] font-bold font-mono text-purple-700">70% to pass</span>
-                      </div>
-
-                      {/* Quiz list of questions */}
-                      <div className="space-y-4 text-xs font-sans">
-                        {(activeLessonDetails.quizQuestions || []).map((q, qIdx) => {
-                          const isCurrectAnswerSubmitted = quizSubmitted && (quizResults?.results?.[qIdx]?.isCorrect === true);
-                          const isWrongAnswerSubmitted = quizSubmitted && (quizResults?.results?.[qIdx]?.isCorrect === false);
-                          return (
-                            <div key={qIdx} className="space-y-2 bg-white p-4 rounded-xl border border-purple-50">
-                              <p className="font-bold text-gray-800 leading-snug">
-                                Q{qIdx + 1}: {q.question}
-                              </p>
-                              
-                              <div className="space-y-1.5 pt-1">
-                                {q.options.map((opt, optIdx) => {
-                                  const isSelected = quizSelectedAnswers[qIdx] === optIdx;
-                                  const isTheCorrectIndex = quizSubmitted && optIdx === q.answerIndex;
-                                  return (
-                                    <button
-                                      key={optIdx}
-                                      type="button"
-                                      disabled={quizSubmitted}
-                                      onClick={() => setQuizSelectedAnswers({ ...quizSelectedAnswers, [qIdx]: optIdx })}
-                                      className={`w-full text-left p-2.5 rounded-lg border text-[11px] transition flex items-center justify-between gap-2 ${
-                                        isTheCorrectIndex 
-                                          ? "bg-emerald-50 border-emerald-250 text-emerald-850 font-semibold"
-                                          : isSelected
-                                            ? quizSubmitted && isWrongAnswerSubmitted
-                                              ? "bg-rose-50 border-rose-250 text-rose-850 font-medium"
-                                              : "bg-purple-100 border-purple-400 text-purple-900 font-bold"
-                                            : "hover:bg-gray-50 border-gray-150 text-gray-650"
-                                      }`}
-                                    >
-                                      <span>{opt}</span>
-                                      {isTheCorrectIndex && <span className="text-[9px] font-mono font-bold text-emerald-600">Correct Choice</span>}
-                                      {isSelected && !isTheCorrectIndex && quizSubmitted && <span className="text-[9px] font-mono font-bold text-rose-500">Your Answer</span>}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Score metrics & feedback logs */}
-                      {quizSubmitted && quizResults && (
-                        <div className={`p-4 rounded-xl border ${
-                          quizResults.passed 
-                            ? "bg-emerald-50/50 border-emerald-200 text-emerald-950" 
-                            : "bg-rose-50/50 border-rose-150 text-rose-950"
-                        } text-xs leading-relaxed space-y-1`}>
-                          <div className="flex justify-between items-center font-bold">
-                            <span>Results</span>
-                            <span className={`text-sm font-mono font-bold uppercase ${quizResults.passed ? "text-emerald-700" : "text-rose-700"}`}>
-                              {quizResults.passed ? "Passed" : "Failed"}
-                            </span>
-                          </div>
-                          <p className="text-[11px] mt-1 text-gray-600">
-                            You scored <strong>{Math.round(quizResults.percent)}%</strong> ({quizResults.correctCount} / {quizResults.totalQuestions}).
-                            {quizResults.passed 
-                              ? " You passed the quiz!"
-                              : " Review the material and try again."}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Trigger Actions */}
-                      <div className="flex gap-2 justify-end pt-2">
-                        {quizSubmitted ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setQuizSubmitted(false);
-                              setQuizSelectedAnswers({});
-                              setQuizResults(null);
-                            }}
-                            className="px-4 py-2 bg-white hover:bg-gray-55 shadow-xs border border-purple-200 text-purple-750 font-bold text-[11px] rounded-xl transition cursor-pointer"
-                          >
-                            Retake
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={handleQuizSubmit}
-                            disabled={isSubmittingQuiz || Object.keys(quizSelectedAnswers).length < (activeLessonDetails.quizQuestions?.length || 0)}
-                            className="px-5 py-2 bg-purple-650 hover:bg-purple-750 text-white rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-40"
-                          >
-                            {isSubmittingQuiz ? "Submitting..." : "Submit Answers"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* CUSTOM LESSON TYPE 2: INTERACTIVE PROJECT WORKSPACE ASSIGNMENT */}
-                  {activeLessonDetails.contentType === "assignment" && (
-                    <div className="bg-amber-50/40 p-5 rounded-2xl border border-amber-100 space-y-4 animate-in fade-in duration-200">
-                      <div className="flex items-center justify-between border-b border-amber-150 pb-1.5">
-                        <h4 className="text-xs font-bold font-mono text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
-                          <ClipboardList className="w-4 h-4 text-amber-600" /> Assignment
-                        </h4>
-                      </div>
-
-                      {/* Instructions */}
-                      <div className="bg-white border rounded-xl p-4 text-xs shadow-xs space-y-2">
-                        <label className="text-[10px] font-mono uppercase tracking-widest font-bold text-gray-400">Instructions</label>
-                        <p className="font-semibold text-gray-750 font-sans leading-relaxed whitespace-pre-line">
-                          {activeLessonDetails.assignmentInstructions || activeLessonDetails.textContent}
+                  <div className="flex-1 overflow-y-auto space-y-3.5 pr-0.5">
+                    {lessonComments.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400 flex flex-col items-center justify-center h-full">
+                        <BookOpen className="w-6 h-6 text-gray-200 mb-1.5" />
+                        <p className="text-[10px] font-medium">No comments yet</p>
+                        <p className="text-[8.5px] text-gray-500 max-w-[160px] mx-auto mt-0.5 leading-normal">
+                          Start a discussion about this lesson.
                         </p>
                       </div>
-
-                      {/* Submission Input Box */}
-                      {assignmentSubmission ? (
-                        /* Render reviews graded feedback */
-                        <div className="space-y-4 shrink-0 animate-in zoom-in-95 duration-150 text-xs">
-                          <div className="bg-white border-2 border-amber-400 rounded-xl p-4 shadow-sm space-y-2 relative">
-                            <span className="absolute top-3 right-3 text-sm font-mono font-bold text-amber-500 bg-amber-50 border border-amber-200 px-3 py-1 rounded-md shadow-lg rotate-3 uppercase">
-                              Grade {assignmentSubmission.grade || "A+"}
-                            </span>
-                            
-                            <h5 className="font-bold text-gray-900 flex items-center gap-1">
-                              <CheckCircle className="w-4 h-4 text-emerald-500" /> Assignment Graded
-                            </h5>
-                            
-                            <div className="pt-2 border-t border-gray-50 text-[11px] text-gray-500">
-                              <strong className="text-gray-700 block mb-1">Your submission:</strong>
-                              <p className="bg-gray-50 p-2.5 rounded-lg border italic">{assignmentSubmission.text}</p>
+                    ) : (
+                      lessonComments.map((comm) => {
+                        const commentsLikesCount = commentLikes[comm.id] || 0;
+                        const hasLiked = likedComments.includes(comm.id);
+                        const commentSubReplies = commentReplies[comm.id] || [];
+                        return (
+                          <div key={comm.id} className="text-[10.5px] bg-slate-50/70 hover:bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2 relative transition">
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <img
+                                  src={comm.authorAvatar}
+                                  alt={comm.authorName}
+                                  referrerPolicy="no-referrer"
+                                  className="w-5 h-5 rounded-full object-cover shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <span className="font-bold text-gray-800 truncate block text-[10px]" title={comm.authorName}>
+                                    {comm.authorName}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-1 items-center shrink-0">
+                                {pinnedComments.includes(comm.id) && (
+                                  <span className="text-[7.5px] bg-indigo-100 text-indigo-850 px-1.5 py-0.5 rounded font-mono font-bold uppercase shrink-0">
+                                    📌 Pinned
+                                  </span>
+                                )}
+                                {featuredComments.includes(comm.id) && (
+                                  <span className="text-[7.5px] bg-amber-100 text-amber-850 px-1.5 py-0.5 rounded font-mono font-bold uppercase shrink-0">
+                                    ⭐ Featured
+                                  </span>
+                                )}
+                                <span className="text-[7.5px] bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded font-mono font-bold scale-95 uppercase shrink-0">
+                                  {comm.authorRole || "Student"}
+                                </span>
+                              </div>
                             </div>
-
-                            <div className="pt-3 border-t border-gray-50 leading-relaxed text-[11px] text-indigo-950">
-                              <span className="text-[9px] font-mono font-bold block uppercase text-indigo-500 mb-0.5">Instructor feedback</span>
-                              <p className="font-medium bg-indigo-50/50 p-2.5 rounded-lg border border-indigo-100">{assignmentSubmission.feedback}</p>
-                            </div>
-                          </div>
-
-                          <div className="bg-emerald-50 border border-emerald-250 p-3 rounded-xl flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                            <p className="text-[10.5px] text-emerald-850">
-                              Assignment submitted successfully (+20 XP).
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <form onSubmit={handleAssignmentSubmit} className="space-y-4 font-sans text-xs">
-                          <div className="space-y-1.5">
-                            <label className="block text-[10px] font-mono font-bold tracking-widest text-gray-400 uppercase">Your response</label>
-                            <textarea
-                              rows={3}
-                              required
-                              placeholder="Write your answer here..."
-                              value={assignmentText}
-                              onChange={(e) => setAssignmentText(e.target.value)}
-                              className="w-full bg-white border border-gray-250 px-3.5 py-2 rounded-xl text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                              <label className="block text-[10px] font-mono font-bold text-gray-400 uppercase">Attachment (optional):</label>
-                              <select
-                                value={assignmentFile}
-                                onChange={(e) => setAssignmentFile(e.target.value)}
-                                className="w-full bg-white border border-gray-250 px-3 py-1.5 rounded-xl text-[11px] text-gray-700 focus:outline-none"
-                              >
-                                <option value="redis_compaction_blueprint.pdf">redis_compaction_blueprint.pdf</option>
-                                <option value="sliding_context_window.ts">sliding_context_window.ts</option>
-                                <option value="starter_cookbox.md">starter_cookbox.md</option>
-                              </select>
-                            </div>
-                            
-                            <div className="flex items-end">
+                            <p className="text-gray-700 leading-normal pl-0.5 whitespace-pre-wrap">{comm.content}</p>
+                            <div className="flex items-center gap-3 pt-1 text-[9.5px] text-gray-450 font-mono shrink-0">
                               <button
-                                type="submit"
-                                disabled={isSubmittingAssignment || !assignmentText.trim()}
-                                className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40"
+                                type="button"
+                                onClick={() => {
+                                  if (hasLiked) {
+                                    setLikedComments(likedComments.filter(id => id !== comm.id));
+                                    setCommentLikes(prev => ({ ...prev, [comm.id]: Math.max(0, (prev[comm.id] || 0) - 1) }));
+                                  } else {
+                                    setLikedComments([...likedComments, comm.id]);
+                                    setCommentLikes(prev => ({ ...prev, [comm.id]: (prev[comm.id] || 0) + 1 }));
+                                  }
+                                }}
+                                className={`flex items-center gap-1 hover:text-rose-600 transition font-bold shrink-0 ${hasLiked ? "text-rose-600" : ""}`}
                               >
-                                {isSubmittingAssignment ? "Submitting..." : "Submit Assignment"}
+                                ❤️ {commentsLikesCount + (comm.likesCount || 0)} likes
                               </button>
+                              <button
+                                type="button"
+                                onClick={() => setActiveReplyInputId(activeReplyInputId === comm.id ? null : comm.id)}
+                                className="font-bold hover:text-indigo-650 transition cursor-pointer"
+                              >
+                                💬 Reply ({commentSubReplies.length})
+                              </button>
+                              {hasStaffOverride && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (pinnedComments.includes(comm.id)) {
+                                        setPinnedComments(pinnedComments.filter(id => id !== comm.id));
+                                      } else {
+                                        setPinnedComments([...pinnedComments, comm.id]);
+                                      }
+                                    }}
+                                    className={`hover:text-indigo-655 font-bold transition cursor-pointer ${pinnedComments.includes(comm.id) ? "text-indigo-600" : ""}`}
+                                  >
+                                    📌 {pinnedComments.includes(comm.id) ? "Unpin" : "Pin"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (featuredComments.includes(comm.id)) {
+                                        setFeaturedComments(featuredComments.filter(id => id !== comm.id));
+                                      } else {
+                                        setFeaturedComments([...featuredComments, comm.id]);
+                                      }
+                                    }}
+                                    className={`hover:text-amber-655 font-bold transition cursor-pointer ${featuredComments.includes(comm.id) ? "text-amber-500" : ""}`}
+                                  >
+                                    ⭐ {featuredComments.includes(comm.id) ? "Unfeature" : "Feature"}
+                                  </button>
+                                </>
+                              )}
                             </div>
+                            {commentSubReplies.length > 0 && (
+                              <div className="border-l-2 border-gray-200 pl-2.5 mt-2 space-y-1.5 ml-1">
+                                {commentSubReplies.map((rep) => (
+                                  <div key={rep.id} className="bg-white/80 rounded-lg p-2 border border-gray-100 space-y-0.5 text-[9.5px]">
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-bold text-gray-800">{rep.authorName}</span>
+                                      <span className="text-[7.5px] font-mono text-gray-400">
+                                        {new Date(rep.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    </div>
+                                    <p className="text-gray-650 leading-normal">{rep.content}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {activeReplyInputId === comm.id && (
+                              <form
+                                onSubmit={(e) => { e.preventDefault(); const text = commentReplyText[comm.id]?.trim(); if (!text) return; setCommentReplies(prev => ({ ...prev, [comm.id]: [...(prev[comm.id] || []), { id: `rep_${Date.now()}`, authorName: currentUser?.fullName || "Student", authorAvatar: currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80", content: text, createdAt: new Date().toISOString() }] })); setCommentReplyText(prev => ({ ...prev, [comm.id]: "" })); setActiveReplyInputId(null); }}
+                                className="mt-2.5 flex gap-1 items-center bg-white border border-gray-150 p-1 rounded-xl shrink-0"
+                              >
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="Write a reply..."
+                                  value={commentReplyText[comm.id] || ""}
+                                  onChange={(e) => setCommentReplyText(prev => ({ ...prev, [comm.id]: e.target.value }))}
+                                  className="flex-1 px-2.5 py-1 text-[9.5px] bg-transparent text-gray-800 focus:outline-none min-w-0"
+                                />
+                                <button type="submit" className="p-1 bg-indigo-650 text-white rounded-lg hover:bg-indigo-750 transition"><Send className="w-2.5 h-2.5" /></button>
+                              </form>
+                            )}
                           </div>
-                        </form>
-                      )}
+                        );
+                      })
+                    )}
+                  </div>
+                  <form onSubmit={handlePostLessonComment} className="pt-2 shrink-0 border-t border-gray-100">
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Add a comment..."
+                        value={newCommentText}
+                        onChange={(e) => setNewCommentText(e.target.value)}
+                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-[10px] placeholder-gray-400 text-gray-850 focus:outline-none focus:ring-1 focus:ring-indigo-550"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSendingComment || !newCommentText.trim() || !activeLesson}
+                        className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition cursor-pointer disabled:opacity-40"
+                      >
+                        <Send className="w-3 h-3" />
+                      </button>
                     </div>
-                  )}
+                  </form>
+                </div>
 
-                  {/* ATTACHMENTS & SECURE COMPANION DOWNLOAD MODULE */}
-                  {activeLessonDetails.attachments && activeLessonDetails.attachments.length > 0 && (
-                    <div className="pt-5 border-t border-gray-100">
-                      <h4 className="text-xs font-bold text-gray-805 uppercase tracking-wider font-mono mb-3 flex items-center gap-1.5 text-indigo-950">
-                        <Download className="w-4 h-4 text-indigo-600" /> Attachments
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Notes + Resources stacked */}
+                <div className="space-y-4">
+                  {/* Notes */}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex flex-col h-[200px]">
+                    <div className="flex justify-between items-center mb-1.5 shrink-0">
+                      <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400">Notes</span>
+                      <span className="text-[8px] px-1.5 py-0.2 font-mono bg-emerald-50 text-emerald-700 rounded font-bold uppercase">Auto-saved</span>
+                    </div>
+                    <textarea
+                      value={activeNotes}
+                      onChange={(e) => handleSaveNotes(e.target.value)}
+                      placeholder="Write your notes for this lesson..."
+                      className="flex-1 bg-slate-50/50 border border-slate-100 rounded-xl p-2.5 text-[10.5px] placeholder-gray-400 text-gray-800 leading-normal font-sans focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium resize-none min-h-0"
+                    />
+                  </div>
+
+                  {/* Resources */}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-2.5">
+                    <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block">Resources</span>
+                    {activeLessonDetails?.attachments && activeLessonDetails.attachments.length > 0 ? (
+                      <div className="space-y-1.5">
                         {activeLessonDetails.attachments.map((file, fIdx) => (
-                          <div key={fIdx} className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between gap-2 hover:bg-gray-100 transition">
-                            <div className="min-w-0">
-                              <span className="text-xs font-bold text-gray-800 truncate block font-sans" title={file}>
-                                {file}
-                              </span>
-                              <span className="text-[9px] text-gray-450 font-mono block">
-                                PDF Worksheet / Code Template
-                              </span>
+                          <div key={fIdx} className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 flex items-center justify-between gap-1.5 hover:border-indigo-150 transition">
+                            <div className="min-w-0 pr-1">
+                              <span className="text-[10.5px] font-bold text-gray-850 truncate block" title={file}>{file}</span>
+                              <span className="text-[8.5px] text-indigo-500 font-mono block mt-0.5">Resource file</span>
                             </div>
                             <a
                               href={`/api/lessons/${activeLessonDetails.id}/downloads/${encodeURIComponent(file)}`}
                               target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-bold transition flex items-center gap-1 shrink-0 cursor-pointer animate-in fade-in"
+                              referrerPolicy="no-referrer"
+                              className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-150 text-indigo-700 rounded-lg text-[9px] font-mono font-bold uppercase shrink-0"
                             >
-                              <Download className="w-3 h-3" /> Get PDF
+                              Download
                             </a>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* PANEL 3: Right Sidebar -> Discussion, Notes, Handout resources -- taking lg:col-span-3 */}
-            <div className="col-span-12 lg:col-span-3 space-y-4 max-h-[85vh] overflow-y-auto pr-1">
-              
-              {/* SECTION A: DISCUSSION CHAT FEED */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex flex-col h-[480px]">
-                
-                {/* Header */}
-                <div className="border-b border-gray-55 pb-2 mb-2 shrink-0">
-                  <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-indigo-600 block">Discussion</span>
-                  <h4 className="text-xs font-bold text-gray-900 font-display flex items-center gap-1 mt-0.5">
-                    💬 Discussion ({lessonComments.length})
-                  </h4>
-                </div>
-
-                {/* Messages feed body */}
-                <div className="flex-1 overflow-y-auto space-y-3.5 pr-0.5">
-                  {lessonComments.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400 flex flex-col items-center justify-center h-full">
-                      <BookOpen className="w-6 h-6 text-gray-200 mb-1.5" />
-                      <p className="text-[10px] font-medium">No comments yet</p>
-                      <p className="text-[8.5px] text-gray-500 max-w-[160px] mx-auto mt-0.5 leading-normal">
-                        Start a discussion about this lesson.
-                      </p>
-                    </div>
-                  ) : (
-                    lessonComments.map((comm) => {
-                      const commentsLikesCount = commentLikes[comm.id] || 0;
-                      const hasLiked = likedComments.includes(comm.id);
-                      const commentSubReplies = commentReplies[comm.id] || [];
-
-                      return (
-                        <div key={comm.id} className="text-[10.5px] bg-slate-50/70 hover:bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2 relative transition duration-155">
-                          {/* Comment Header */}
-                          <div className="flex items-center justify-between gap-1">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <img
-                                src={comm.authorAvatar}
-                                alt={comm.authorName}
-                                referrerPolicy="no-referrer"
-                                className="w-5 h-5 rounded-full object-cover shrink-0"
-                              />
-                              <div className="min-w-0">
-                                <span className="font-bold text-gray-800 truncate block text-[10px]" title={comm.authorName}>
-                                  {comm.authorName}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex gap-1 items-center shrink-0">
-                              {pinnedComments.includes(comm.id) && (
-                                <span className="text-[7.5px] bg-indigo-100 text-indigo-850 px-1.5 py-0.5 rounded font-mono font-bold uppercase shrink-0">
-                                  📌 Pinned
-                                </span>
-                              )}
-                              {featuredComments.includes(comm.id) && (
-                                <span className="text-[7.5px] bg-amber-100 text-amber-850 px-1.5 py-0.5 rounded font-mono font-bold uppercase shrink-0">
-                                  ⭐ Featured
-                                </span>
-                              )}
-                              <span className="text-[7.5px] bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded font-mono font-bold scale-95 uppercase shrink-0">
-                                {comm.authorRole || "Student"}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Comment Content */}
-                          <p className="text-gray-700 leading-normal pl-0.5 whitespace-pre-wrap">{comm.content}</p>
-
-                          {/* Actions: Like and Reply Buttons */}
-                          <div className="flex items-center gap-3 pt-1 text-[9.5px] text-gray-450 font-mono shrink-0 select-none">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (hasLiked) {
-                                  setLikedComments(likedComments.filter(id => id !== comm.id));
-                                  setCommentLikes(prev => ({ ...prev, [comm.id]: Math.max(0, (prev[comm.id] || 0) - 1) }));
-                                } else {
-                                  setLikedComments([...likedComments, comm.id]);
-                                  setCommentLikes(prev => ({ ...prev, [comm.id]: (prev[comm.id] || 0) + 1 }));
-                                }
-                              }}
-                              className={`flex items-center gap-1 hover:text-rose-600 transition font-bold shrink-0 ${hasLiked ? "text-rose-600" : ""}`}
-                            >
-                              ❤️ {commentsLikesCount + (comm.likesCount || 0)} Likes
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (activeReplyInputId === comm.id) {
-                                  setActiveReplyInputId(null);
-                                } else {
-                                  setActiveReplyInputId(comm.id);
-                                }
-                              }}
-                              className="font-bold hover:text-indigo-650 transition cursor-pointer"
-                            >
-                              💬 Reply ({commentSubReplies.length})
-                            </button>
-                            {hasStaffOverride && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (pinnedComments.includes(comm.id)) {
-                                      setPinnedComments(pinnedComments.filter(id => id !== comm.id));
-                                    } else {
-                                      setPinnedComments([...pinnedComments, comm.id]);
-                                    }
-                                  }}
-                                  className={`hover:text-indigo-655 font-bold transition cursor-pointer ${
-                                    pinnedComments.includes(comm.id) ? "text-indigo-600" : ""
-                                  }`}
-                                >
-                                  📌 {pinnedComments.includes(comm.id) ? "Unpin" : "Pin"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (featuredComments.includes(comm.id)) {
-                                      setFeaturedComments(featuredComments.filter(id => id !== comm.id));
-                                    } else {
-                                      setFeaturedComments([...featuredComments, comm.id]);
-                                    }
-                                  }}
-                                  className={`hover:text-amber-655 font-bold transition cursor-pointer ${
-                                    featuredComments.includes(comm.id) ? "text-amber-500" : ""
-                                  }`}
-                                >
-                                  ⭐ {featuredComments.includes(comm.id) ? "Unfeature" : "Feature"}
-                                </button>
-                              </>
-                            )}
-                          </div>
-
-                          {/* Render Sub-Replies (Comment Thread) */}
-                          {commentSubReplies.length > 0 && (
-                            <div className="border-l-2 border-gray-200 pl-2.5 mt-2 space-y-1.5 ml-1 select-text">
-                              {commentSubReplies.map((rep) => (
-                                <div key={rep.id} className="bg-white/80 rounded-lg p-2 border border-gray-100 space-y-0.5 text-[9.5px]">
-                                  <div className="flex justify-between items-center">
-                                    <span className="font-bold text-gray-800">{rep.authorName}</span>
-                                    <span className="text-[7.5px] font-mono text-gray-400">
-                                      {new Date(rep.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                  <p className="text-gray-650 leading-normal">{rep.content}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Reply Input Form Toggle Card */}
-                          {activeReplyInputId === comm.id && (
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                const text = commentReplyText[comm.id]?.trim();
-                                if (!text) return;
-
-                                const newReply = {
-                                  id: `rep_${Date.now()}`,
-                                  authorName: currentUser?.fullName || "Student",
-                                  authorAvatar: currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80",
-                                  content: text,
-                                  createdAt: new Date().toISOString()
-                                };
-
-                                setCommentReplies(prev => ({
-                                  ...prev,
-                                  [comm.id]: [...(prev[comm.id] || []), newReply]
-                                }));
-
-                                setCommentReplyText(prev => ({ ...prev, [comm.id]: "" }));
-                                setActiveReplyInputId(null);
-                              }}
-                              className="mt-2.5 flex gap-1 items-center bg-white border border-gray-150 p-1 rounded-xl shrink-0"
-                            >
-                              <input
-                                type="text"
-                                required
-                                placeholder="Type a nested reply..."
-                                value={commentReplyText[comm.id] || ""}
-                                onChange={(e) => setCommentReplyText(prev => ({ ...prev, [comm.id]: e.target.value }))}
-                                className="flex-1 px-2.5 py-1 text-[9.5px] bg-transparent text-gray-800 focus:outline-none min-w-0"
-                              />
-                              <button
-                                type="submit"
-                                className="p-1 bg-indigo-650 text-white rounded-lg hover:bg-indigo-750 transition"
-                              >
-                                <Send className="w-2.5 h-2.5" />
-                              </button>
-                            </form>
-                          )}
-
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Member Mentions Toolbar Picker */}
-                <div className="border-t border-gray-100 pt-1 mt-1 shrink-0">
-                  <div className="flex gap-1 items-center overflow-x-auto py-1 scrollbar-none select-none">
-                    <span className="text-[8px] font-mono font-bold text-gray-400 uppercase tracking-tight shrink-0">Tag:</span>
-                    {["@Lincoln", "@AlexRivera", "@CoachSarah", "@ExpertEva", "@CoreDev"].map(memberTag => (
-                      <button
-                        key={memberTag}
-                        type="button"
-                        onClick={() => {
-                          setNewCommentText(prev => prev + (prev.endsWith(" ") || prev === "" ? "" : " ") + memberTag + " ");
-                        }}
-                        className="px-1.5 py-0.5 bg-slate-50 hover:bg-indigo-50 border border-slate-100 text-[8.5px] font-mono text-gray-650 hover:text-indigo-800 rounded-sm shrink-0"
-                        title="Click to mention user in text"
-                      >
-                        {memberTag}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Comment input form */}
-                <form onSubmit={handlePostLessonComment} className="pt-2 shrink-0 border-t border-gray-100">
-                  <div className="flex gap-1">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Add a comment..."
-                      value={newCommentText}
-                      onChange={(e) => setNewCommentText(e.target.value)}
-                      className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-[10px] placeholder-gray-400 text-gray-850 focus:outline-none focus:ring-1 focus:ring-indigo-550"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isSendingComment || !newCommentText.trim() || !activeLesson}
-                      className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition duration-150 cursor-pointer disabled:opacity-40"
-                    >
-                      <Send className="w-3 h-3" />
-                    </button>
-                  </div>
-                </form>
-
-              </div>
-
-              {/* SECTION B: STUDENT PRIVATE STUDY NOTES (Auto Saved) */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex flex-col h-[200px]">
-                <div className="flex justify-between items-center mb-1.5 shrink-0">
-                  <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400">Notes</span>
-                  <span className="text-[8px] px-1.5 py-0.2 font-mono bg-emerald-50 text-emerald-700 rounded font-bold uppercase">Auto-saved</span>
-                </div>
-                <textarea
-                  value={activeNotes}
-                  onChange={(e) => handleSaveNotes(e.target.value)}
-                  placeholder="Write your notes for this lesson..."
-                  className="flex-1 bg-slate-50/50 border border-slate-100 rounded-xl p-2.5 text-[10.5px] placeholder-gray-400 text-gray-800 leading-normal font-sans focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium resize-none min-h-0"
-                />
-              </div>
-
-              {/* SECTION C: COMPANION HANDOUT RESOURCES */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-2.5">
-                <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block">Resources</span>
-                
-                {activeLessonDetails?.attachments && activeLessonDetails.attachments.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {activeLessonDetails.attachments.map((file, fIdx) => (
-                      <div key={fIdx} className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 flex items-center justify-between gap-1.5 hover:border-indigo-150 transition">
-                        <div className="min-w-0 pr-1">
-                          <span className="text-[10.5px] font-bold text-gray-850 truncate block" title={file}>
-                            {file}
-                          </span>
-                          <span className="text-[8.5px] text-indigo-500 font-mono block mt-0.5">Resource file</span>
-                        </div>
-                        <a
-                          href={`/api/lessons/${activeLessonDetails.id}/downloads/${encodeURIComponent(file)}`}
-                          target="_blank"
-                          referrerPolicy="no-referrer"
-                          className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-150 text-indigo-700 rounded-lg text-[9px] font-mono font-bold uppercase shrink-0"
-                        >
-                          Download
-                        </a>
+                    ) : (
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center text-[10px] text-gray-400 font-mono italic">
+                        No resources for this lesson.
                       </div>
-                    ))}
+                    )}
                   </div>
-                ) : (
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center text-[10px] text-gray-400 font-mono italic">
-                    No resources for this lesson.
-                  </div>
-                )}
+                </div>
               </div>
-
-            </div>
-
+            )}
           </div>
-
         </div>
       )}
 

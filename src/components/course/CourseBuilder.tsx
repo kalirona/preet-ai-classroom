@@ -1,5 +1,31 @@
-import React, { useState, useEffect } from "react";
-import { BookOpen, Plus, Grid, FileText, Settings, TrendingUp, Users, DollarSign, Layers, Search, MoreHorizontal, Edit, Eye, Copy, Archive, BarChart3, Play, Clock, CheckCircle, XCircle, Sparkles, GraduationCap, Trophy, Star, ArrowUpRight, ChevronDown } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Archive,
+  ArrowUpRight,
+  BarChart3,
+  BookOpen,
+  CalendarClock,
+  CheckCircle,
+  ChevronRight,
+  Copy,
+  Edit,
+  Eye,
+  FileText,
+  GraduationCap,
+  Layers,
+  LayoutGrid,
+  ListChecks,
+  MoreHorizontal,
+  PlayCircle,
+  Plus,
+  Search,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { CourseDraft } from "./CourseTypes";
 import CourseCreationWizard from "./CourseCreationWizard";
 import CourseEditor from "./CourseEditor";
@@ -12,36 +38,115 @@ interface CourseBuilderProps {
 }
 
 type DashboardTab = "all" | "published" | "draft" | "archived";
+type BuilderView = "grid" | "pipeline";
 
-export default function CourseBuilder({ communityId, initialCourses = [], onCoursesChange, currentUser }: CourseBuilderProps) {
+const statusCopy: Record<CourseDraft["status"], { label: string; tone: string; dot: string }> = {
+  published: {
+    label: "Published",
+    tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dot: "bg-emerald-500",
+  },
+  draft: {
+    label: "Draft",
+    tone: "bg-amber-50 text-amber-700 border-amber-200",
+    dot: "bg-amber-500",
+  },
+  archived: {
+    label: "Archived",
+    tone: "bg-slate-100 text-slate-600 border-slate-200",
+    dot: "bg-slate-400",
+  },
+};
+
+export default function CourseBuilder({
+  communityId,
+  initialCourses = [],
+  onCoursesChange,
+  currentUser,
+}: CourseBuilderProps) {
   const [courses, setCourses] = useState<CourseDraft[]>(initialCourses);
   const [activeDraft, setActiveDraft] = useState<CourseDraft | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>("all");
+  const [builderView, setBuilderView] = useState<BuilderView>("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialCourses.length > 0) setCourses(initialCourses);
+    setCourses(initialCourses);
   }, [initialCourses]);
 
-  const filteredCourses = courses.filter((c) => {
-    if (activeTab === "published") return c.status === "published";
-    if (activeTab === "draft") return c.status === "draft";
-    if (activeTab === "archived") return c.status === "archived";
-    return true;
-  }).filter((c) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q);
-  });
+  const courseMetrics = useMemo(() => {
+    const lessonCount = courses.reduce(
+      (total, course) => total + course.modules.reduce((sum, module) => sum + module.lessons.length, 0),
+      0
+    );
+    const moduleCount = courses.reduce((total, course) => total + course.modules.length, 0);
+    const totalStudents = courses.reduce((total, course) => total + (course.enrolledCount || 0), 0);
+    const revenue = courses.reduce((total, course) => total + (course.revenue || 0), 0);
+    const published = courses.filter((course) => course.status === "published").length;
+    const drafts = courses.filter((course) => course.status === "draft").length;
+    const avgCompletion = courses.length
+      ? Math.round(courses.reduce((total, course) => total + (course.completionRate || 0), 0) / courses.length)
+      : 0;
 
-  const stats = {
-    total: courses.length,
-    published: courses.filter((c) => c.status === "published").length,
-    drafts: courses.filter((c) => c.status === "draft").length,
-    students: courses.reduce((a, c) => a + (c.enrolledCount || 0), 0),
-    revenue: courses.reduce((a, c) => a + (c.revenue || 0), 0),
+    return {
+      total: courses.length,
+      published,
+      drafts,
+      moduleCount,
+      lessonCount,
+      totalStudents,
+      revenue,
+      avgCompletion,
+    };
+  }, [courses]);
+
+  const filteredCourses = useMemo(() => {
+    return courses
+      .filter((course) => {
+        if (activeTab === "published") return course.status === "published";
+        if (activeTab === "draft") return course.status === "draft";
+        if (activeTab === "archived") return course.status === "archived";
+        return true;
+      })
+      .filter((course) => {
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+          course.name.toLowerCase().includes(query) ||
+          course.description.toLowerCase().includes(query) ||
+          course.category.toLowerCase().includes(query)
+        );
+      });
+  }, [activeTab, courses, searchQuery]);
+
+  const pipelineColumns = useMemo(() => {
+    return [
+      {
+        id: "draft" as const,
+        title: "Build",
+        description: "Outline, lessons, resources",
+        courses: courses.filter((course) => course.status === "draft"),
+      },
+      {
+        id: "published" as const,
+        title: "Live Classroom",
+        description: "Members can start learning",
+        courses: courses.filter((course) => course.status === "published"),
+      },
+      {
+        id: "archived" as const,
+        title: "Archived",
+        description: "Hidden from new students",
+        courses: courses.filter((course) => course.status === "archived"),
+      },
+    ];
+  }, [courses]);
+
+  const handleCoursesUpdate = (updatedCourses: CourseDraft[]) => {
+    setCourses(updatedCourses);
+    onCoursesChange?.(updatedCourses);
   };
 
   const handleWizardComplete = (draft: CourseDraft) => {
@@ -53,40 +158,37 @@ export default function CourseBuilder({ communityId, initialCourses = [], onCour
   };
 
   const handleDraftUpdate = (updated: CourseDraft) => {
-    const c = courses.map((c) => (c.id === updated.id ? updated : c));
-    setCourses(c);
+    const updatedCourses = courses.map((course) => (course.id === updated.id ? updated : course));
+    setCourses(updatedCourses);
     setActiveDraft(updated);
-    onCoursesChange?.(c);
-  };
-
-  const handleDeleteCourse = (id: string) => {
-    const c = courses.filter((c) => c.id !== id);
-    setCourses(c);
-    if (activeDraft?.id === id) setActiveDraft(null);
-    onCoursesChange?.(c);
+    onCoursesChange?.(updatedCourses);
   };
 
   const handleArchive = (id: string) => {
-    const c = courses.map((c) => c.id === id ? { ...c, status: "archived" as const, updatedAt: new Date().toISOString() } : c);
-    setCourses(c);
-    onCoursesChange?.(c);
+    handleCoursesUpdate(
+      courses.map((course) =>
+        course.id === id
+          ? { ...course, status: "archived" as const, updatedAt: new Date().toISOString() }
+          : course
+      )
+    );
   };
 
   const handleDuplicate = (course: CourseDraft) => {
     const clone: CourseDraft = {
       ...course,
       id: `course-${Date.now()}`,
-      name: `${course.name} (Copy)`,
+      communityId,
+      name: `${course.name} Copy`,
       status: "draft",
       enrolledCount: 0,
       revenue: 0,
+      completionRate: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       sourceCourseId: course.id,
     };
-    const c = [clone, ...courses];
-    setCourses(c);
-    onCoursesChange?.(c);
+    handleCoursesUpdate([clone, ...courses]);
   };
 
   if (activeDraft) {
@@ -100,199 +202,438 @@ export default function CourseBuilder({ communityId, initialCourses = [], onCour
     );
   }
 
-  const tabClasses = (tab: DashboardTab) =>
-    `px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-      activeTab === tab ? "bg-gray-900 text-white shadow-lg shadow-gray-900/20" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-    }`;
+  const renderStatusBadge = (status: CourseDraft["status"]) => {
+    const copy = statusCopy[status];
+    return (
+      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${copy.tone}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${copy.dot}`} />
+        {copy.label}
+      </span>
+    );
+  };
 
-  const statusBadge = (status: string) => {
-    if (status === "published") return <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full"><CheckCircle className="w-3 h-3" />Published</span>;
-    if (status === "archived") return <span className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full"><XCircle className="w-3 h-3" />Archived</span>;
-    return <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" />Draft</span>;
+  const renderCourseMenu = (course: CourseDraft) => (
+    <div className="relative">
+      <button
+        type="button"
+        aria-label="Course actions"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpenMenuId(openMenuId === course.id ? null : course.id);
+        }}
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {openMenuId === course.id && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+          <div className="absolute right-0 top-10 z-20 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveDraft(course);
+                setOpenMenuId(null);
+              }}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <Edit className="h-4 w-4" />
+              Edit course
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                window.open(`/preview/course/${course.id}`, "_blank");
+                setOpenMenuId(null);
+              }}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <Eye className="h-4 w-4" />
+              Preview
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleDuplicate(course);
+                setOpenMenuId(null);
+              }}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <Copy className="h-4 w-4" />
+              Duplicate
+            </button>
+            {course.status !== "archived" && (
+              <button
+                type="button"
+                onClick={() => {
+                  handleArchive(course.id);
+                  setOpenMenuId(null);
+                }}
+                className="flex w-full items-center gap-2.5 border-t border-slate-100 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                <Archive className="h-4 w-4" />
+                Archive
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  const renderCourseCard = (course: CourseDraft) => {
+    const lessons = course.modules.reduce((total, module) => total + module.lessons.length, 0);
+    const readyScore = Math.min(
+      100,
+      (course.name ? 20 : 0) +
+        (course.description ? 20 : 0) +
+        (course.coverUrl ? 15 : 0) +
+        (course.modules.length > 0 ? 20 : 0) +
+        (lessons > 0 ? 25 : 0)
+    );
+
+    return (
+      <article
+        key={course.id}
+        className="group overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg"
+      >
+        <div className="relative h-44 overflow-hidden bg-slate-100">
+          {course.coverUrl ? (
+            <img
+              src={course.coverUrl}
+              alt=""
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#0f172a,#2563eb_55%,#10b981)]">
+              <GraduationCap className="h-14 w-14 text-white/35" />
+            </div>
+          )}
+          <div className="absolute left-3 top-3">{renderStatusBadge(course.status)}</div>
+          <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 backdrop-blur">
+            <BookOpen className="h-3.5 w-3.5" />
+            {course.category || "General"}
+          </div>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-slate-950">
+                {course.name || "Untitled Course"}
+              </h3>
+              <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">
+                {course.description || "Add a promise, outcome, and what students will build."}
+              </p>
+            </div>
+            {renderCourseMenu(course)}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="rounded-lg bg-slate-50 p-3">
+              <Layers className="mb-1 h-3.5 w-3.5 text-slate-500" />
+              <span className="block font-semibold text-slate-950">{course.modules.length}</span>
+              <span className="text-slate-500">Modules</span>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <PlayCircle className="mb-1 h-3.5 w-3.5 text-slate-500" />
+              <span className="block font-semibold text-slate-950">{lessons}</span>
+              <span className="text-slate-500">Lessons</span>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <Users className="mb-1 h-3.5 w-3.5 text-slate-500" />
+              <span className="block font-semibold text-slate-950">{course.enrolledCount || 0}</span>
+              <span className="text-slate-500">Students</span>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="font-medium text-slate-500">Launch readiness</span>
+              <span className="font-semibold text-slate-900">{readyScore}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-slate-950 transition-all" style={{ width: `${readyScore}%` }} />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={() => setActiveDraft(course)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              <Edit className="h-4 w-4" />
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => window.open(`/preview/course/${course.id}`, "_blank")}
+              className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <Eye className="h-4 w-4" />
+              Preview
+            </button>
+          </div>
+        </div>
+      </article>
+    );
   };
 
   return (
-    <div className="h-full bg-gray-50 overflow-y-auto">
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Courses</h1>
-            <p className="text-sm text-gray-500 mt-1">Create, manage, and publish your courses</p>
-          </div>
-          <button
-            onClick={() => setShowWizard(true)}
-            className="flex items-center gap-2 text-sm font-semibold bg-gray-900 text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/20"
-          >
-            <Plus className="w-4 h-4" />
-            Create Course
-          </button>
-        </div>
+    <div className="min-h-full overflow-y-auto bg-slate-50">
+      <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
+        <section className="mb-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="grid gap-0 lg:grid-cols-[1fr_340px]">
+            <div className="p-6 lg:p-8">
+              <div className="mb-5 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                  <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                  Classroom Studio
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Skool-style learning hub
+                </span>
+              </div>
 
-        {/* Stats bar */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          {[
-            { label: "Total Courses", value: stats.total, icon: Layers, color: "from-indigo-500 to-indigo-600" },
-            { label: "Published", value: stats.published, icon: CheckCircle, color: "from-emerald-500 to-emerald-600" },
-            { label: "Total Students", value: stats.students, icon: Users, color: "from-blue-500 to-blue-600" },
-            { label: "Revenue", value: `$${stats.revenue.toLocaleString()}`, icon: DollarSign, color: "from-amber-500 to-amber-600" },
-          ].map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">{s.label}</span>
-                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center`}>
-                  <s.icon className="w-4 h-4 text-white" />
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h1 className="max-w-3xl text-3xl font-bold tracking-tight text-slate-950 lg:text-4xl">
+                    Build courses your community can actually finish.
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                    Plan the classroom, publish modules, watch member progress, and keep every course tied to your community experience.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBuilderView(builderView === "grid" ? "pipeline" : "grid")}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    {builderView === "grid" ? <ListChecks className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+                    {builderView === "grid" ? "Pipeline" : "Grid"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowWizard(true)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Course
+                  </button>
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
+            </div>
+
+            <aside className="border-t border-slate-200 bg-slate-950 p-6 text-white lg:border-l lg:border-t-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">This month</p>
+                  <p className="mt-1 text-3xl font-bold">${courseMetrics.revenue.toLocaleString()}</p>
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/10">
+                  <TrendingUp className="h-5 w-5 text-emerald-300" />
+                </div>
+              </div>
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-white/10 p-3">
+                  <p className="text-xl font-semibold">{courseMetrics.totalStudents}</p>
+                  <p className="text-xs text-slate-400">Students</p>
+                </div>
+                <div className="rounded-lg bg-white/10 p-3">
+                  <p className="text-xl font-semibold">{courseMetrics.avgCompletion}%</p>
+                  <p className="text-xs text-slate-400">Avg complete</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="mt-5 flex w-full items-center justify-between rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+              >
+                Review analytics
+                <ArrowUpRight className="h-4 w-4" />
+              </button>
+            </aside>
+          </div>
+        </section>
+
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { label: "Courses", value: courseMetrics.total, icon: BookOpen },
+            { label: "Published", value: courseMetrics.published, icon: CheckCircle },
+            { label: "Drafts", value: courseMetrics.drafts, icon: FileText },
+            { label: "Lessons", value: courseMetrics.lessonCount, icon: PlayCircle },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-500">{stat.label}</span>
+                <stat.icon className="h-4 w-4 text-slate-400" />
+              </div>
+              <p className="mt-3 text-2xl font-bold text-slate-950">{stat.value}</p>
             </div>
           ))}
         </div>
 
-        {/* Search & Tabs */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            {(["all", "published", "draft", "archived"] as DashboardTab[]).map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={tabClasses(tab)}>
-                {tab === "all" ? "All Courses" : tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search courses..."
-              className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 w-64"
-            />
-          </div>
-        </div>
-
-        {/* Course Grid */}
-        {filteredCourses.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center mx-auto mb-5">
-              <BookOpen className="w-10 h-10 text-indigo-400" />
+        <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
+          <aside className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-950">Launch checklist</h2>
+                <Target className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="space-y-3">
+                {[
+                  { label: "Course outline", done: courseMetrics.moduleCount > 0 },
+                  { label: "Lesson content", done: courseMetrics.lessonCount > 0 },
+                  { label: "Published offer", done: courseMetrics.published > 0 },
+                  { label: "Student progress", done: courseMetrics.totalStudents > 0 },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-3 text-sm">
+                    <span
+                      className={`flex h-5 w-5 items-center justify-center rounded-full ${
+                        item.done ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"
+                      }`}
+                    >
+                      <CheckCircle className="h-3.5 w-3.5" />
+                    </span>
+                    <span className={item.done ? "text-slate-800" : "text-slate-500"}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              {searchQuery ? "No courses found" : activeTab === "all" ? "No courses yet" : `No ${activeTab} courses`}
-            </h3>
-            <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-              {searchQuery ? "Try a different search term." : "Create your first course to get started."}
-            </p>
-            {!searchQuery && (
-              <button
-                onClick={() => setShowWizard(true)}
-                className="inline-flex items-center gap-2 text-sm font-semibold bg-gray-900 text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                Create Your First Course
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredCourses.map((course) => (
-              <div
-                key={course.id}
-                className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all group"
-              >
-                {/* Thumbnail */}
-                <div className="relative h-40 bg-gray-100 overflow-hidden">
-                  {course.coverUrl ? (
-                    <img src={course.coverUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center">
-                      <BookOpen className="w-12 h-12 text-white/30" />
-                    </div>
-                  )}
-                  <div className="absolute top-3 right-3">{statusBadge(course.status)}</div>
-                  {course.status === "published" && (
-                    <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-[11px] font-medium text-white bg-black/40 backdrop-blur-sm px-2 py-1 rounded-full">
-                      <Users className="w-3 h-3" />
-                      {course.enrolledCount || 0} enrolled
-                    </div>
-                  )}
-                </div>
 
-                {/* Body */}
-                <div className="p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">{course.name || "Untitled Course"}</h3>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{course.description || "No description"}</p>
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <h2 className="text-sm font-semibold text-slate-950">Quick builder tools</h2>
+              <div className="mt-3 space-y-2">
+                {[
+                  { label: "Create drip schedule", icon: CalendarClock },
+                  { label: "Add certificate", icon: GraduationCap },
+                  { label: "Configure access", icon: Settings },
+                  { label: "Student leaderboard", icon: BarChart3 },
+                ].map((tool) => (
+                  <button
+                    key={tool.label}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
+                  >
+                    <span className="flex items-center gap-2">
+                      <tool.icon className="h-4 w-4" />
+                      {tool.label}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-slate-300" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </aside>
+
+          <main className="min-w-0">
+            <div className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {(["all", "published", "draft", "archived"] as DashboardTab[]).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition ${
+                      activeTab === tab
+                        ? "bg-slate-950 text-white"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                    }`}
+                  >
+                    {tab === "all" ? "All courses" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <div className="relative w-full lg:w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search courses"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                />
+              </div>
+            </div>
+
+            {builderView === "pipeline" ? (
+              <div className="grid gap-4 lg:grid-cols-3">
+                {pipelineColumns.map((column) => (
+                  <section key={column.id} className="rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="mb-4 flex items-start justify-between">
+                      <div>
+                        <h2 className="font-semibold text-slate-950">{column.title}</h2>
+                        <p className="text-xs text-slate-500">{column.description}</p>
+                      </div>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                        {column.courses.length}
+                      </span>
                     </div>
-                    <div className="relative ml-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === course.id ? null : course.id); }}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                      {openMenuId === course.id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                          <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-gray-200 shadow-xl z-20 py-1">
-                            <button onClick={() => { setActiveDraft(course); setOpenMenuId(null); }} className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><Edit className="w-4 h-4" />Edit</button>
-                            <button onClick={() => { window.open(`/preview/course/${course.id}`, '_blank'); setOpenMenuId(null); }} className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><Eye className="w-4 h-4" />Preview</button>
-                            <button onClick={() => { handleDuplicate(course); setOpenMenuId(null); }} className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><Copy className="w-4 h-4" />Duplicate</button>
-                            {course.status !== "archived" && (
-                              <button onClick={() => { handleArchive(course.id); setOpenMenuId(null); }} className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><Archive className="w-4 h-4" />Archive</button>
-                            )}
-                            <div className="border-t border-gray-100 my-1" />
-                            <button onClick={() => { setOpenMenuId(null); }} className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><BarChart3 className="w-4 h-4" />Analytics</button>
-                          </div>
-                        </>
+                    <div className="space-y-3">
+                      {column.courses.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-sm text-slate-500">
+                          No courses here yet.
+                        </div>
+                      ) : (
+                        column.courses.map((course) => {
+                          const lessonCount = course.modules.reduce((sum, module) => sum + module.lessons.length, 0);
+                          return (
+                            <button
+                              key={course.id}
+                              type="button"
+                              onClick={() => setActiveDraft(course)}
+                              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-slate-300 hover:bg-white"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-slate-950">{course.name}</p>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {course.modules.length} modules / {lessonCount} lessons
+                                  </p>
+                                </div>
+                                <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                              </div>
+                            </button>
+                          );
+                        })
                       )}
                     </div>
-                  </div>
-
-                  {/* Meta row */}
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
-                    <span className="flex items-center gap-1"><Layers className="w-3 h-3" />{course.modules.length} {course.modules.length === 1 ? "module" : "modules"}</span>
-                    <span className="flex items-center gap-1"><Play className="w-3 h-3" />{course.modules.reduce((a, m) => a + m.lessons.length, 0)} lessons</span>
-                    {course.instructorName && (
-                      <span className="flex items-center gap-1"><Star className="w-3 h-3" />{course.instructorName}</span>
-                    )}
-                  </div>
-
-                  {/* Progress bar for published */}
-                  {course.status === "published" && course.enrolledCount > 0 && (
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">Completion</span>
-                        <span className="font-semibold text-gray-700">{course.completionRate || 0}%</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${course.completionRate || 0}%` }} />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action buttons */}
-                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100">
-                    <button
-                      onClick={() => setActiveDraft(course)}
-                      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-gray-900 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => window.open(`/preview/course/${course.id}`, '_blank')}
-                      className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-100 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Preview
-                    </button>
-                  </div>
-                </div>
+                  </section>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            ) : filteredCourses.length === 0 ? (
+              <div className="rounded-lg border border-slate-200 bg-white p-12 text-center">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-lg bg-slate-100">
+                  {searchQuery ? <Search className="h-8 w-8 text-slate-400" /> : <BookOpen className="h-8 w-8 text-slate-400" />}
+                </div>
+                <h3 className="text-lg font-semibold text-slate-950">
+                  {searchQuery ? "No matching courses" : "Start your classroom"}
+                </h3>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                  {searchQuery
+                    ? "Try another keyword or switch the course status filter."
+                    : "Create your first course with modules, lessons, quizzes, assignments, and community prompts."}
+                </p>
+                {!searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setShowWizard(true)}
+                    className="mt-6 inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Course
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+                {filteredCourses.map(renderCourseCard)}
+              </div>
+            )}
+          </main>
+        </div>
       </div>
 
       {showWizard && (
