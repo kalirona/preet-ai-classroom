@@ -560,25 +560,40 @@ export async function createUser(user: Partial<DbRow>): Promise<DbRow> {
   return result.rows[0];
 }
 
-export async function updateUser(id: string, fields: Record<string, any>): Promise<DbRow | null> {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
+const ALLOWED_USER_COLUMNS = ["full_name", "email", "avatar_url", "bio", "xp", "level", "streak", "badges", "joined_communities", "completed_lessons", "platform_role", "status", "mfa_enabled", "mfa_secret", "mfa_backup_codes", "onboarding_step", "timezone", "notification_preferences", "password_hash"];
 
+const ALLOWED_WORKSPACE_COLUMNS = ["name", "subdomain", "description", "branding", "members_count", "is_premium", "price_monthly", "is_featured", "landing_hero_title", "landing_hero_subtitle", "categories", "faqs", "testimonials", "is_private"];
+
+const ALLOWED_MEMBER_COLUMNS = ["role", "status"];
+
+const ALLOWED_POST_COLUMNS = ["title", "content", "category", "likes", "liked_by_user_ids", "comments_count", "is_pinned", "is_announcement", "tags", "space_id"];
+
+const ALLOWED_COURSE_COLUMNS = ["name", "description", "cover_url", "is_premium_only", "modules_count", "enrolled_count", "status", "course_type", "scheduled_at", "price", "certificate_enabled", "estimated_hours", "difficulty_level", "max_enrollments", "tags", "category", "creator_name", "creator_avatar", "average_rating", "completion_rate"];
+
+const ALLOWED_ENROLLMENT_COLUMNS = ["status", "progress", "completed_lessons", "grade", "last_accessed_at", "completed_at"];
+
+const ALLOWED_EVENT_COLUMNS = ["title", "description", "start_at", "end_at", "platform", "platform_url", "category", "host_name", "host_avatar", "timezone", "attendees"];
+
+export function filterAllowedFields(fields: Record<string, any>, allowedColumns: string[]): Record<string, any> {
+  const result: Record<string, any> = {};
   for (const [key, val] of Object.entries(fields)) {
-    if (val !== undefined) {
-      setClauses.push(`${key} = $${idx}`);
-      values.push(val);
-      idx++;
+    if (val !== undefined && allowedColumns.includes(key)) {
+      result[key] = val;
     }
   }
+  return result;
+}
 
-  if (setClauses.length === 0) return findUserById(id);
-
-  setClauses.push(`updated_at = NOW()`);
+export async function updateUser(id: string, fields: Record<string, any>): Promise<DbRow | null> {
+  const allowed = filterAllowedFields(fields, ALLOWED_USER_COLUMNS);
+  const entries = Object.entries(allowed);
+  if (entries.length === 0) return findUserById(id);
+  const setClauses = entries.map((_, i) => `${entries[i][0]} = $${i + 1}`);
+  const values = entries.map(([_, v]) => v);
+  setClauses.push("updated_at = NOW()");
   values.push(id);
   const result = await query(
-    `UPDATE users SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING *`,
+    `UPDATE users SET ${setClauses.join(", ")} WHERE id = $${values.length} RETURNING *`,
     values
   );
   return result.rows[0] || null;
@@ -629,25 +644,15 @@ export async function createWorkspace(ws: Partial<DbRow>): Promise<DbRow> {
 }
 
 export async function updateWorkspace(id: string, fields: Record<string, any>): Promise<DbRow | null> {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
-
-  for (const [key, val] of Object.entries(fields)) {
-    if (val !== undefined) {
-      const dbKey = key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-      setClauses.push(`${dbKey} = $${idx}`);
-      values.push(val);
-      idx++;
-    }
-  }
-
-  if (setClauses.length === 0) return findWorkspaceById(id);
-
-  setClauses.push(`updated_at = NOW()`);
+  const allowed = filterAllowedFields(fields, ALLOWED_WORKSPACE_COLUMNS);
+  const entries = Object.entries(allowed);
+  if (entries.length === 0) return findWorkspaceById(id);
+  const setClauses = entries.map((_, i) => `${entries[i][0]} = $${i + 1}`);
+  const values = entries.map(([_, v]) => v);
+  setClauses.push("updated_at = NOW()");
   values.push(id);
   const result = await query(
-    `UPDATE workspaces SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING *`,
+    `UPDATE workspaces SET ${setClauses.join(", ")} WHERE id = $${values.length} RETURNING *`,
     values
   );
   return result.rows[0] || null;
@@ -678,23 +683,14 @@ export async function createWorkspaceMember(member: Partial<DbRow>): Promise<DbR
 }
 
 export async function updateWorkspaceMember(workspaceId: string, userId: string, fields: Record<string, any>): Promise<DbRow | null> {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
-
-  for (const [key, val] of Object.entries(fields)) {
-    if (val !== undefined) {
-      setClauses.push(`${key} = $${idx}`);
-      values.push(val);
-      idx++;
-    }
-  }
-
-  if (setClauses.length === 0) return findWorkspaceMember(workspaceId, userId);
-
+  const allowed = filterAllowedFields(fields, ALLOWED_MEMBER_COLUMNS);
+  const entries = Object.entries(allowed);
+  if (entries.length === 0) return findWorkspaceMember(workspaceId, userId);
+  const setClauses = entries.map((_, i) => `${entries[i][0]} = $${i + 1}`);
+  const values = entries.map(([_, v]) => v);
   values.push(workspaceId, userId);
   const result = await query(
-    `UPDATE workspace_members SET ${setClauses.join(", ")} WHERE workspace_id = $${idx} AND user_id = $${idx + 1} RETURNING *`,
+    `UPDATE workspace_members SET ${setClauses.join(", ")} WHERE workspace_id = $${values.length - 1} AND user_id = $${values.length} RETURNING *`,
     values
   );
   return result.rows[0] || null;
@@ -773,23 +769,14 @@ export async function createPost(post: Partial<DbRow>): Promise<DbRow> {
 }
 
 export async function updatePost(id: string, fields: Record<string, any>): Promise<DbRow | null> {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
-
-  for (const [key, val] of Object.entries(fields)) {
-    if (val !== undefined) {
-      setClauses.push(`${key} = $${idx}`);
-      values.push(val);
-      idx++;
-    }
-  }
-
-  if (setClauses.length === 0) return findPostById(id);
-
+  const allowed = filterAllowedFields(fields, ALLOWED_POST_COLUMNS);
+  const entries = Object.entries(allowed);
+  if (entries.length === 0) return findPostById(id);
+  const setClauses = entries.map((_, i) => `${entries[i][0]} = $${i + 1}`);
+  const values = entries.map(([_, v]) => v);
   values.push(id);
   const result = await query(
-    `UPDATE posts SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING *`,
+    `UPDATE posts SET ${setClauses.join(", ")} WHERE id = $${values.length} RETURNING *`,
     values
   );
   return result.rows[0] || null;
@@ -937,23 +924,14 @@ export async function createCourse(course: Partial<DbRow>): Promise<DbRow> {
 }
 
 export async function updateCourse(id: string, fields: Record<string, any>): Promise<DbRow | null> {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
-
-  for (const [key, val] of Object.entries(fields)) {
-    if (val !== undefined) {
-      setClauses.push(`${key} = $${idx}`);
-      values.push(val);
-      idx++;
-    }
-  }
-
-  if (setClauses.length === 0) return findCourseById(id);
-
+  const allowed = filterAllowedFields(fields, ALLOWED_COURSE_COLUMNS);
+  const entries = Object.entries(allowed);
+  if (entries.length === 0) return findCourseById(id);
+  const setClauses = entries.map((_, i) => `${entries[i][0]} = $${i + 1}`);
+  const values = entries.map(([_, v]) => v);
   values.push(id);
   const result = await query(
-    `UPDATE courses SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING *`,
+    `UPDATE courses SET ${setClauses.join(", ")} WHERE id = $${values.length} RETURNING *`,
     values
   );
   return result.rows[0] || null;
@@ -1016,20 +994,14 @@ export async function createEnrollment(enrollment: Partial<DbRow>): Promise<DbRo
 }
 
 export async function updateEnrollment(id: string, fields: Record<string, any>): Promise<DbRow | null> {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
-  for (const [key, val] of Object.entries(fields)) {
-    if (val !== undefined) {
-      setClauses.push(`${key} = $${idx}`);
-      values.push(val);
-      idx++;
-    }
-  }
-  if (setClauses.length === 0) return findEnrollment(fields.course_id, fields.user_id);
+  const allowed = filterAllowedFields(fields, ALLOWED_ENROLLMENT_COLUMNS);
+  const entries = Object.entries(allowed);
+  if (entries.length === 0) return null;
+  const setClauses = entries.map((_, i) => `${entries[i][0]} = $${i + 1}`);
+  const values = entries.map(([_, v]) => v);
   values.push(id);
   const result = await query(
-    `UPDATE course_enrollments SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING *`,
+    `UPDATE course_enrollments SET ${setClauses.join(", ")} WHERE id = $${values.length} RETURNING *`,
     values
   );
   return result.rows[0] || null;
@@ -1176,23 +1148,14 @@ export async function createEvent(event: Partial<DbRow>): Promise<DbRow> {
 }
 
 export async function updateEvent(id: string, fields: Record<string, any>): Promise<DbRow | null> {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
-
-  for (const [key, val] of Object.entries(fields)) {
-    if (val !== undefined) {
-      setClauses.push(`${key} = $${idx}`);
-      values.push(val);
-      idx++;
-    }
-  }
-
-  if (setClauses.length === 0) return findEventById(id);
-
+  const allowed = filterAllowedFields(fields, ALLOWED_EVENT_COLUMNS);
+  const entries = Object.entries(allowed);
+  if (entries.length === 0) return findEventById(id);
+  const setClauses = entries.map((_, i) => `${entries[i][0]} = $${i + 1}`);
+  const values = entries.map(([_, v]) => v);
   values.push(id);
   const result = await query(
-    `UPDATE events SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING *`,
+    `UPDATE events SET ${setClauses.join(", ")} WHERE id = $${values.length} RETURNING *`,
     values
   );
   return result.rows[0] || null;

@@ -1,5 +1,7 @@
-import { query, DbRow } from "./db.js";
+import { query, DbRow, filterAllowedFields } from "./db.js";
 import { v4 as uuidv4 } from "uuid";
+
+const ALLOWED_SPACE_COLUMNS = ["name", "description", "icon", "color", "access_type", "sort_order", "is_archived"];
 
 // ─── Spaces ───────────────────────────────────────────
 
@@ -31,20 +33,14 @@ export async function createSpace(space: Partial<DbRow>): Promise<DbRow> {
 }
 
 export async function updateSpace(id: string, fields: Partial<DbRow>): Promise<DbRow | null> {
-  const setClauses: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
-  for (const [key, val] of Object.entries(fields)) {
-    if (val !== undefined) {
-      setClauses.push(`${key} = $${idx}`);
-      values.push(val);
-      idx++;
-    }
-  }
-  if (setClauses.length === 0) return findSpaceById(id);
+  const allowed = filterAllowedFields(fields, ALLOWED_SPACE_COLUMNS);
+  const entries = Object.entries(allowed);
+  if (entries.length === 0) return findSpaceById(id);
+  const setClauses = entries.map((_, i) => `${entries[i][0]} = $${i + 1}`);
+  const values = entries.map(([_, v]) => v);
   values.push(id);
   const result = await query(
-    `UPDATE spaces SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING *`,
+    `UPDATE spaces SET ${setClauses.join(", ")} WHERE id = $${values.length} RETURNING *`,
     values
   );
   return result.rows[0] || null;

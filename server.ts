@@ -80,7 +80,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "5mb" }));
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 
 const authLimiter = rateLimit({
@@ -98,22 +98,49 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const mutationLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please slow down." },
+});
+
 app.use("/api/auth", authLimiter);
 app.use("/api", generalLimiter);
+app.use((req, res, next) => {
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    mutationLimiter(req, res, next);
+  } else {
+    next();
+  }
+});
 
 function stripHtml(str: string): string {
-  return str.replace(/<[^>]*>/g, "").replace(/[<>]/g, "").trim();
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .trim();
 }
 
 function sanitize(obj: any): any {
   if (typeof obj === "string") return stripHtml(obj);
   if (Array.isArray(obj)) return obj.map(sanitize);
   if (obj && typeof obj === "object") {
-    const sanitized: any = {};
-    for (const [key, val] of Object.entries(obj)) {
-      sanitized[key] = sanitize(val);
+    if (obj.__proto__) delete obj.__proto__;
+    if (obj.constructor === Object.prototype.constructor) {
+      const sanitized: any = {};
+      for (const [key, val] of Object.entries(obj)) {
+        if (!["__proto__", "constructor", "prototype"].includes(key)) {
+          sanitized[key] = sanitize(val);
+        }
+      }
+      return sanitized;
     }
-    return sanitized;
+    return obj;
   }
   return obj;
 }
@@ -567,7 +594,8 @@ app.post("/api/auth/register", async (req, res) => {
     });
 
     const maxAge = rememberMe ? 2592000 : 86400;
-    res.setHeader("Set-Cookie", `skool_token=${encodeURIComponent(tokenStr)}; Path=/; Max-Age=${maxAge}; SameSite=Lax; HttpOnly;${process.env.NODE_ENV === "production" ? " Secure;" : ""}`);
+    const secure = process.env.NODE_ENV === "production";
+    res.setHeader("Set-Cookie", `skool_token=${encodeURIComponent(tokenStr)}; Path=/; Max-Age=${maxAge}; SameSite=Strict; HttpOnly;${secure ? " Secure;" : ""}`);
     const userResponse = await formatUserForResponse(newUser.id);
     res.json({ success: true, user: userResponse });
   } catch (err: any) {
@@ -604,12 +632,12 @@ app.post("/api/auth/login", async (req, res) => {
     const user = await findUserByEmail(emailLower);
     if (!user) {
       if (!isDemoAccount) await upsertLoginAttempts(emailLower, null);
-      return res.status(400).json({ error: "No account found with this email." });
+      return res.status(400).json({ error: "Invalid email or password." });
     }
 
     if (!user.password_hash) {
       if (!isDemoAccount) await upsertLoginAttempts(emailLower, null);
-      return res.status(400).json({ error: "Account has no password set. Use Google sign-in." });
+      return res.status(400).json({ error: "Invalid email or password." });
     }
 
     const valid = await verifyPassword(password, user.password_hash);
@@ -618,7 +646,7 @@ app.post("/api/auth/login", async (req, res) => {
         const lockedUntil = (attempt?.count || 0) >= 4 ? new Date(Date.now() + 5 * 60 * 1000) : null;
         await upsertLoginAttempts(emailLower, lockedUntil);
       }
-      return res.status(400).json({ error: "Invalid password." });
+      return res.status(400).json({ error: "Invalid email or password." });
     }
 
     await resetLoginAttempts(emailLower);
@@ -632,7 +660,8 @@ app.post("/api/auth/login", async (req, res) => {
     });
 
     const maxAge = rememberMe ? 2592000 : 86400;
-    res.setHeader("Set-Cookie", `skool_token=${encodeURIComponent(tokenStr)}; Path=/; Max-Age=${maxAge}; SameSite=Lax; HttpOnly;${process.env.NODE_ENV === "production" ? " Secure;" : ""}`);
+    const secure = process.env.NODE_ENV === "production";
+    res.setHeader("Set-Cookie", `skool_token=${encodeURIComponent(tokenStr)}; Path=/; Max-Age=${maxAge}; SameSite=Strict; HttpOnly;${secure ? " Secure;" : ""}`);
     const userResponse = await formatUserForResponse(user.id);
     res.json({ success: true, user: userResponse });
   } catch (err: any) {
@@ -655,7 +684,7 @@ app.post("/api/auth/logout", async (req, res) => {
     } catch { /* ignore */ }
   }
 
-  res.setHeader("Set-Cookie", "skool_token=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly;");
+  res.setHeader("Set-Cookie", "skool_token=; Path=/; Max-Age=0; SameSite=Strict; HttpOnly; Secure;");
   res.json({ success: true });
 });
 
@@ -840,7 +869,8 @@ app.post("/api/auth/google-callback", async (req, res) => {
       remember_me: true, expires_at: getTokenExpiry(true),
     });
 
-    res.setHeader("Set-Cookie", `skool_token=${encodeURIComponent(tokenStr)}; Path=/; Max-Age=2592000; SameSite=Lax; HttpOnly;${process.env.NODE_ENV === "production" ? " Secure;" : ""}`);
+    const secure = process.env.NODE_ENV === "production";
+    res.setHeader("Set-Cookie", `skool_token=${encodeURIComponent(tokenStr)}; Path=/; Max-Age=2592000; SameSite=Strict; HttpOnly;${secure ? " Secure;" : ""}`);
     const userResponse = await formatUserForResponse(user.id);
     res.json({ success: true, user: userResponse });
   } catch (err) {
@@ -2702,7 +2732,7 @@ app.get("/api/users", authenticateUser, requirePlatformPermission(PlatformPermis
   }
 });
 
-app.get("/api/database/status", async (_req, res) => {
+app.get("/api/database/status", authenticateUser, async (_req, res) => {
   try {
     await query("SELECT 1 as ok");
     const userCount = await query("SELECT COUNT(*) as count FROM users");
@@ -2720,7 +2750,7 @@ app.get("/api/database/status", async (_req, res) => {
       configured: !!process.env.DATABASE_URL,
       connected: false,
       type: "PostgreSQL",
-      message: `Connection error: ${err.message}`,
+      message: "Database connection failed.",
     });
   }
 });
@@ -3156,7 +3186,7 @@ async function startServer() {
 
   const server = http.createServer(app);
   const io = new SocketServer(server, {
-    cors: { origin: "*", methods: ["GET", "POST"] },
+    cors: { origin: process.env.CORS_ORIGIN || true, methods: ["GET", "POST"] },
   });
 
   // ─── Socket.io Real-Time Chat ─────────────────────────────
