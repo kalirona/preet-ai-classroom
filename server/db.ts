@@ -211,6 +211,12 @@ export async function createSchema() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`,
 
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS is_free_preview BOOLEAN DEFAULT false`,
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT false`,
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 0`,
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS video_url TEXT`,
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS text_content TEXT`,
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS attachments TEXT[] DEFAULT '{}'`,
     `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS content_type TEXT DEFAULT 'video'`,
     `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS quiz_questions JSONB DEFAULT '[]'`,
     `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS assignment_instructions TEXT`,
