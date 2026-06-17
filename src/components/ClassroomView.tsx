@@ -1325,7 +1325,7 @@ export default function ClassroomView({
         ];
       } else {
         const capitalizedPrompt = studioPromptText.charAt(0).toUpperCase() + studioPromptText.slice(1);
-        moduleTitle = `Syllabus Masterclass in ${capitalizedPrompt}`;
+        moduleTitle = `Course in ${capitalizedPrompt}`;
         lessons = [
           {
             title: `Introductory Frameworks of ${capitalizedPrompt}`,
@@ -1865,7 +1865,7 @@ export default function ClassroomView({
                        Classroom Analytics
                     </h1>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Monitor student completion progress, watch session drops, engagement ratings, and lectures metrics.
+                      Monitor student progress, completion rates, and course engagement.
                     </p>
                   </div>
                 </div>
@@ -2120,7 +2120,7 @@ export default function ClassroomView({
                               <div className="min-w-0">
                                 <span className="text-[10.5px] font-bold block truncate">{course.name}</span>
                                 <span className="text-[8.5px] text-gray-400 font-mono block mt-0.5 uppercase">
-                                  {course.modules?.length || 0} Modules • {course.enrolledCount} Pupils
+                                  {course.modules?.length || 0} Modules • {course.enrolledCount} students
                                 </span>
                               </div>
                             </button>
@@ -2138,7 +2138,7 @@ export default function ClassroomView({
                         
                         <div className="space-y-3.5">
                           <div className="space-y-1">
-                            <label className="text-[9.5px] font-bold text-gray-500 uppercase font-mono block">Syllabus Course Name</label>
+                            <label className="text-[9.5px] font-bold text-gray-500 uppercase font-mono block">Course Name</label>
                             <input
                               type="text"
                               value={selectedBuilderCourse.name}
@@ -2573,7 +2573,7 @@ export default function ClassroomView({
                       <div className="text-center py-20 bg-white border border-gray-200 rounded-3xl p-6 text-gray-450">
                         <BookOpen className="w-12 h-12 text-indigo-100 mx-auto mb-2" />
                         <h4 className="text-sm font-bold text-gray-700">No active course selected for customization</h4>
-                        <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">Please select an existing course template from the choices left panel, or deploy a manual course Outline.</p>
+                        <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">Select a course from the left panel to customize, or create a new one.</p>
                       </div>
                     )}
                   </div>
@@ -3081,7 +3081,7 @@ export default function ClassroomView({
                                   </span>
                                 </div>
                                 <h4 className="text-xs font-bold text-gray-900 mt-2 line-clamp-1">{course.name}</h4>
-                                <p className="text-[9.5px] text-gray-500 mt-0.5 animate-pulse">Syllabus completed under authorizing board audit clearance.</p>
+                                <p className="text-[9.5px] text-gray-500 mt-0.5">Course completed.</p>
                               </div>
                               <div className="pt-3 flex justify-end shrink-0">
                                 <button
@@ -3242,21 +3242,22 @@ export default function ClassroomView({
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-gray-400 tracking-wider font-mono uppercase">Course Registry Catalog</h3>
+                    <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-gray-400 tracking-wider font-mono uppercase">Courses</h3>
                     
                     {localCourses.length === 0 ? (
                       <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center shadow-3xs">
                         <BookOpen className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-                        <h4 className="text-sm font-bold text-gray-700">No courses listed here yet</h4>
+                        <h4 className="text-sm font-bold text-gray-700">No courses yet</h4>
                         <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
-                          Connect your primary API keys or generate a curriculum now using Gemini generator!
+                          Courses will appear here once they are created and published.
                         </p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {localCourses.map((course) => {
                           const courseStatus = (course.status || "draft") as CourseStatus;
+                          const progress = getCourseProgress(course);
                           return (
                             <div key={course.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs hover:border-indigo-350 hover:shadow-md transition-all flex flex-col group relative" id={`course-grid-card-${course.id}`}>
                               <div className="h-40 bg-gray-105 relative overflow-hidden shrink-0">
@@ -3284,7 +3285,7 @@ export default function ClassroomView({
 
                                 <div className="absolute bottom-3 left-3 text-white flex gap-1.5 items-center z-10 font-mono">
                                   <span className="text-[9.5px] font-bold tracking-wider uppercase bg-black/60 px-2 py-0.5 rounded">
-                                    {course.modules?.length || 0} Modules
+                                    {course.modules?.length || 0} modules
                                   </span>
                                   {course.difficultyLevel && course.difficultyLevel !== "beginner" && (
                                     <span className={`text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded ${getDifficultyColor(course.difficultyLevel)}`}>
@@ -3296,36 +3297,48 @@ export default function ClassroomView({
 
                               <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                                 <div className="space-y-1.5">
-                                  <h4 className="text-xs font-extrabold text-indigo-950 group-hover:text-indigo-650 transition truncate">
+                                  <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition truncate">
                                     {course.name}
                                   </h4>
-                                  <p className="text-[11px] text-gray-500 leading-relaxed font-sans line-clamp-3">
+                                  <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
                                     {course.description}
                                   </p>
                                   {course.category && (
-                                    <span className="text-[9px] font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded inline-block">
+                                    <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded inline-block">
                                       {course.category}
                                     </span>
                                   )}
                                 </div>
 
-                                <div className="pt-4 border-t border-gray-100 flex items-center justify-between font-mono">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[10px] text-gray-400">
-                                      👤 {course.enrolledCount} Pupils
-                                    </span>
+                                {/* Progress bar */}
+                                {progress > 0 && (
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between text-[10px] font-mono">
+                                      <span className="text-gray-400">Progress</span>
+                                      <span className="text-emerald-600 font-semibold">{progress}%</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                                        style={{ width: `${progress}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                                  <div className="flex items-center gap-3 text-xs text-gray-400">
+                                    <span>{course.enrolledCount} students</span>
                                     {course.price > 0 && (
-                                      <span className="text-[10px] font-bold text-emerald-600">
-                                        ${course.price}/mo
-                                      </span>
+                                      <span className="font-semibold text-emerald-600">${course.price}/mo</span>
                                     )}
                                   </div>
                                   
                                   <button
                                     onClick={() => handleSelectCourse(course)}
-                                    className="px-3.5 py-1.5 rounded-xl text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer uppercase font-mono bg-gray-950 hover:bg-indigo-650 text-white"
+                                    className="px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer bg-gray-900 hover:bg-indigo-600 text-white"
                                   >
-                                    Open Course <ChevronRight className="w-3 h-3" />
+                                    Open <ChevronRight className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                               </div>
@@ -3345,7 +3358,7 @@ export default function ClassroomView({
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
               <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-2xl max-w-md w-full space-y-4 animate-in zoom-in-95 font-sans">
                 <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-                  <h3 className="text-xs font-bold text-gray-950 font-mono uppercase tracking-wider">Deploy Brand New Syllabus Course</h3>
+                  <h3 className="text-xs font-bold text-gray-950 font-mono uppercase tracking-wider">Create New Course</h3>
                   <button onClick={() => setShowCreateCourseModal(false)} className="text-gray-450 hover:text-gray-700 cursor-pointer border-0 bg-transparent">
                     <X className="w-4 h-4" />
                   </button>
@@ -3353,7 +3366,7 @@ export default function ClassroomView({
 
                 <div className="space-y-3.5 text-xs max-h-[60vh] overflow-y-auto pr-1">
                   <div className="space-y-1">
-                    <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Syllabus Name</label>
+                    <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Course Name</label>
                     <input
                       type="text"
                       required
@@ -3453,7 +3466,7 @@ export default function ClassroomView({
                     disabled={!newCourseName.trim()}
                     className="px-4 py-2 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl text-xs font-mono font-bold uppercase cursor-pointer disabled:opacity-40"
                   >
-                    ✓ Deploy Content
+                    ✓ Create Course
                   </button>
                 </div>
               </div>
@@ -3470,14 +3483,14 @@ export default function ClassroomView({
               onClick={() => setSelectedCourse(null)}
               className="text-xs font-bold text-gray-500 hover:text-indigo-600 transition flex items-center gap-1 cursor-pointer font-sans"
             >
-              ← Back to Registry
+              ← Back
             </button>
             <h3 className="text-xs font-bold text-gray-800 font-display truncate max-w-sm">
-              Syllabus: {selectedCourse.name}
+              {selectedCourse.name}
             </h3>
           </div>
 
-          {/* Gamification Progress header card */}
+          {/* Progress header card */}
           <div className="bg-gradient-to-r from-gray-950 to-indigo-950 border border-indigo-900/40 text-white flex flex-col md:flex-row p-5 rounded-2xl items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-500/20 text-indigo-400 rounded-lg flex items-center justify-center font-bold">
@@ -3485,13 +3498,13 @@ export default function ClassroomView({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold tracking-wider text-orange-400 uppercase">⚡ Learning Streak</span>
+                  <span className="text-xs font-mono font-bold tracking-wider text-orange-400 uppercase">Streak</span>
                   <span className="bg-orange-500/20 text-orange-300 text-[9px] font-bold px-2 py-0.5 rounded font-mono">
-                    {currentUser?.streak || 5} Days Streak!
+                    {currentUser?.streak || 5} days
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-300 mt-0.5">
-                  Finish a curriculum node daily to secure streak points and expand workspace level badge ranks.
+                  Complete a lesson every day to keep your streak going.
                 </p>
               </div>
             </div>
@@ -3499,8 +3512,8 @@ export default function ClassroomView({
             {/* Level/XP Status info */}
             <div className="flex items-center gap-4 text-xs font-mono shrink-0">
               <div className="text-right">
-                <span className="text-gray-400 block text-[9px] uppercase font-bold">Workspace Badge Rank</span>
-                <span className="text-indigo-300 font-bold">Level {currentUser?.level || 1} ({currentUser?.xp || 0} XP)</span>
+                <span className="text-gray-400 block text-[9px] uppercase font-bold">Level</span>
+                <span className="text-indigo-300 font-bold">{currentUser?.level || 1} ({currentUser?.xp || 0} XP)</span>
               </div>
               <div className="w-2.5 h-8 bg-gray-800 rounded-sm overflow-hidden flex flex-col justify-end">
                 <div 
@@ -3513,7 +3526,7 @@ export default function ClassroomView({
             {/* Completion metrics */}
             <div className="flex flex-col flex-1 max-w-xs shrink-0 w-full">
               <div className="flex justify-between items-center text-xs font-mono mb-1">
-                <span className="text-gray-450 text-[10px] uppercase font-bold">Course Completed Progress</span>
+                <span className="text-gray-450 text-[10px] uppercase font-bold">Course Progress</span>
                 <span className="text-emerald-400 font-bold">{progressPercent}%</span>
               </div>
               <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
@@ -3533,9 +3546,9 @@ export default function ClassroomView({
                   <Award className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-amber-900 font-display">Professional Master Syllabus Completed!</h4>
+                  <h4 className="text-xs font-bold text-amber-900 font-display">Course Completed!</h4>
                   <p className="text-[11.5px] text-amber-700 leading-relaxed mt-0.5">
-                    Your answers, MCQs, and custom worksheets are fully audited. You are certified!
+                    You completed this course. Claim your certificate.
                   </p>
                 </div>
               </div>
@@ -3543,7 +3556,7 @@ export default function ClassroomView({
                 onClick={() => setCertificateModalOpen(true)}
                 className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold font-sans transition shrink-0 cursor-pointer shadow-md shadow-amber-200"
               >
-                Claim Professional Certificate
+                Claim Certificate
               </button>
             </div>
           )}
@@ -3601,7 +3614,7 @@ export default function ClassroomView({
 
               {/* 2. Progress Section */}
               <div className="space-y-2.5 bg-slate-50 border border-slate-100 rounded-2xl p-3.5 mt-2">
-                <span className="text-[9.5px] uppercase font-mono tracking-wider font-bold text-gray-400 block animate-pulse">Classroom Progress</span>
+                <span className="text-[9.5px] uppercase font-mono tracking-wider font-bold text-gray-400 block">Progress</span>
                 
                 <div>
                   <div className="flex justify-between items-center text-[10.5px] font-mono mb-1">
@@ -3624,7 +3637,7 @@ export default function ClassroomView({
                     </span>
                   </div>
                   <div className="bg-white border border-gray-100 rounded-lg p-1.5 text-center">
-                    <span className="text-gray-400 block text-[7.5px] uppercase tracking-wider font-mono">Rank Badge</span>
+                    <span className="text-gray-400 block text-[7.5px] uppercase tracking-wider font-mono">Level</span>
                     <span className="font-extrabold text-indigo-650 block mt-0.5">
                       ⭐ Lvl {currentUser?.level || 1}
                     </span>
@@ -3652,7 +3665,7 @@ export default function ClassroomView({
                 if (!nextLesson) {
                   return (
                     <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl text-center text-[11px] text-emerald-800 font-bold mt-2">
-                      🏆 Syllabus Mastered!
+                      🏆 Course Completed!
                     </div>
                   );
                 }
@@ -3671,18 +3684,18 @@ export default function ClassroomView({
                       onClick={() => setActiveLesson(nextLesson)}
                       className="w-full text-center py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-bold uppercase transition"
                     >
-                      Resume Lesson
+                      Resume
                     </button>
                   </div>
                 );
               })()}
 
-              {/* 4. Classroom Index Tree */}
+              {/* 4. Curriculum Index Tree */}
               <div className="border-t border-gray-100 pt-4 space-y-3 mt-4">
                 <div className="flex justify-between items-center px-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-gray-400">Classroom Index</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-gray-400">Curriculum</span>
                   <span className="text-[9px] bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.2 rounded font-mono">
-                    {completedInActiveCourse.length}/{courseSyllabusLessons.length} Done
+                    {completedInActiveCourse.length}/{courseSyllabusLessons.length} completed
                   </span>
                 </div>
                 
@@ -3691,7 +3704,7 @@ export default function ClassroomView({
                     <div key={mod.id} className="space-y-1.5">
                       <div className="font-bold text-gray-900 text-[11px] flex items-center gap-1 border-b border-gray-55 pb-1">
                         <span className="w-2 h-2 rounded-sm bg-indigo-650 shrink-0"></span>
-                        <span className="truncate">Mod {i + 1}: {mod.title}</span>
+                        <span className="truncate">{mod.title}</span>
                       </div>
 
                       <div className="pl-1.5 border-l border-gray-100 space-y-0.5">
@@ -3750,12 +3763,12 @@ export default function ClassroomView({
                 {isFetchingLesson ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-slate-900/60 backdrop-blur-xs">
                     <RefreshCw className="w-10 h-10 text-indigo-400 animate-spin mb-3" />
-                    <span className="text-xs font-mono text-indigo-200">Retrieving secure media ticket...</span>
+                    <span className="text-xs font-mono text-indigo-200">Loading lesson...</span>
                   </div>
                 ) : lessonFetchError ? (
                   <div className="absolute inset-0 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
                     <Lock className="w-12 h-12 text-rose-500 mb-3" />
-                    <h4 className="text-sm font-bold font-display text-rose-450 mb-1">Access Blocked</h4>
+                    <h4 className="text-sm font-bold font-display text-rose-450 mb-1">Access Denied</h4>
                     <p className="text-[11px] text-gray-400 max-w-sm mt-1 mb-4 leading-relaxed">
                       {lessonFetchError}
                     </p>
@@ -3770,15 +3783,15 @@ export default function ClassroomView({
                   activeLessonDetails.isLocked && !hasStaffOverride ? (
                     <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
                       <Lock className="w-10 h-10 text-amber-500 mb-3 animate-bounce" />
-                      <h4 className="text-sm font-bold font-display text-amber-400">Lesson Locked under drip constraints</h4>
+                      <h4 className="text-sm font-bold font-display text-amber-400">Lesson Locked</h4>
                       <p className="text-[11px] text-gray-400 max-w-sm mt-1 mb-4 leading-relaxed">
-                        This syllabus node requires chronological unlocks. Please finish outstanding course lessons first!
+                        Complete previous lessons to unlock this lesson.
                       </p>
                       <button
                         onClick={() => handleToggleCompleted(activeLessonDetails.id)}
                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 font-bold rounded-xl text-xs transition cursor-pointer"
                       >
-                        Unlock Lesson (+10 XP to advance)
+                        Unlock Lesson
                       </button>
                     </div>
                   ) : activeLessonDetails.contentType === "video" && activeLessonDetails.videoUrl ? (
@@ -3804,33 +3817,33 @@ export default function ClassroomView({
                       {activeLessonDetails.contentType === "quiz" ? (
                         <>
                           <ClipboardList className="w-12 h-12 text-purple-400 mb-3 animate-pulse" />
-                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-purple-200">Interactive Quiz Practice</h4>
+                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-purple-200">Quiz</h4>
                           <p className="text-[11px] text-indigo-200/80 max-w-sm mt-1">
-                            Complete the curriculum testing form inside the workbook details below to verify comprehension! Passing unlocks the next course block.
+                            Complete the quiz below to test your knowledge.
                           </p>
                         </>
                       ) : activeLessonDetails.contentType === "assignment" ? (
                         <>
                           <PenTool className="w-12 h-12 text-amber-400 mb-3 animate-pulse" />
-                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-amber-200">Interactive Project Assignment</h4>
+                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-amber-200">Assignment</h4>
                           <p className="text-[11px] text-amber-200/85 max-w-sm mt-1">
-                            A custom workbook evaluation. Type down your implementation draft playbook below. You will receive dynamic, personalized grading metrics.
+                            Complete the assignment below to demonstrate your skills.
                           </p>
                         </>
                       ) : activeLessonDetails.contentType === "download" ? (
                         <>
                           <Download className="w-12 h-12 text-emerald-400 mb-3 animate-bounce" />
-                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-emerald-200">Accreditation Download Chest</h4>
+                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-emerald-200">Resources</h4>
                           <p className="text-[11px] text-emerald-250/80 max-w-sm mt-1">
-                            Download companion checklists, reference cards, config worksheets, or starter templates to accelerate implementation.
+                            Downloadable resources for this lesson.
                           </p>
                         </>
                       ) : (
                         <>
                           <FileText className="w-12 h-12 text-indigo-400 mb-3" />
-                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-indigo-200">Notion Playbook Text Guide</h4>
+                          <h4 className="text-sm font-bold font-mono uppercase tracking-wider text-indigo-200">Reading</h4>
                           <p className="text-[11px] text-indigo-200/80 max-w-sm mt-1">
-                            Read through the comprehensive workbook handbook, code blocks, reference outlines, or instructions below.
+                            Read through the lesson material below.
                           </p>
                         </>
                       )}
@@ -3852,10 +3865,10 @@ export default function ClassroomView({
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-[9px] uppercase font-mono tracking-widest bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded">
-                          Curriculum Lesson {activeLessonDetails.index + 1}
+                          Lesson {activeLessonDetails.index + 1}
                         </span>
                         <span className="text-[9px] uppercase font-mono tracking-wider text-gray-400">
-                          ⏱️ {activeLessonDetails.durationMinutes} min read
+                          ⏱️ {activeLessonDetails.durationMinutes} min
                         </span>
                       </div>
                       <h3 className="text-sm font-bold text-gray-900 leading-tight font-display mt-1">{activeLessonDetails.title}</h3>
@@ -3867,9 +3880,8 @@ export default function ClassroomView({
                         onClick={handlePrevLesson}
                         disabled={!hasPrevLesson}
                         className="px-3 py-2 rounded-xl border border-gray-250 text-gray-700 hover:bg-gray-50 text-[11px] font-bold font-sans transition disabled:opacity-45 disabled:hover:bg-transparent cursor-pointer flex items-center gap-0.5"
-                        title="Go to previous lesson of this course"
                       >
-                        ← Prev
+                        ← Previous
                       </button>
 
                       {activeLessonDetails.contentType !== "quiz" && activeLessonDetails.contentType !== "assignment" && (
@@ -3883,7 +3895,7 @@ export default function ClassroomView({
                           }`}
                         >
                           <CheckCircle className="w-4 h-4 shrink-0" />
-                          {completedLessons.includes(activeLessonDetails.id) ? "Marked Complete" : "Log Completion (+10 XP)"}
+                          {completedLessons.includes(activeLessonDetails.id) ? "Completed" : "Mark Complete"}
                         </button>
                       )}
 
@@ -3891,7 +3903,6 @@ export default function ClassroomView({
                         onClick={handleNextLesson}
                         disabled={!hasNextLesson}
                         className="px-3 py-2 rounded-xl bg-gray-900 border border-transparent text-white hover:bg-indigo-650 text-[11px] font-bold font-sans transition disabled:opacity-45 disabled:hover:bg-gray-950 cursor-pointer flex items-center gap-0.5"
-                        title="Go to next lesson of this course"
                       >
                         Next →
                       </button>
@@ -3900,7 +3911,7 @@ export default function ClassroomView({
 
                   {/* NOTION STYLE TEXT PLAYBOOK DISPLAY BLOCK */}
                   <div className="p-1">
-                    <h4 className="text-[10px] font-bold text-indigo-950 font-mono uppercase tracking-wider mb-2">Workbook & Companion Guidelines</h4>
+                    <h4 className="text-[10px] font-bold text-indigo-950 font-mono uppercase tracking-wider mb-2">Lesson Content</h4>
                     <div className="space-y-2 border-l-2 border-indigo-100 pl-4 py-1">
                       {renderRichTextPlaybook(activeLessonDetails.textContent)}
                     </div>
@@ -3911,9 +3922,9 @@ export default function ClassroomView({
                     <div className="bg-purple-50/40 p-5 rounded-2xl border border-purple-100 space-y-4 animate-in fade-in duration-200">
                       <div className="flex items-center justify-between border-b border-purple-100 pb-1.5">
                         <h4 className="text-xs font-bold font-mono text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
-                          <ClipboardList className="w-4 h-4 text-purple-600" /> Syllabus Challenge Assess
+                          <ClipboardList className="w-4 h-4 text-purple-600" /> Quiz
                         </h4>
-                        <span className="text-[9.5px] font-bold font-mono text-purple-700">70% Score Required to Pass</span>
+                        <span className="text-[9.5px] font-bold font-mono text-purple-700">70% to pass</span>
                       </div>
 
                       {/* Quiz list of questions */}
@@ -3967,16 +3978,16 @@ export default function ClassroomView({
                             : "bg-rose-50/50 border-rose-150 text-rose-950"
                         } text-xs leading-relaxed space-y-1`}>
                           <div className="flex justify-between items-center font-bold">
-                            <span>Syllabus Passing Evaluation results:</span>
-                            <span className="text-sm font-mono font-bold uppercase">
-                              {quizResults.passed ? "🏆 PASSED" : "❌ TRY AGAIN"}
+                            <span>Results</span>
+                            <span className={`text-sm font-mono font-bold uppercase ${quizResults.passed ? "text-emerald-700" : "text-rose-700"}`}>
+                              {quizResults.passed ? "Passed" : "Failed"}
                             </span>
                           </div>
                           <p className="text-[11px] mt-1 text-gray-600">
-                            You scored <strong>{Math.round(quizResults.percent)}%</strong> ({quizResults.correctCount} / {quizResults.totalQuestions} Questions Correct).
+                            You scored <strong>{Math.round(quizResults.percent)}%</strong> ({quizResults.correctCount} / {quizResults.totalQuestions}).
                             {quizResults.passed 
-                              ? " Congratulations! You successfully passed the exam constraints and unlocked Module advancements (+15 XP logged!)." 
-                              : " Please review the handbook reference outlines above and click 'Retry assess' to attempt the grading checklist again."}
+                              ? " You passed the quiz!"
+                              : " Review the material and try again."}
                           </p>
                         </div>
                       )}
@@ -3993,7 +4004,7 @@ export default function ClassroomView({
                             }}
                             className="px-4 py-2 bg-white hover:bg-gray-55 shadow-xs border border-purple-200 text-purple-750 font-bold text-[11px] rounded-xl transition cursor-pointer"
                           >
-                            Reset / Re-Take Quiz
+                            Retake
                           </button>
                         ) : (
                           <button
@@ -4002,7 +4013,7 @@ export default function ClassroomView({
                             disabled={isSubmittingQuiz || Object.keys(quizSelectedAnswers).length < (activeLessonDetails.quizQuestions?.length || 0)}
                             className="px-5 py-2 bg-purple-650 hover:bg-purple-750 text-white rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-40"
                           >
-                            {isSubmittingQuiz ? "Auditing Answers..." : "Submit Answers (+15 XP)"}
+                            {isSubmittingQuiz ? "Submitting..." : "Submit Answers"}
                           </button>
                         )}
                       </div>
@@ -4014,14 +4025,13 @@ export default function ClassroomView({
                     <div className="bg-amber-50/40 p-5 rounded-2xl border border-amber-100 space-y-4 animate-in fade-in duration-200">
                       <div className="flex items-center justify-between border-b border-amber-150 pb-1.5">
                         <h4 className="text-xs font-bold font-mono text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
-                          <ClipboardList className="w-4 h-4 text-amber-600" /> Lesson Workshop Assignment
+                          <ClipboardList className="w-4 h-4 text-amber-600" /> Assignment
                         </h4>
-                        <span className="text-[9.5px] font-bold font-mono text-amber-700 bg-amber-100/50 px-2 py-0.5 rounded">Accredited Workshop Task</span>
                       </div>
 
                       {/* Instructions */}
                       <div className="bg-white border rounded-xl p-4 text-xs shadow-xs space-y-2">
-                        <label className="text-[10px] font-mono uppercase tracking-widest font-bold text-gray-400">Assignment Task Prompt:</label>
+                        <label className="text-[10px] font-mono uppercase tracking-widest font-bold text-gray-400">Instructions</label>
                         <p className="font-semibold text-gray-750 font-sans leading-relaxed whitespace-pre-line">
                           {activeLessonDetails.assignmentInstructions || activeLessonDetails.textContent}
                         </p>
@@ -4037,16 +4047,16 @@ export default function ClassroomView({
                             </span>
                             
                             <h5 className="font-bold text-gray-900 flex items-center gap-1">
-                              <CheckCircle className="w-4 h-4 text-emerald-500" /> Student Blueprint Successfully Graded
+                              <CheckCircle className="w-4 h-4 text-emerald-500" /> Assignment Graded
                             </h5>
                             
                             <div className="pt-2 border-t border-gray-50 text-[11px] text-gray-500">
-                              <strong className="text-gray-700 block mb-1">Your Submission Draft:</strong>
+                              <strong className="text-gray-700 block mb-1">Your submission:</strong>
                               <p className="bg-gray-50 p-2.5 rounded-lg border italic">{assignmentSubmission.text}</p>
                             </div>
 
                             <div className="pt-3 border-t border-gray-50 leading-relaxed text-[11px] text-indigo-950">
-                              <span className="text-[9px] font-mono font-bold block uppercase text-indigo-500 mb-0.5 animate-pulse">🎓 Instructor feedback logs</span>
+                              <span className="text-[9px] font-mono font-bold block uppercase text-indigo-500 mb-0.5">Instructor feedback</span>
                               <p className="font-medium bg-indigo-50/50 p-2.5 rounded-lg border border-indigo-100">{assignmentSubmission.feedback}</p>
                             </div>
                           </div>
@@ -4054,18 +4064,18 @@ export default function ClassroomView({
                           <div className="bg-emerald-50 border border-emerald-250 p-3 rounded-xl flex items-center gap-2">
                             <ShieldCheck className="w-4 h-4 text-emerald-600" />
                             <p className="text-[10.5px] text-emerald-850">
-                              Assignment successfully audited and accredited (+20 XP logged to your user session profile!). Next syllabus module unlocked.
+                              Assignment submitted successfully (+20 XP).
                             </p>
                           </div>
                         </div>
                       ) : (
                         <form onSubmit={handleAssignmentSubmit} className="space-y-4 font-sans text-xs">
                           <div className="space-y-1.5">
-                            <label className="block text-[10px] font-mono font-bold tracking-widest text-gray-400 uppercase">Write your playbook response text:</label>
+                            <label className="block text-[10px] font-mono font-bold tracking-widest text-gray-400 uppercase">Your response</label>
                             <textarea
                               rows={3}
                               required
-                              placeholder="Describe your design architecture, cache formulas, cluster configurations, or instructions..."
+                              placeholder="Write your answer here..."
                               value={assignmentText}
                               onChange={(e) => setAssignmentText(e.target.value)}
                               className="w-full bg-white border border-gray-250 px-3.5 py-2 rounded-xl text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
@@ -4074,7 +4084,7 @@ export default function ClassroomView({
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1">
-                              <label className="block text-[10px] font-mono font-bold text-gray-400 uppercase">Simulated Attachment File:</label>
+                              <label className="block text-[10px] font-mono font-bold text-gray-400 uppercase">Attachment (optional):</label>
                               <select
                                 value={assignmentFile}
                                 onChange={(e) => setAssignmentFile(e.target.value)}
@@ -4092,7 +4102,7 @@ export default function ClassroomView({
                                 disabled={isSubmittingAssignment || !assignmentText.trim()}
                                 className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40"
                               >
-                                {isSubmittingAssignment ? "Submitting Workbook..." : "Upload & Hand-in Assignment (+20 XP)"}
+                                {isSubmittingAssignment ? "Submitting..." : "Submit Assignment"}
                               </button>
                             </div>
                           </div>
@@ -4105,7 +4115,7 @@ export default function ClassroomView({
                   {activeLessonDetails.attachments && activeLessonDetails.attachments.length > 0 && (
                     <div className="pt-5 border-t border-gray-100">
                       <h4 className="text-xs font-bold text-gray-805 uppercase tracking-wider font-mono mb-3 flex items-center gap-1.5 text-indigo-950">
-                        <Download className="w-4 h-4 text-indigo-600" /> Lesson Support Materials
+                        <Download className="w-4 h-4 text-indigo-600" /> Attachments
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {activeLessonDetails.attachments.map((file, fIdx) => (
@@ -4143,9 +4153,9 @@ export default function ClassroomView({
                 
                 {/* Header */}
                 <div className="border-b border-gray-55 pb-2 mb-2 shrink-0">
-                  <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-indigo-600 block">Lesson Community Arena</span>
+                  <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-indigo-600 block">Discussion</span>
                   <h4 className="text-xs font-bold text-gray-900 font-display flex items-center gap-1 mt-0.5">
-                    💬 Discussion Chat ({lessonComments.length})
+                    💬 Discussion ({lessonComments.length})
                   </h4>
                 </div>
 
@@ -4156,7 +4166,7 @@ export default function ClassroomView({
                       <BookOpen className="w-6 h-6 text-gray-200 mb-1.5" />
                       <p className="text-[10px] font-medium">No comments yet</p>
                       <p className="text-[8.5px] text-gray-500 max-w-[160px] mx-auto mt-0.5 leading-normal">
-                        Be the first to suggest prompt workspace tweaks or ask a code question!
+                        Start a discussion about this lesson.
                       </p>
                     </div>
                   ) : (
@@ -4295,7 +4305,7 @@ export default function ClassroomView({
 
                                 const newReply = {
                                   id: `rep_${Date.now()}`,
-                                  authorName: currentUser?.fullName || "Student Champion",
+                                  authorName: currentUser?.fullName || "Student",
                                   authorAvatar: currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80",
                                   content: text,
                                   createdAt: new Date().toISOString()
@@ -4360,7 +4370,7 @@ export default function ClassroomView({
                     <input
                       type="text"
                       required
-                      placeholder="Ask questions or type comment..."
+                      placeholder="Add a comment..."
                       value={newCommentText}
                       onChange={(e) => setNewCommentText(e.target.value)}
                       className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-[10px] placeholder-gray-400 text-gray-850 focus:outline-none focus:ring-1 focus:ring-indigo-550"
@@ -4380,20 +4390,20 @@ export default function ClassroomView({
               {/* SECTION B: STUDENT PRIVATE STUDY NOTES (Auto Saved) */}
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex flex-col h-[200px]">
                 <div className="flex justify-between items-center mb-1.5 shrink-0">
-                  <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400">Personal Study Notes</span>
-                  <span className="text-[8px] px-1.5 py-0.2 font-mono bg-emerald-50 text-emerald-700 rounded font-bold uppercase animate-pulse">Auto Saved</span>
+                  <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400">Notes</span>
+                  <span className="text-[8px] px-1.5 py-0.2 font-mono bg-emerald-50 text-emerald-700 rounded font-bold uppercase">Auto-saved</span>
                 </div>
                 <textarea
                   value={activeNotes}
                   onChange={(e) => handleSaveNotes(e.target.value)}
-                  placeholder="Jot down formulas, code structures, or reference playbook configurations for this lesson..."
+                  placeholder="Write your notes for this lesson..."
                   className="flex-1 bg-slate-50/50 border border-slate-100 rounded-xl p-2.5 text-[10.5px] placeholder-gray-400 text-gray-800 leading-normal font-sans focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium resize-none min-h-0"
                 />
               </div>
 
               {/* SECTION C: COMPANION HANDOUT RESOURCES */}
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-2.5">
-                <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block">Handouts & Resources</span>
+                <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block">Resources</span>
                 
                 {activeLessonDetails?.attachments && activeLessonDetails.attachments.length > 0 ? (
                   <div className="space-y-1.5">
@@ -4403,7 +4413,7 @@ export default function ClassroomView({
                           <span className="text-[10.5px] font-bold text-gray-850 truncate block" title={file}>
                             {file}
                           </span>
-                          <span className="text-[8.5px] text-indigo-500 font-mono block mt-0.5">Syllabus Handout PDF</span>
+                          <span className="text-[8.5px] text-indigo-500 font-mono block mt-0.5">Resource file</span>
                         </div>
                         <a
                           href={`/api/lessons/${activeLessonDetails.id}/downloads/${encodeURIComponent(file)}`}
@@ -4411,14 +4421,14 @@ export default function ClassroomView({
                           referrerPolicy="no-referrer"
                           className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-150 text-indigo-700 rounded-lg text-[9px] font-mono font-bold uppercase shrink-0"
                         >
-                          Get
+                          Download
                         </a>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center text-[10px] text-gray-400 font-mono italic">
-                    No pdf downloads for this lesson. Use worksheets and interactive MCQ challenges instead.
+                    No resources for this lesson.
                   </div>
                 )}
               </div>
@@ -4540,13 +4550,13 @@ export default function ClassroomView({
             <div className="bg-indigo-950 p-6 text-white shrink-0">
               <div className="flex justify-between items-center">
                 <span className="text-xs uppercase font-mono bg-indigo-500/30 px-3 py-1 rounded-full font-bold">
-                  🛠️ Instructor Syllabus Studio • Modern Builder
+                  🛠️ Course Builder
                 </span>
                 <button onClick={() => setShowManualModal(false)} className="text-white/60 hover:text-white">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <h3 className="text-lg font-bold font-display mt-2 text-white">Build Space Course Curriculum</h3>
+              <h3 className="text-lg font-bold font-display mt-2 text-white">Create Course</h3>
               <p className="text-sm text-indigo-200 mt-1">
                 Design custom modules, leverage our smart plaintext course outline editor, utilize preset structural templates, and construct active MCQ quizzes.
               </p>
@@ -4583,10 +4593,10 @@ export default function ClassroomView({
                   </div>
 
                   <div className="col-span-1 md:col-span-2">
-                    <label className="block font-semibold text-gray-750 mb-1.5 text-sm">Curriculum Syllabus Description</label>
+                    <label className="block font-semibold text-gray-750 mb-1.5 text-sm">Description</label>
                     <textarea
                       rows={2}
-                      placeholder="Give a brief summary outlining core takeaways and course outline."
+                      placeholder="Brief summary of the course."
                       value={manualDesc}
                       onChange={(e) => setManualDesc(e.target.value)}
                       className="w-full px-3.5 py-2.5 border border-gray-250 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-505 bg-gray-50/50"
@@ -4600,8 +4610,8 @@ export default function ClassroomView({
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-2">
                   <div>
-                    <h4 className="text-sm font-bold text-indigo-950 font-mono uppercase tracking-wider">2. Modules & Lesson Structure</h4>
-                    <p className="text-sm text-gray-500 mt-0.5">Define topics using our professional Interactive Module Studio</p>
+                    <h4 className="text-sm font-bold text-indigo-950 font-mono uppercase tracking-wider">Modules & Lessons</h4>
+                    <p className="text-sm text-gray-500 mt-0.5">Organize your course content into modules and lessons.</p>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -5561,16 +5571,16 @@ export default function ClassroomView({
                 {studioTab === "form" && (
                   <div className="space-y-4">
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                      <label className="text-sm font-bold text-slate-200">Syllabus Lectures Structure Fine-Tuning</label>
+                      <label className="text-sm font-bold text-slate-200">Lesson Structure</label>
                       <button
                         type="button"
                         onClick={() => {
                           const current = [...studioLessons];
                           current.push({
-                            title: `Syllabus Lecture Node ${current.length + 1}`,
+                            title: `Lesson ${current.length + 1}`,
                             durationMinutes: 15,
                             contentType: "video",
-                            textContent: "Syllabus details.",
+                            textContent: "Lesson content.",
                             videoUrl: "",
                             attachments: []
                           });
@@ -5662,9 +5672,9 @@ export default function ClassroomView({
                 <div className="space-y-4">
                   <div className="border-b border-slate-800 pb-2">
                     <span className="text-xs font-mono font-bold uppercase text-indigo-400 tracking-wider">
-                      Syllabus Live Compiler Feed
+                      Preview
                     </span>
-                    <h4 className="text-sm font-bold text-white font-display mt-0.5">Real-time Visualization</h4>
+                    <h4 className="text-sm font-bold text-white font-display mt-0.5">Module Preview</h4>
                   </div>
 
                   {/* Module Card */}
@@ -5675,7 +5685,7 @@ export default function ClassroomView({
                           Active Module Preview
                         </span>
                         <h4 className="text-sm font-bold text-white font-sans mt-2 truncate">
-                          {studioModuleTitle.trim() || "Draft Syllabus Title"}
+                          {studioModuleTitle.trim() || "Module Title"}
                         </h4>
                       </div>
                       <span className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-705 font-mono whitespace-nowrap shrink-0">
@@ -5694,7 +5704,7 @@ export default function ClassroomView({
                           <div key={lIdx} className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-2 relative animate-in slide-in-from-bottom-2 duration-150">
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-[11px] uppercase font-mono font-bold text-emerald-400 block">
-                                Syllabus Node {lIdx + 1}
+                                Lesson {lIdx + 1}
                               </span>
                               <span className="text-xs text-slate-500 font-mono">
                                 {lss.durationMinutes || 10} mins
