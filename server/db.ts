@@ -163,6 +163,33 @@ export async function createSchema() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    ALTER TABLE IF EXISTS courses
+      ADD COLUMN IF NOT EXISTS course_type TEXT DEFAULT 'flagship',
+      ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS price DECIMAL(10,2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS certificate_enabled BOOLEAN DEFAULT false,
+      ADD COLUMN IF NOT EXISTS estimated_hours DECIMAL(5,1) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS difficulty_level TEXT DEFAULT 'beginner',
+      ADD COLUMN IF NOT EXISTS max_enrollments INTEGER,
+      ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS category TEXT,
+      ADD COLUMN IF NOT EXISTS creator_name TEXT,
+      ADD COLUMN IF NOT EXISTS creator_avatar TEXT,
+      ADD COLUMN IF NOT EXISTS average_rating DECIMAL(3,2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS completion_rate DECIMAL(5,2) DEFAULT 0;
+
+    ALTER TABLE IF EXISTS modules
+      ADD COLUMN IF NOT EXISTS description TEXT,
+      ADD COLUMN IF NOT EXISTS is_free_preview BOOLEAN DEFAULT false;
+
+    ALTER TABLE IF EXISTS lessons
+      ADD COLUMN IF NOT EXISTS content_type TEXT DEFAULT 'video',
+      ADD COLUMN IF NOT EXISTS quiz_questions JSONB DEFAULT '[]',
+      ADD COLUMN IF NOT EXISTS assignment_instructions TEXT,
+      ADD COLUMN IF NOT EXISTS passing_score INTEGER DEFAULT 70;
+
     CREATE TABLE IF NOT EXISTS modules (
       id TEXT PRIMARY KEY,
       course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
