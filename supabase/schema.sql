@@ -102,7 +102,24 @@ CREATE TABLE IF NOT EXISTS courses (
     is_premium_only BOOLEAN DEFAULT FALSE,
     modules_count INTEGER DEFAULT 0,
     enrolled_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    status TEXT DEFAULT 'draft',
+    course_type TEXT DEFAULT 'flagship',
+    scheduled_at TIMESTAMP WITH TIME ZONE,
+    published_at TIMESTAMP WITH TIME ZONE,
+    archived_at TIMESTAMP WITH TIME ZONE,
+    price NUMERIC(10, 2) DEFAULT 0.00,
+    certificate_enabled BOOLEAN DEFAULT FALSE,
+    estimated_hours NUMERIC(5, 1) DEFAULT 0.0,
+    difficulty_level TEXT DEFAULT 'beginner',
+    max_enrollments INTEGER,
+    tags TEXT[] DEFAULT '{}',
+    category TEXT,
+    creator_name TEXT,
+    creator_avatar TEXT,
+    average_rating NUMERIC(3, 2) DEFAULT 0.00,
+    completion_rate NUMERIC(5, 2) DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_courses_workspace ON courses(workspace_id);

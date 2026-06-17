@@ -44,8 +44,8 @@ export async function transaction<T>(fn: (client: pg.PoolClient) => Promise<T>):
 }
 
 export async function createSchema() {
-  await query(`
-    CREATE TABLE IF NOT EXISTS users (
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       username TEXT UNIQUE NOT NULL,
@@ -69,9 +69,9 @@ export async function createSchema() {
       completed_lessons TEXT[] DEFAULT '{}',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS workspaces (
+    `CREATE TABLE IF NOT EXISTS workspaces (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       subdomain TEXT UNIQUE NOT NULL,
@@ -90,9 +90,9 @@ export async function createSchema() {
       is_private BOOLEAN DEFAULT false,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS workspace_members (
+    `CREATE TABLE IF NOT EXISTS workspace_members (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -100,9 +100,9 @@ export async function createSchema() {
       status TEXT NOT NULL DEFAULT 'active',
       joined_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(workspace_id, user_id)
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS posts (
+    `CREATE TABLE IF NOT EXISTS posts (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
       author_id TEXT NOT NULL REFERENCES users(id),
@@ -120,9 +120,9 @@ export async function createSchema() {
       tags TEXT[] DEFAULT '{}',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS comments (
+    `CREATE TABLE IF NOT EXISTS comments (
       id TEXT PRIMARY KEY,
       post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
       parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE,
@@ -132,9 +132,9 @@ export async function createSchema() {
       author_role TEXT,
       content TEXT NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS courses (
+    `CREATE TABLE IF NOT EXISTS courses (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
@@ -161,45 +161,38 @@ export async function createSchema() {
       completion_rate DECIMAL(5,2) DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    ALTER TABLE IF EXISTS courses
-      ADD COLUMN IF NOT EXISTS course_type TEXT DEFAULT 'flagship',
-      ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS price DECIMAL(10,2) DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS certificate_enabled BOOLEAN DEFAULT false,
-      ADD COLUMN IF NOT EXISTS estimated_hours DECIMAL(5,1) DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS difficulty_level TEXT DEFAULT 'beginner',
-      ADD COLUMN IF NOT EXISTS max_enrollments INTEGER,
-      ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}',
-      ADD COLUMN IF NOT EXISTS category TEXT,
-      ADD COLUMN IF NOT EXISTS creator_name TEXT,
-      ADD COLUMN IF NOT EXISTS creator_avatar TEXT,
-      ADD COLUMN IF NOT EXISTS average_rating DECIMAL(3,2) DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS completion_rate DECIMAL(5,2) DEFAULT 0;
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS course_type TEXT DEFAULT 'flagship'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS price DECIMAL(10,2) DEFAULT 0`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS certificate_enabled BOOLEAN DEFAULT false`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS estimated_hours DECIMAL(5,1) DEFAULT 0`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS difficulty_level TEXT DEFAULT 'beginner'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS max_enrollments INTEGER`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS category TEXT`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS creator_name TEXT`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS creator_avatar TEXT`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS average_rating DECIMAL(3,2) DEFAULT 0`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS completion_rate DECIMAL(5,2) DEFAULT 0`,
 
-    ALTER TABLE IF EXISTS modules
-      ADD COLUMN IF NOT EXISTS description TEXT,
-      ADD COLUMN IF NOT EXISTS is_free_preview BOOLEAN DEFAULT false;
-
-    ALTER TABLE IF EXISTS lessons
-      ADD COLUMN IF NOT EXISTS content_type TEXT DEFAULT 'video',
-      ADD COLUMN IF NOT EXISTS quiz_questions JSONB DEFAULT '[]',
-      ADD COLUMN IF NOT EXISTS assignment_instructions TEXT,
-      ADD COLUMN IF NOT EXISTS passing_score INTEGER DEFAULT 70;
-
-    CREATE TABLE IF NOT EXISTS modules (
+    `CREATE TABLE IF NOT EXISTS modules (
       id TEXT PRIMARY KEY,
       course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
       description TEXT,
       index INTEGER DEFAULT 0,
       is_free_preview BOOLEAN DEFAULT false
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS lessons (
+    `ALTER TABLE IF EXISTS modules ADD COLUMN IF NOT EXISTS description TEXT`,
+    `ALTER TABLE IF EXISTS modules ADD COLUMN IF NOT EXISTS is_free_preview BOOLEAN DEFAULT false`,
+
+    `CREATE TABLE IF NOT EXISTS lessons (
       id TEXT PRIMARY KEY,
       module_id TEXT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -216,9 +209,14 @@ export async function createSchema() {
       assignment_instructions TEXT,
       passing_score INTEGER DEFAULT 70,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS course_enrollments (
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS content_type TEXT DEFAULT 'video'`,
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS quiz_questions JSONB DEFAULT '[]'`,
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS assignment_instructions TEXT`,
+    `ALTER TABLE IF EXISTS lessons ADD COLUMN IF NOT EXISTS passing_score INTEGER DEFAULT 70`,
+
+    `CREATE TABLE IF NOT EXISTS course_enrollments (
       id TEXT PRIMARY KEY,
       course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -234,9 +232,9 @@ export async function createSchema() {
       grade TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(course_id, user_id)
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS course_resources (
+    `CREATE TABLE IF NOT EXISTS course_resources (
       id TEXT PRIMARY KEY,
       module_id TEXT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
@@ -246,9 +244,9 @@ export async function createSchema() {
       file_size INTEGER,
       download_count INTEGER DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS course_certificates (
+    `CREATE TABLE IF NOT EXISTS course_certificates (
       id TEXT PRIMARY KEY,
       enrollment_id TEXT NOT NULL REFERENCES course_enrollments(id) ON DELETE CASCADE,
       course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
@@ -256,9 +254,9 @@ export async function createSchema() {
       issued_at TIMESTAMPTZ DEFAULT NOW(),
       certificate_url TEXT,
       credential_id TEXT UNIQUE NOT NULL
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS events (
+    `CREATE TABLE IF NOT EXISTS events (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
@@ -273,9 +271,9 @@ export async function createSchema() {
       timezone TEXT DEFAULT 'UTC',
       attendees TEXT[] DEFAULT '{}',
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS messages (
+    `CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY,
       sender_id TEXT NOT NULL REFERENCES users(id),
       sender_name TEXT NOT NULL,
@@ -283,22 +281,22 @@ export async function createSchema() {
       recipient_id TEXT NOT NULL,
       content TEXT NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_id, created_at DESC);
+    `CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_id, created_at DESC)`,
 
-    CREATE TABLE IF NOT EXISTS channels (
+    `CREATE TABLE IF NOT EXISTS channels (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       description TEXT,
       created_by TEXT REFERENCES users(id),
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE INDEX IF NOT EXISTS idx_channels_workspace ON channels(workspace_id);
+    `CREATE INDEX IF NOT EXISTS idx_channels_workspace ON channels(workspace_id)`,
 
-    CREATE TABLE IF NOT EXISTS notifications (
+    `CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
@@ -306,9 +304,9 @@ export async function createSchema() {
       type TEXT NOT NULL DEFAULT 'info',
       is_read BOOLEAN DEFAULT false,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS transactions (
+    `CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
       user_name TEXT,
@@ -321,9 +319,9 @@ export async function createSchema() {
       payment_provider TEXT DEFAULT 'paypal',
       payment_id TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS audit_logs (
+    `CREATE TABLE IF NOT EXISTS audit_logs (
       id TEXT PRIMARY KEY,
       workspace_id TEXT REFERENCES workspaces(id),
       user_id TEXT NOT NULL REFERENCES users(id),
@@ -331,63 +329,61 @@ export async function createSchema() {
       action TEXT NOT NULL,
       details TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS sessions (
+    `CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       token_hash TEXT NOT NULL,
       remember_me BOOLEAN DEFAULT false,
       expires_at TIMESTAMPTZ NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE TABLE IF NOT EXISTS login_attempts (
+    `CREATE TABLE IF NOT EXISTS login_attempts (
       id SERIAL PRIMARY KEY,
       email TEXT NOT NULL,
       count INTEGER DEFAULT 1,
       locked_until TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE INDEX IF NOT EXISTS idx_posts_workspace ON posts(workspace_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
-    CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_audit_logs_workspace ON audit_logs(workspace_id);
-    CREATE INDEX IF NOT EXISTS idx_workspace_members_ws ON workspace_members(workspace_id);
-    CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
-    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_lessons_workspace ON lessons(workspace_id);
-    CREATE INDEX IF NOT EXISTS idx_events_workspace ON events(workspace_id, start_at);
-    CREATE INDEX IF NOT EXISTS idx_courses_workspace ON courses(workspace_id);
-    CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_id);
-    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-    CREATE INDEX IF NOT EXISTS idx_modules_course ON modules(course_id);
-    CREATE INDEX IF NOT EXISTS idx_lessons_module ON lessons(module_id);
-    CREATE INDEX IF NOT EXISTS idx_courses_status ON courses(workspace_id, status);
-    CREATE INDEX IF NOT EXISTS idx_courses_type ON courses(course_type);
-    CREATE INDEX IF NOT EXISTS idx_enrollments_course ON course_enrollments(course_id);
-    CREATE INDEX IF NOT EXISTS idx_enrollments_user ON course_enrollments(user_id);
-    CREATE INDEX IF NOT EXISTS idx_enrollments_workspace ON course_enrollments(workspace_id);
-    CREATE INDEX IF NOT EXISTS idx_resources_module ON course_resources(module_id);
-    CREATE INDEX IF NOT EXISTS idx_certificates_user ON course_certificates(user_id);
-    CREATE INDEX IF NOT EXISTS idx_certificates_course ON course_certificates(course_id);
+    `CREATE INDEX IF NOT EXISTS idx_posts_workspace ON posts(workspace_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_audit_logs_workspace ON audit_logs(workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_members_ws ON workspace_members(workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash)`,
+    `CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_lessons_workspace ON lessons(workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_events_workspace ON events(workspace_id, start_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_courses_workspace ON courses(workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`,
+    `CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`,
+    `CREATE INDEX IF NOT EXISTS idx_modules_course ON modules(course_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_lessons_module ON lessons(module_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_courses_status ON courses(workspace_id, status)`,
+    `CREATE INDEX IF NOT EXISTS idx_courses_type ON courses(course_type)`,
+    `CREATE INDEX IF NOT EXISTS idx_enrollments_course ON course_enrollments(course_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_enrollments_user ON course_enrollments(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_enrollments_workspace ON course_enrollments(workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_resources_module ON course_resources(module_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_certificates_user ON course_certificates(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_certificates_course ON course_certificates(course_id)`,
 
-    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    `CREATE TABLE IF NOT EXISTS password_reset_tokens (
       id SERIAL PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       token_hash TEXT NOT NULL,
       expires_at TIMESTAMPTZ NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
+    `CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash)`,
 
-    -- Community Transformation: Spaces
-    CREATE TABLE IF NOT EXISTS spaces (
+    `CREATE TABLE IF NOT EXISTS spaces (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
@@ -399,34 +395,31 @@ export async function createSchema() {
       post_count INTEGER DEFAULT 0,
       is_archived BOOLEAN DEFAULT false,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_spaces_workspace ON spaces(workspace_id, sort_order);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_spaces_workspace ON spaces(workspace_id, sort_order)`,
 
-    ALTER TABLE posts ADD COLUMN IF NOT EXISTS space_id TEXT REFERENCES spaces(id) ON DELETE SET NULL;
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS space_id TEXT REFERENCES spaces(id) ON DELETE SET NULL`,
 
-    -- Community Transformation: Post Reactions (per-user, per-reaction-type)
-    CREATE TABLE IF NOT EXISTS post_reactions (
+    `CREATE TABLE IF NOT EXISTS post_reactions (
       id TEXT PRIMARY KEY,
       post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       reaction TEXT NOT NULL DEFAULT 'like',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(post_id, user_id, reaction)
-    );
-    CREATE INDEX IF NOT EXISTS idx_post_reactions_post ON post_reactions(post_id);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_post_reactions_post ON post_reactions(post_id)`,
 
-    -- Community Transformation: Comment Reactions
-    CREATE TABLE IF NOT EXISTS comment_reactions (
+    `CREATE TABLE IF NOT EXISTS comment_reactions (
       id TEXT PRIMARY KEY,
       comment_id TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       reaction TEXT NOT NULL DEFAULT 'like',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(comment_id, user_id, reaction)
-    );
+    )`,
 
-    -- Community Transformation: XP History
-    CREATE TABLE IF NOT EXISTS xp_transactions (
+    `CREATE TABLE IF NOT EXISTS xp_transactions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -435,12 +428,11 @@ export async function createSchema() {
       reference_type TEXT,
       reference_id TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_xp_user ON xp_transactions(user_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_xp_workspace ON xp_transactions(workspace_id);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_xp_user ON xp_transactions(user_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_xp_workspace ON xp_transactions(workspace_id)`,
 
-    -- Community Transformation: Badge Definitions
-    CREATE TABLE IF NOT EXISTS badge_definitions (
+    `CREATE TABLE IF NOT EXISTS badge_definitions (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
       description TEXT NOT NULL,
@@ -448,21 +440,19 @@ export async function createSchema() {
       category TEXT DEFAULT 'achievement',
       xp_reward INTEGER DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
+    )`,
 
-    -- Community Transformation: User Badges (awarded)
-    CREATE TABLE IF NOT EXISTS user_badges (
+    `CREATE TABLE IF NOT EXISTS user_badges (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       badge_id TEXT NOT NULL REFERENCES badge_definitions(id) ON DELETE CASCADE,
       workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE,
       awarded_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(user_id, badge_id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges(user_id);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges(user_id)`,
 
-    -- Community Transformation: Challenges
-    CREATE TABLE IF NOT EXISTS challenges (
+    `CREATE TABLE IF NOT EXISTS challenges (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
@@ -477,11 +467,10 @@ export async function createSchema() {
       is_active BOOLEAN DEFAULT true,
       created_by TEXT REFERENCES users(id),
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_challenges_workspace ON challenges(workspace_id, starts_at DESC);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_challenges_workspace ON challenges(workspace_id, starts_at DESC)`,
 
-    -- Community Transformation: Challenge Tasks
-    CREATE TABLE IF NOT EXISTS challenge_tasks (
+    `CREATE TABLE IF NOT EXISTS challenge_tasks (
       id TEXT PRIMARY KEY,
       challenge_id TEXT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
@@ -490,11 +479,10 @@ export async function createSchema() {
       task_type TEXT DEFAULT 'custom',
       xp_per_completion INTEGER DEFAULT 10,
       sort_order INTEGER DEFAULT 0
-    );
-    CREATE INDEX IF NOT EXISTS idx_challenge_tasks_challenge ON challenge_tasks(challenge_id, day);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_challenge_tasks_challenge ON challenge_tasks(challenge_id, day)`,
 
-    -- Community Transformation: Challenge Participants
-    CREATE TABLE IF NOT EXISTS challenge_participants (
+    `CREATE TABLE IF NOT EXISTS challenge_participants (
       id TEXT PRIMARY KEY,
       challenge_id TEXT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -503,11 +491,10 @@ export async function createSchema() {
       is_completed BOOLEAN DEFAULT false,
       completed_at TIMESTAMPTZ,
       UNIQUE(challenge_id, user_id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_challenge_participants_challenge ON challenge_participants(challenge_id);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_challenge_participants_challenge ON challenge_participants(challenge_id)`,
 
-    -- Community Transformation: Lesson Discussions
-    CREATE TABLE IF NOT EXISTS lesson_discussions (
+    `CREATE TABLE IF NOT EXISTS lesson_discussions (
       id TEXT PRIMARY KEY,
       lesson_id TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -515,11 +502,10 @@ export async function createSchema() {
       parent_id TEXT REFERENCES lesson_discussions(id) ON DELETE CASCADE,
       edited_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_lesson_discussions_lesson ON lesson_discussions(lesson_id, created_at ASC);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_lesson_discussions_lesson ON lesson_discussions(lesson_id, created_at ASC)`,
 
-    -- Community Transformation: Lesson Notes
-    CREATE TABLE IF NOT EXISTS lesson_notes (
+    `CREATE TABLE IF NOT EXISTS lesson_notes (
       id TEXT PRIMARY KEY,
       lesson_id TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -528,10 +514,9 @@ export async function createSchema() {
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(lesson_id, user_id)
-    );
+    )`,
 
-    -- Community Transformation: Member Activity Log
-    CREATE TABLE IF NOT EXISTS member_activity (
+    `CREATE TABLE IF NOT EXISTS member_activity (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -541,10 +526,19 @@ export async function createSchema() {
       reference_id TEXT,
       metadata JSONB DEFAULT '{}',
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_member_activity_workspace ON member_activity(workspace_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_member_activity_user ON member_activity(user_id, created_at DESC);
-  `);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_member_activity_workspace ON member_activity(workspace_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_member_activity_user ON member_activity(user_id, created_at DESC)`
+  ];
+
+  for (const statement of statements) {
+    try {
+      await query(statement);
+    } catch (err) {
+      console.error("Error executing statement:", statement);
+      console.error(err);
+    }
+  }
 }
 
 export async function isDatabaseSeeded(): Promise<boolean> {

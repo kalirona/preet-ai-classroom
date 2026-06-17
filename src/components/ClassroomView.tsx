@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Course, Lesson, Comment, CourseStatus, CourseType, DifficultyLevel } from "../types";
 import { 
   BookOpen, PlayCircle, CheckCircle, Lock, Download, Sparkles, Send, Box, ChevronRight, 
-  GraduationCap, CreditCard, ShieldCheck, HelpCircle, Award, Flame, ClipboardList, PenTool, FileText, RefreshCw, X, ArrowUp, ArrowDown, Trash2, Plus
+  GraduationCap, CreditCard, ShieldCheck, HelpCircle, Award, Flame, ClipboardList, PenTool, FileText, RefreshCw, X, ArrowUp, ArrowDown, Trash2, Plus,
+  MoreVertical, Edit2, Copy, Eye, Archive, Users, DollarSign, TrendingUp, BarChart3, Clock, ExternalLink
 } from "lucide-react";
 import CourseBuilder from "./course/CourseBuilder";
 
@@ -97,7 +98,6 @@ export default function ClassroomView({
   const [showLevelUpAlert, setShowLevelUpAlert] = useState(false);
 
   // Classroom Tab states (Skool dashboard vs specific course selection lists)
-  const [classroomTab, setClassroomTab] = useState<"dashboard" | "courses">("dashboard");
   const [recentlyViewed, setRecentlyViewed] = useState<any[]>([]);
 
   // Reply and Like states for lesson discussion threads
@@ -125,8 +125,9 @@ export default function ClassroomView({
 
   // Creator Hub active view controllers
   const [isCreatorMode, setIsCreatorMode] = useState(false);
-  const [creatorTab, setCreatorTab] = useState<"analytics" | "builder" | "activity" | "community">("analytics");
-  
+  const [creatorTab, setCreatorTab] = useState<"courses" | "analytics" | "builder" | "activity" | "community">("courses");
+  const [courseFilter, setCourseFilter] = useState<"published" | "draft" | "scheduled" | "archived">("published");
+
   // Selected course for editing in Course Builder
   const [selectedBuilderCourse, setSelectedBuilderCourse] = useState<Course | null>(null);
   const [builderSelectedLesson, setBuilderSelectedLesson] = useState<Lesson | null>(null);
@@ -1855,86 +1856,260 @@ export default function ClassroomView({
 
           {isCreatorMode && (hasStaffOverride || canCreateCourse || isCourseBuilderOnly || isAnalyticsOnly) ? (
             /* ==============================================================================
-               CREATOR HUB WORKSPACE
+               CREATOR HUB WORKSPACE (DEDICATED MANAGEMENT DASHBOARD)
                ============================================================================== */
             <div className="space-y-6 animate-in fade-in duration-300" id="creator-hub-workspace">
-              {isCourseBuilderOnly ? null : isAnalyticsOnly ? (
-                <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 pb-4 mb-3 gap-2 shrink-0">
-                  <div>
-                    <h1 className="text-base font-bold text-gray-900 tracking-tight font-display flex items-center gap-2">
-                       Classroom Analytics
-                    </h1>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Monitor student progress, completion rates, and course engagement.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex border-b border-gray-200 gap-5 sm:gap-6 shrink-0 select-none overflow-x-auto pb-px">
+              
+              {/* DASHBOARD HEADER & TAB BAR */}
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-gray-100 pb-1">
+                <div className="flex border-gray-200 gap-5 sm:gap-8 shrink-0 select-none overflow-x-auto">
+                  <button
+                    type="button"
+                    onClick={() => setCreatorTab("courses")}
+                    className={`pb-3 text-sm font-black transition flex items-center gap-2 cursor-pointer border-0 bg-transparent uppercase tracking-wider ${
+                      creatorTab === "courses"
+                        ? "border-b-4 border-indigo-600 text-indigo-700"
+                        : "text-gray-400 hover:text-gray-600"
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4" /> Courses
+                  </button>
                   <button
                     type="button"
                     onClick={() => setCreatorTab("analytics")}
-                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
+                    className={`pb-3 text-sm font-black transition flex items-center gap-2 cursor-pointer border-0 bg-transparent uppercase tracking-wider ${
                       creatorTab === "analytics"
-                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
-                        : "text-gray-400 hover:text-gray-650"
+                        ? "border-b-4 border-indigo-600 text-indigo-700"
+                        : "text-gray-400 hover:text-gray-600"
                     }`}
                   >
-                    Analytics
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCreatorTab("builder");
-                      if (!selectedBuilderCourse && localCourses.length > 0) {
-                        setSelectedBuilderCourse(localCourses[0]);
-                      }
-                    }}
-                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
-                      creatorTab === "builder"
-                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
-                        : "text-gray-400 hover:text-gray-650"
-                    }`}
-                  >
-                    Course Builder
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCreatorTab("review")}
-                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
-                      creatorTab === "review"
-                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
-                        : "text-gray-400 hover:text-gray-650"
-                    }`}
-                  >
-                    Review & Publish
+                    <BarChart3 className="w-4 h-4" /> Analytics
                   </button>
                   <button
                     type="button"
                     onClick={() => setCreatorTab("activity")}
-                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
+                    className={`pb-3 text-sm font-black transition flex items-center gap-2 cursor-pointer border-0 bg-transparent uppercase tracking-wider ${
                       creatorTab === "activity"
-                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
-                        : "text-gray-400 hover:text-gray-650"
+                        ? "border-b-4 border-indigo-600 text-indigo-700"
+                        : "text-gray-400 hover:text-gray-600"
                     }`}
                   >
-                    Activity
+                    <TrendingUp className="w-4 h-4" /> Student Activity
                   </button>
                   <button
                     type="button"
                     onClick={() => setCreatorTab("community")}
-                    className={`pb-2.5 text-sm font-medium transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
+                    className={`pb-3 text-sm font-black transition flex items-center gap-2 cursor-pointer border-0 bg-transparent uppercase tracking-wider ${
                       creatorTab === "community"
-                        ? "border-b-2 border-indigo-600 text-indigo-700 font-semibold"
-                        : "text-gray-400 hover:text-gray-650"
+                        ? "border-b-4 border-indigo-600 text-indigo-700"
+                        : "text-gray-400 hover:text-gray-600"
                     }`}
                   >
-                    Community
+                    <Users className="w-4 h-4" /> Moderation
                   </button>
+                </div>
+
+                <div className="pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateCourseModal(true)}
+                    className="px-6 py-3 bg-gray-900 hover:bg-indigo-600 text-white rounded-2xl font-black text-xs transition-all shadow-xl shadow-gray-200 flex items-center gap-2 group/btn cursor-pointer uppercase tracking-widest"
+                  >
+                    <Plus className="w-4 h-4" /> Create Course
+                  </button>
+                </div>
+              </div>
+
+              {/* TAB 1: COURSES MANAGEMENT DASHBOARD */}
+              {creatorTab === "courses" && (
+                <div className="space-y-8 animate-in fade-in duration-300">
+                  
+                  {/* FILTERS BAR */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    {[
+                      { id: "published", label: "Published", count: localCourses.filter(c => c.status === "published").length },
+                      { id: "draft", label: "Drafts", count: localCourses.filter(c => c.status === "draft" || !c.status).length },
+                      { id: "scheduled", label: "Scheduled", count: localCourses.filter(c => c.status === "scheduled").length },
+                      { id: "archived", label: "Archived", count: localCourses.filter(c => c.status === "archived").length },
+                    ].map(filter => (
+                      <button
+                        key={filter.id}
+                        onClick={() => setCourseFilter(filter.id as any)}
+                        className={`px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2 border-2 ${
+                          courseFilter === filter.id
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100"
+                            : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+                        }`}
+                      >
+                        {filter.label}
+                        <span className={`px-2 py-0.5 rounded-lg text-[9px] ${
+                          courseFilter === filter.id ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                        }`}>
+                          {filter.count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* COURSES GRID */}
+                  {localCourses.filter(c => (courseFilter === "draft" ? (c.status === "draft" || !c.status) : c.status === courseFilter)).length === 0 ? (
+                    <div className="bg-white border-2 border-dashed border-gray-200 rounded-[32px] p-20 text-center space-y-4">
+                      <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-200">
+                        <BookOpen className="w-10 h-10" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-black text-gray-900">No {courseFilter} courses found</h4>
+                        <p className="text-sm text-gray-400 mt-1 max-w-xs mx-auto">Get started by creating a new course or changing your filters.</p>
+                      </div>
+                      <button
+                        onClick={() => setShowCreateCourseModal(true)}
+                        className="px-8 py-3 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition shadow-xl"
+                      >
+                        Create Your First Course
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-6">
+                      {localCourses.filter(c => (courseFilter === "draft" ? (c.status === "draft" || !c.status) : c.status === courseFilter)).map(course => (
+                        <div 
+                          key={course.id}
+                          className="bg-white rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group"
+                        >
+                          <div className="flex flex-col lg:flex-row">
+                            {/* Thumbnail */}
+                            <div className="w-full lg:w-72 h-48 lg:h-auto shrink-0 relative overflow-hidden">
+                              <img 
+                                src={course.coverUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800"} 
+                                className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+                                alt="" 
+                              />
+                              <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition duration-300" />
+                              <div className="absolute top-4 left-4">
+                                <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg border-2 ${getStatusColor(course.status)}`}>
+                                  {getStatusLabel(course.status)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Content & Metrics */}
+                            <div className="flex-1 p-8 flex flex-col justify-between space-y-6">
+                              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter bg-indigo-50 px-2 py-0.5 rounded-lg">
+                                      {getCourseTypeLabel(course.courseType)}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 font-mono">ID: {course.id.substring(4, 9).toUpperCase()}</span>
+                                  </div>
+                                  <h3 className="text-xl font-black text-gray-900 group-hover:text-indigo-600 transition truncate leading-tight">{course.name}</h3>
+                                  <p className="text-sm text-gray-500 mt-1 line-clamp-1">{course.description}</p>
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => {
+                                      setSelectedBuilderCourse(course);
+                                      setCreatorTab("builder");
+                                    }}
+                                    className="p-3 bg-gray-50 hover:bg-indigo-600 hover:text-white rounded-2xl transition-all text-gray-400 cursor-pointer active:scale-90"
+                                    title="Edit Course"
+                                  >
+                                    <Edit2 className="w-5 h-5" />
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      const newCourse = { ...course, id: `crs_copy_${Math.random().toString(36).substring(7)}`, name: `${course.name} (Copy)` };
+                                      setLocalCourses([newCourse, ...localCourses]);
+                                    }}
+                                    className="p-3 bg-gray-50 hover:bg-gray-900 hover:text-white rounded-2xl transition-all text-gray-400 cursor-pointer active:scale-90"
+                                    title="Duplicate"
+                                  >
+                                    <Copy className="w-5 h-5" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleSelectCourse(course)}
+                                    className="p-3 bg-gray-50 hover:bg-gray-900 hover:text-white rounded-2xl transition-all text-gray-400 cursor-pointer active:scale-90"
+                                    title="Preview"
+                                  >
+                                    <Eye className="w-5 h-5" />
+                                  </button>
+                                  <div className="h-10 w-px bg-gray-100 mx-1 hidden lg:block" />
+                                  <div className="relative group/menu">
+                                    <button className="p-3 bg-gray-50 hover:bg-gray-200 rounded-2xl transition-all text-gray-400 cursor-pointer active:scale-90">
+                                      <MoreVertical className="w-5 h-5" />
+                                    </button>
+                                    <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-2xl p-2 hidden group-hover/menu:block z-50 animate-in fade-in zoom-in-95">
+                                      <button 
+                                        onClick={() => handleToggleCourseStatus(course.id, "published")}
+                                        className="w-full text-left p-3 hover:bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2"
+                                      >
+                                        <Send className="w-4 h-4" /> Publish Course
+                                      </button>
+                                      <button 
+                                        onClick={() => handleToggleCourseStatus(course.id, "scheduled")}
+                                        className="w-full text-left p-3 hover:bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2"
+                                      >
+                                        <Clock className="w-4 h-4" /> Schedule Release
+                                      </button>
+                                      <button 
+                                        onClick={() => handleToggleCourseStatus(course.id, "draft")}
+                                        className="w-full text-left p-3 hover:bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2"
+                                      >
+                                        <Edit2 className="w-4 h-4" /> Revert to Draft
+                                      </button>
+                                      <div className="h-px bg-gray-50 my-1" />
+                                      <button 
+                                        onClick={() => handleToggleCourseStatus(course.id, "archived")}
+                                        className="w-full text-left p-3 hover:bg-rose-50 text-rose-600 rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2"
+                                      >
+                                        <Archive className="w-4 h-4" /> Archive Course
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Metrics Grid */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 pt-4 border-t border-gray-50">
+                                <div className="space-y-1">
+                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono block">Students</span>
+                                  <div className="flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-indigo-500" />
+                                    <span className="text-lg font-black text-gray-900 font-mono">{course.enrolledCount}</span>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono block">Completion</span>
+                                  <div className="flex items-center gap-2">
+                                    <TrendingUp className="w-4 h-4 text-emerald-500" />
+                                    <span className="text-lg font-black text-gray-900 font-mono">{course.completionRate || 68}%</span>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono block">Revenue</span>
+                                  <div className="flex items-center gap-2">
+                                    <DollarSign className="w-4 h-4 text-amber-500" />
+                                    <span className="text-lg font-black text-gray-900 font-mono">${(course.price || 0) * (course.enrolledCount || 0)}</span>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono block">Last Updated</span>
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-slate-400" />
+                                    <span className="text-sm font-black text-gray-700 font-mono">2 days ago</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* TAB 1: ANALYTICS DASHBOARD */}
+              {/* TAB 2: ANALYTICS DASHBOARD */}
               {creatorTab === "analytics" && (
                 <div className="space-y-6 animate-in fade-in duration-200">
                   {/* Stats Grid */}
@@ -2881,547 +3056,296 @@ export default function ClassroomView({
             </div>
           ) : (
             /* ==============================================================================
-               STANDARD STUDENT CLASSROOM VIEW
+               STANDARD STUDENT CLASSROOM VIEW (SKOOL REDESIGN)
                ============================================================================== */
-            <>
-              {/* Tab Selection */}
-              <div className="flex border-b border-gray-200 mb-6 gap-6 shrink-0 select-none">
-                <button
-                  onClick={() => setClassroomTab("dashboard")}
-                  className={`pb-2.5 text-xs uppercase font-mono tracking-wider font-bold transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
-                    classroomTab === "dashboard"
-                      ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
-                      : "text-gray-400 hover:text-gray-650 font-medium"
-                  }`}
-                >
-                  <Award className="w-3.5 h-3.5 text-indigo-500" /> 🏠 Classroom Dashboard
-                </button>
-                <button
-                  onClick={() => setClassroomTab("courses")}
-                  className={`pb-2.5 text-xs uppercase font-mono tracking-wider font-bold transition flex items-center gap-1.5 cursor-pointer border-0 bg-transparent ${
-                    classroomTab === "courses"
-                      ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
-                      : "text-gray-400 hover:text-gray-650 font-medium"
-                  }`}
-                >
-                  <BookOpen className="w-3.5 h-3.5 text-indigo-500" /> 📚 Courses Catalog ({localCourses.length})
-                </button>
-              </div>
+            <div className="space-y-8 animate-in fade-in duration-300 pb-12" id="student-classroom-dashboard">
+              
+              {/* TOP SECTION: CONTINUE LEARNING */}
+              <section>
+                {(() => {
+                  const target = getContinueLearningTarget();
+                  if (!target || !target.course) {
+                    return (
+                      <div className="bg-white rounded-3xl border border-gray-200 p-12 text-center text-gray-450 shadow-sm">
+                        <GraduationCap className="w-16 h-16 text-indigo-100 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-gray-900">Welcome to your Classroom!</h3>
+                        <p className="text-sm text-gray-500 mt-2 max-w-sm mx-auto">
+                          You haven't started any courses yet. Enroll in a course to begin your learning journey.
+                        </p>
+                      </div>
+                    );
+                  }
 
-              {classroomTab === "dashboard" ? (
-                /* THE DETAILED SKOOL-STYLE DASHBOARD WRAPPER */
-                <div className="grid grid-cols-12 gap-6 animate-in fade-in duration-200" id="student-dashboard-tab">
-                  {/* LEFT MAIN COLUMN: CONTINUE LEARNING & COURSE PROGRESS */}
-                  <div className="col-span-12 lg:col-span-8 space-y-6">
-                    {/* CONTINUE LEARNING CARD */}
-                    {(() => {
-                      const target = getContinueLearningTarget();
-                      if (!target || !target.course) {
-                        return (
-                          <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center text-gray-450 shadow-xs">
-                            <GraduationCap className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                            <h3 className="text-sm font-bold text-gray-700">Ready to begin?</h3>
-                            <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
-                              Click on the <strong>Courses Catalog</strong> tab above to browse learning modules and start completing lessons.
+                  const progress = getCourseProgress(target.course);
+                  return (
+                    <div className="bg-white rounded-[32px] border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition group border-b-4 border-b-indigo-500">
+                      <div className="flex flex-col md:flex-row">
+                        <div className="w-full md:w-80 h-48 md:h-auto overflow-hidden relative">
+                          <img 
+                            src={target.course.coverUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800"} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+                            alt="" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                          <div className="absolute bottom-4 left-4">
+                            <span className="bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-lg">
+                              Continue Learning
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex-1 p-8 flex flex-col justify-center space-y-6">
+                          <div>
+                            <h2 className="text-2xl font-black text-gray-900 group-hover:text-indigo-600 transition leading-tight">{target.course.name}</h2>
+                            <p className="text-sm text-gray-500 mt-2 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                              Last Lesson: <span className="font-bold text-gray-800">{target.nextLesson?.title || "Introduction"}</span>
                             </p>
                           </div>
-                        );
-                      }
-
-                      const progress = getCourseProgress(target.course);
-                      return (
-                        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm relative overflow-hidden flex flex-col md:flex-row gap-5 items-center hover:border-gray-300 transition duration-150">
-                          {/* Course covered picture */}
-                          <div className="w-full md:w-36 h-24 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-100">
-                            <img
-                              src={target.course.coverUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=400&q=80"}
-                              alt={target.course.name}
-                              crossOrigin="anonymous"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-
-                          {/* Info & action */}
-                          <div className="flex-1 min-w-0 space-y-2.5 w-full">
-                            <div>
-                              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded">
-                                Continue Learning (Resume Course)
-                              </span>
-                              <h3 className="text-sm font-extrabold text-gray-900 truncate mt-1">
-                                {target.course.name}
-                              </h3>
-                              {target.nextLesson && (
-                                <p className="text-[11px] text-gray-400 mt-0.5">
-                                  Left Off: <strong className="text-gray-700 font-semibold">{target.nextLesson.title}</strong>
-                                </p>
-                              )}
+                          
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-end">
+                              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono">Your Course Progress</span>
+                              <span className="text-lg font-black text-indigo-600 font-mono">{progress}%</span>
                             </div>
-
-                            {/* Progress bar */}
-                            <div className="space-y-1">
-                              <div className="flex justify-between items-center text-[10px] font-mono text-gray-400">
-                                <span>Overall Progress %</span>
-                                <span className="font-bold text-gray-755">{progress}%</span>
-                              </div>
-                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                <div
-                                  className="bg-indigo-650 h-full rounded-full transition-all duration-300"
-                                  style={{ width: `${progress}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Button action */}
-                            <div className="flex justify-end pt-0.5">
-                              <button
-                                onClick={() => {
-                                  setSelectedCourse(target.course);
-                                  if (target.nextLesson) {
-                                    setActiveLesson(target.nextLesson);
-                                  } else if (target.course?.modules?.[0]?.lessons?.[0]) {
-                                    setActiveLesson(target.course.modules[0].lessons[0]);
-                                  }
-                                }}
-                                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 cursor-pointer"
-                              >
-                                ⚡ Resume Study
-                              </button>
+                            <div className="w-full bg-gray-100 h-4 rounded-full overflow-hidden p-1 border border-gray-50">
+                              <div className="bg-gradient-to-r from-indigo-500 to-indigo-700 h-full rounded-full transition-all duration-700 shadow-sm" style={{ width: `${progress}%` }} />
                             </div>
                           </div>
+
+                          <div className="pt-2">
+                            <button 
+                              onClick={() => {
+                                setSelectedCourse(target.course);
+                                if (target.nextLesson) setActiveLesson(target.nextLesson);
+                                else if (target.course?.modules?.[0]?.lessons?.[0]) setActiveLesson(target.course.modules[0].lessons[0]);
+                              }}
+                              className="px-10 py-4 bg-gray-900 hover:bg-indigo-600 text-white rounded-2xl font-black text-sm transition-all shadow-xl shadow-gray-200 flex items-center gap-2 group/btn cursor-pointer active:scale-95"
+                            >
+                              Resume Course <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1.5 transition" />
+                            </button>
+                          </div>
                         </div>
-                      );
-                    })()}
-
-                    {/* COURSE PROGRESS REGISTRY */}
-                    <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
-                      <h3 className="text-xs font-bold text-gray-900 font-mono uppercase tracking-wider border-b border-gray-100 pb-2">
-                        Course Progress & Completion %
-                      </h3>
-                      
-                      {localCourses.length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">No syllabus courses available yet.</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {localCourses.map((course) => {
-                            const progress = getCourseProgress(course);
-                            return (
-                              <div key={course.id} className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition hover:border-gray-250">
-                                <div className="min-w-0 pr-2">
-                                  <span className="text-[10.5px] font-bold text-gray-800 truncate block">
-                                    {course.name}
-                                  </span>
-                                  <span className="text-[8.5px] font-mono block text-gray-450 mt-0.5 uppercase">
-                                    {course.modules?.length || 0} Modules • {progress}% Completed
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-4 shrink-0">
-                                  <div className="w-24 bg-gray-100 h-1.5 rounded-full overflow-hidden hidden sm:block">
-                                    <div className="h-full transition-all" style={{ width: `${progress}%`, backgroundColor: '#4f46e5' }} />
-                                  </div>
-
-                                  {progress === 100 ? (
-                                    <button
-                                      onClick={() => {
-                                        setSelectedCourse(course);
-                                        setCertificateModalOpen(true);
-                                      }}
-                                      className="px-3 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-250 text-amber-800 rounded-lg text-[9.5px] font-bold tracking-tight uppercase flex items-center gap-1 cursor-pointer shrink-0 animate-pulse"
-                                    >
-                                      ⭐ Claim Certificate
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        setSelectedCourse(course);
-                                        if (course.modules?.[0]?.lessons?.[0]) {
-                                          setActiveLesson(course.modules[0].lessons[0]);
-                                        }
-                                      }}
-                                      className="px-3 py-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-lg text-[9.5px] font-semibold tracking-tight uppercase shrink-0 cursor-pointer"
-                                    >
-                                      Browse
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* CERTIFICATES EARNED PANEL */}
-                    <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
-                      <div className="flex justify-between items-center border-b border-gray-105 pb-2">
-                        <h3 className="text-xs font-bold text-gray-950 font-mono uppercase tracking-wider">
-                          Certificates Earned
-                        </h3>
-                        <span className="text-[9px] bg-amber-100 text-amber-950 px-2 py-0.5 rounded font-mono font-bold scale-95 uppercase">
-                          Mastery Accreditations
-                        </span>
                       </div>
-
-                      {localCourses.filter(c => getCourseProgress(c) === 100).length === 0 ? (
-                        <div className="bg-slate-50 border border-slate-100 p-5 rounded-xl text-center">
-                          <Award className="w-8 h-8 text-gray-200 mx-auto mb-1.5" />
-                          <p className="text-[10px] text-gray-400 font-medium font-sans">Verify 100% lecture completions across a syllabus to unlock accredited diploma files immediately!</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {localCourses.filter(c => getCourseProgress(c) === 100).map(course => (
-                            <div key={course.id} className="border border-amber-200 bg-amber-50/15 hover:bg-amber-50/25 rounded-xl p-3.5 flex flex-col justify-between hover:scale-[1.01] transition duration-155">
-                              <div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-[8px] font-mono bg-amber-500 text-white font-bold px-1.5 py-0.2 rounded uppercase">
-                                    VERIFIED MASTER
-                                  </span>
-                                  <span className="text-[8.5px] text-gray-400 font-mono">
-                                    ID: {course.id.substring(0, 5)}
-                                  </span>
-                                </div>
-                                <h4 className="text-xs font-bold text-gray-900 mt-2 line-clamp-1">{course.name}</h4>
-                                <p className="text-[9.5px] text-gray-500 mt-0.5">Course completed.</p>
-                              </div>
-                              <div className="pt-3 flex justify-end shrink-0">
-                                <button
-                                  onClick={() => {
-                                    setSelectedCourse(course);
-                                    setCertificateModalOpen(true);
-                                  }}
-                                  className="px-3 py-1 bg-white hover:bg-amber-50 border border-amber-255 text-amber-800 text-[10px] font-bold rounded-lg cursor-pointer"
-                                >
-                                  🔍 View Diploma
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
+                  );
+                })()}
+              </section>
+
+              {/* MIDDLE SECTION: MY COURSES GRID */}
+              <section className="space-y-6">
+                <div className="flex justify-between items-end px-1 border-b border-gray-100 pb-4">
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight">My Courses</h3>
+                    <p className="text-xs text-gray-400 mt-1 font-medium">Access your enrolled curriculum and training paths.</p>
                   </div>
-
-                  {/* RIGHT SIDEBAR COLUMN: RSVPS & STREAKS */}
-                  <div className="col-span-12 lg:col-span-4 space-y-6">
-                    {/* UPCOMING LIVE SESSIONS */}
-                    <div className="bg-white rounded-2xl border border-gray-205 p-5 space-y-3.5">
-                      <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-                        <h3 className="text-xs font-bold text-gray-900 font-mono uppercase tracking-wider">
-                          Upcoming Live Sessions
-                        </h3>
-                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                      </div>
-
-                      <div className="space-y-3">
-                        {liveSessions.map((session) => {
-                          const isRSVPd = rsvps[session.id] === true;
-                          return (
-                            <div key={session.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl space-y-2 relative transition hover:border-gray-250">
-                              {session.isLiveSoon && (
-                                <span className="absolute top-2.5 right-2 px-1.5 py-0.2 bg-rose-50 text-rose-700 font-bold font-mono text-[7.5px] rounded animate-pulse uppercase">
-                                  LIVE
-                                </span>
-                              )}
-                              <div>
-                                <h4 className="text-xs font-bold text-gray-850 pr-8">{session.title}</h4>
-                                <p className="text-[9px] text-indigo-650 font-semibold font-mono mt-0.5">{session.date}</p>
-                                <p className="text-[9.5px] text-gray-450 leading-relaxed mt-1 font-sans">{session.desc}</p>
-                              </div>
-
-                              <div className="flex items-center justify-between pt-1 border-t border-slate-100/40 font-mono text-[10px] text-gray-350 mt-1 shrink-0">
-                                <span>👥 RSVPs: {session.attendees + (isRSVPd ? 1 : 0)}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setRsvps(prev => ({ ...prev, [session.id]: !isRSVPd }));
-                                  }}
-                                  className={`px-2 py-0.5 border rounded font-mono font-bold uppercase transition text-[8.5px] cursor-pointer ${
-                                    isRSVPd
-                                      ? "bg-emerald-50 border-emerald-250 text-emerald-850 animate-bounce"
-                                      : "bg-white border-gray-255 hover:bg-slate-50 text-gray-650"
-                                  }`}
-                                >
-                                  {isRSVPd ? "✓ Enrolled" : "🎟️ RSVP"}
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* RECENTLY VIEWED LESSONS FEED */}
-                    <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3.5">
-                      <h3 className="text-xs font-bold text-gray-900 font-mono uppercase tracking-wider border-b border-gray-100 pb-2">
-                        Recently Viewed Lessons
-                      </h3>
-
-                      {recentlyViewed.length === 0 ? (
-                        <p className="text-[10px] text-gray-400 font-mono italic text-center py-4">
-                          No matching viewed history found.
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {recentlyViewed.map((item, index) => {
-                            const matchedCourse = localCourses.find(c => c.id === item.courseId);
-                            
-                            return (
-                              <div key={index} className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 flex items-center justify-between gap-1 hover:border-indigo-150 transition">
-                                <div className="min-w-0 pr-1 select-text">
-                                  <span className="text-[10px] font-bold text-gray-800 truncate block">
-                                    {item.title}
-                                  </span>
-                                  <span className="text-[8px] text-indigo-500 font-mono font-semibold block mt-0.5 truncate uppercase">
-                                    {item.courseName}
-                                  </span>
-                                </div>
-                                
-                                {matchedCourse ? (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedCourse(matchedCourse);
-                                      if (matchedCourse.modules) {
-                                        for (const mod of matchedCourse.modules) {
-                                          const matchedL = mod.lessons?.find(l => l.id === item.id);
-                                          if (matchedL) {
-                                            setActiveLesson(matchedL);
-                                            break;
-                                          }
-                                        }
-                                      }
-                                    }}
-                                    className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-150 text-indigo-700 rounded-lg text-[8.5px] font-mono font-bold uppercase shrink-0"
-                                  >
-                                    Resume
-                                  </button>
-                                ) : (
-                                  <span className="text-[8px] text-gray-355 select-none">Void</span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* STREAKS CARD */}
-                    <div className="bg-gradient-to-br from-indigo-900 to-indigo-950 text-white rounded-2xl p-5 space-y-3 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-3 opacity-10">
-                        <Award className="w-16 h-16 text-indigo-100" />
-                      </div>
-                      <div>
-                        <span className="text-[8px] font-mono bg-indigo-650 text-indigo-200 px-2 py-0.5 rounded uppercase font-bold tracking-widest">
-                          Rhythm Multiplier
-                        </span>
-                        <h4 className="text-sm font-extrabold text-white mt-1.5">Learning Streaks</h4>
-                        <p className="text-[10px] text-indigo-200 leading-normal mt-0.5">
-                          Completed lectures consecutive days in a row to earn Level boosts!
-                        </p>
-                      </div>
-                      <div className="flex justify-between items-center py-1 mt-1 font-mono text-xs text-indigo-100 shrink-0 select-none">
-                        <span>🔥 Your Active Streak:</span>
-                        <strong className="text-amber-400 font-bold">5 Days</strong>
-                      </div>
-                    </div>
-                  </div>
+                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full font-mono uppercase tracking-widest">{localCourses.length} Enrolled</span>
                 </div>
-              ) : (
-                /* STUDENT COURSE REGISTRY / BROWSER CATALOG */
-                <div id="student-courses-catalog" className="space-y-6">
-                  <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
-                      <div className="p-6 sm:p-8">
-                        <div className="mb-5 flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
-                            <GraduationCap className="h-3.5 w-3.5" />
-                            Classroom
-                          </span>
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                            <CheckCircle className="h-3.5 w-3.5" />
-                            Modules first
-                          </span>
-                        </div>
-                        <h2 className="max-w-2xl text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
-                          Pick a classroom path, then move through each module like a Skool course.
-                        </h2>
-                        <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-                          Courses should feel like community learning hubs: clear modules, visible progress, lessons, resources, and discussion prompts all in one place.
-                        </p>
-                      </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {localCourses.map(course => {
+                    const progress = getCourseProgress(course);
+                    const totalLessons = course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;
+                    const completedCount = course.modules?.reduce((acc, m) => {
+                      return acc + (m.lessons?.filter(l => completedLessons.includes(l.id)).length || 0);
+                    }, 0) || 0;
 
-                      <div className="border-t border-slate-200 bg-slate-950 p-6 text-white lg:border-l lg:border-t-0">
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="rounded-xl bg-white/10 p-3">
-                            <span className="block text-xl font-bold">{localCourses.length}</span>
-                            <span className="text-[10px] text-slate-400">Courses</span>
-                          </div>
-                          <div className="rounded-xl bg-white/10 p-3">
-                            <span className="block text-xl font-bold">
-                              {localCourses.reduce((sum, course) => sum + (course.modules?.length || 0), 0)}
+                    return (
+                      <button 
+                        key={course.id}
+                        onClick={() => {
+                          setSelectedCourse(course);
+                          if (course.modules?.[0]?.lessons?.[0]) setActiveLesson(course.modules[0].lessons[0]);
+                        }}
+                        className="bg-white rounded-[32px] border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 text-left group flex flex-col h-full cursor-pointer hover:-translate-y-1"
+                      >
+                        <div className="h-48 overflow-hidden relative">
+                          <img 
+                            src={course.coverUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600"} 
+                            className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+                            alt="" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                          <div className="absolute top-4 right-4">
+                            <span className="bg-white/95 backdrop-blur-sm text-[10px] font-black px-3 py-1.5 rounded-xl shadow-lg text-gray-900 border border-gray-100">
+                              {completedCount}/{totalLessons} Lessons
                             </span>
-                            <span className="text-[10px] text-slate-400">Modules</span>
                           </div>
-                          <div className="rounded-xl bg-white/10 p-3">
-                            <span className="block text-xl font-bold">
-                              {localCourses.reduce((sum, course) => sum + (course.modules?.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0) || 0), 0)}
-                            </span>
-                            <span className="text-[10px] text-slate-400">Lessons</span>
+                          {progress === 100 && (
+                            <div className="absolute top-4 left-4">
+                              <span className="bg-emerald-500 text-white text-[9px] font-black px-3 py-1.5 rounded-xl shadow-lg uppercase tracking-widest">
+                                Completed
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-6 flex-1 flex flex-col justify-between space-y-6">
+                          <h4 className="font-black text-gray-900 group-hover:text-indigo-600 transition leading-tight text-lg line-clamp-2">
+                            {course.name}
+                          </h4>
+                          
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono">
+                              <span>Syllabus Progress</span>
+                              <span className="text-indigo-600 text-sm">{progress}%</span>
+                            </div>
+                            <div className="w-full bg-gray-50 h-3 rounded-full overflow-hidden border border-gray-100 p-0.5">
+                              <div className="bg-indigo-600 h-full rounded-full transition-all duration-700 shadow-sm" style={{ width: `${progress}%` }} />
+                            </div>
                           </div>
                         </div>
-                        <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
-                          <p className="text-xs font-semibold text-slate-200">Frontend recommendation</p>
-                          <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                            Keep this page learner-facing. Put buying, enrollment, module previews, and progress here; keep editing in Course Builder.
-                          </p>
-                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* BOTTOM SECTION: DASHBOARD GRID */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-4">
+                
+                {/* LEFT: COMPLETED & CERTIFICATES */}
+                <div className="lg:col-span-8 space-y-10">
+                  
+                  {/* COMPLETED COURSES */}
+                  {localCourses.filter(c => getCourseProgress(c) === 100).length > 0 && (
+                    <section className="space-y-5">
+                      <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                        <CheckCircle className="w-6 h-6 text-emerald-500" /> Completed Courses
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        {localCourses.filter(c => getCourseProgress(c) === 100).map(course => (
+                          <div key={course.id} className="bg-emerald-50/20 border-2 border-emerald-100 rounded-3xl p-5 flex items-center justify-between gap-4 group hover:bg-emerald-50/40 transition">
+                            <div className="flex items-center gap-4">
+                              <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-inner">
+                                <Award className="w-7 h-7" />
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="text-base font-black text-gray-900 truncate leading-tight">{course.name}</h4>
+                                <span className="text-[10px] text-emerald-600 font-black font-mono uppercase tracking-widest mt-1 block">Course Mastered</span>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => {
+                                setSelectedCourse(course);
+                                setCertificateModalOpen(true);
+                              }}
+                              className="p-3 bg-white hover:bg-emerald-500 hover:text-white rounded-2xl transition-all shadow-sm text-emerald-600 cursor-pointer active:scale-90"
+                              title="View Certificate"
+                            >
+                              <Award className="w-6 h-6" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
+                    </section>
+                  )}
+
+                  {/* CERTIFICATES ACCREDITATION */}
+                  <section className="space-y-5">
+                    <div className="flex justify-between items-end">
+                      <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                        <Award className="w-6 h-6 text-amber-500" /> Certificates
+                      </h3>
+                    </div>
+                    {localCourses.filter(c => getCourseProgress(c) === 100).length === 0 ? (
+                      <div className="bg-white border-2 border-dashed border-gray-200 rounded-[32px] p-12 text-center">
+                        <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center text-gray-200 mx-auto mb-4 border border-gray-100">
+                          <Award className="w-10 h-10" />
+                        </div>
+                        <h4 className="text-base font-bold text-gray-700">No Certificates Earned Yet</h4>
+                        <p className="text-sm text-gray-400 mt-2 max-w-xs mx-auto">Complete any course 100% to unlock your professional accreditation diplomas here.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                         {localCourses.filter(c => getCourseProgress(c) === 100).map(course => (
+                           <button 
+                             key={`cert-card-${course.id}`}
+                             onClick={() => {
+                               setSelectedCourse(course);
+                               setCertificateModalOpen(true);
+                             }}
+                             className="bg-white border border-gray-200 rounded-[32px] p-8 flex flex-col items-center text-center space-y-4 hover:border-amber-400 hover:shadow-2xl transition-all duration-300 group cursor-pointer border-b-4 border-b-amber-500"
+                           >
+                             <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 shadow-inner">
+                               <Award className="w-10 h-10" />
+                             </div>
+                             <div className="space-y-1">
+                               <h4 className="text-lg font-black text-gray-900 leading-tight">{course.name}</h4>
+                               <p className="text-xs text-gray-400 font-black font-mono uppercase tracking-[0.2em]">Verified Credential</p>
+                             </div>
+                             <div className="pt-2">
+                               <span className="text-[10px] bg-amber-500 text-white font-black px-4 py-2 rounded-full shadow-lg">VIEW CERTIFICATE</span>
+                             </div>
+                           </button>
+                         ))}
+                      </div>
+                    )}
+                  </section>
+                </div>
+
+                {/* RIGHT: LIVE SESSIONS & DISCUSSION UPDATES */}
+                <div className="lg:col-span-4 space-y-10">
+                  
+                  {/* UPCOMING LIVE SESSIONS */}
+                  <section className="space-y-5">
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                      <PlayCircle className="w-6 h-6 text-rose-500" /> Live Sessions
+                    </h3>
+                    <div className="space-y-5">
+                      {liveSessions.map(session => (
+                        <div key={session.id} className="bg-white border border-gray-200 rounded-[32px] p-6 space-y-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                          {session.isLiveSoon && <div className="absolute top-0 left-0 w-full h-1 bg-rose-500 animate-pulse" />}
+                          <div className="flex justify-between items-start">
+                            <span className={`text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-sm ${
+                              session.isLiveSoon ? "bg-rose-500 text-white" : "bg-indigo-50 text-indigo-700"
+                            }`}>
+                              {session.isLiveSoon ? "LIVE NOW" : "UPCOMING"}
+                            </span>
+                            {session.isLiveSoon && <span className="w-3 h-3 rounded-full bg-rose-500 animate-ping" />}
+                          </div>
+                          <h4 className="font-black text-gray-900 text-base leading-tight group-hover:text-indigo-600 transition">{session.title}</h4>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 font-black font-mono">
+                            <span className="text-indigo-600">{session.date}</span>
+                          </div>
+                          <button className="w-full py-3.5 bg-gray-900 hover:bg-indigo-600 text-white rounded-2xl text-xs font-black transition-all shadow-lg shadow-gray-200 cursor-pointer active:scale-95">
+                            {session.isLiveSoon ? "Join Broadcast" : "Register / RSVP"}
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </section>
 
-                  {localCourses.length === 0 ? (
-                    <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm">
-                      <BookOpen className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-                      <h4 className="text-sm font-bold text-slate-800">No courses yet</h4>
-                      <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500">
-                        Courses will appear here once they are created and published.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                      {localCourses.map((course) => {
-                        const courseStatus = (course.status || "draft") as CourseStatus;
-                        const progress = getCourseProgress(course);
-                        const lessonCount = course.modules?.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0) || 0;
-                        const firstLesson = course.modules?.[0]?.lessons?.[0] || null;
-
-                        return (
-                          <article
-                            key={course.id}
-                            className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg"
-                            id={`course-grid-card-${course.id}`}
-                          >
-                            <div className="grid lg:grid-cols-[230px_1fr]">
-                              <div className="relative min-h-[220px] overflow-hidden bg-slate-100">
-                                <img
-                                  src={course.coverUrl || "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80"}
-                                  alt={course.name}
-                                  referrerPolicy="no-referrer"
-                                  className="absolute inset-0 h-full w-full object-cover transition duration-500 hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                                <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-                                  <span className={`rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${getStatusColor(courseStatus)}`}>
-                                    {getStatusLabel(courseStatus)}
-                                  </span>
-                                  {course.isPremiumOnly && (
-                                    <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">
-                                      Premium
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="absolute bottom-4 left-4 right-4 text-white">
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">
-                                    {course.category || getCourseTypeLabel(course.courseType)}
-                                  </p>
-                                  <h3 className="mt-1 line-clamp-2 text-lg font-extrabold leading-tight">{course.name}</h3>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col gap-5 p-5">
-                                <p className="line-clamp-2 text-sm leading-6 text-slate-600">
-                                  {course.description || "A focused classroom path with lessons, resources, and community discussion."}
-                                </p>
-
-                                <div className="grid grid-cols-3 gap-2">
-                                  <div className="rounded-xl bg-slate-50 p-3">
-                                    <span className="block text-base font-bold text-slate-950">{course.modules?.length || 0}</span>
-                                    <span className="text-[10px] font-medium text-slate-500">Modules</span>
-                                  </div>
-                                  <div className="rounded-xl bg-slate-50 p-3">
-                                    <span className="block text-base font-bold text-slate-950">{lessonCount}</span>
-                                    <span className="text-[10px] font-medium text-slate-500">Lessons</span>
-                                  </div>
-                                  <div className="rounded-xl bg-slate-50 p-3">
-                                    <span className="block text-base font-bold text-slate-950">{course.enrolledCount || 0}</span>
-                                    <span className="text-[10px] font-medium text-slate-500">Members</span>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="font-semibold text-slate-500">Course progress</span>
-                                    <span className="font-bold text-slate-950">{progress}%</span>
-                                  </div>
-                                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-indigo-600 transition-all duration-500"
-                                      style={{ width: `${progress}%` }}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                  {(course.modules || []).slice(0, 4).map((mod, modIdx) => {
-                                    const moduleLessons = mod.lessons || [];
-                                    const doneCount = moduleLessons.filter((lesson) => completedLessons.includes(lesson.id)).length;
-                                    const moduleProgress = moduleLessons.length ? Math.round((doneCount / moduleLessons.length) * 100) : 0;
-
-                                    return (
-                                      <button
-                                        key={mod.id}
-                                        type="button"
-                                        onClick={() => {
-                                          handleSelectCourse(course);
-                                          if (moduleLessons[0]) setActiveLesson(moduleLessons[0]);
-                                        }}
-                                        className="group/module rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-indigo-200 hover:bg-white"
-                                      >
-                                        <div className="flex items-start gap-2">
-                                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[10px] font-bold text-slate-700 shadow-sm">
-                                            {modIdx + 1}
-                                          </span>
-                                          <div className="min-w-0 flex-1">
-                                            <p className="truncate text-xs font-bold text-slate-900 group-hover/module:text-indigo-700">
-                                              {mod.title}
-                                            </p>
-                                            <p className="mt-0.5 text-[10px] text-slate-500">
-                                              {moduleLessons.length} lessons / {moduleProgress}% done
-                                            </p>
-                                          </div>
-                                        </div>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-
-                                <div className="flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                                  <div className="text-xs text-slate-500">
-                                    {course.price > 0 ? (
-                                      <span className="font-semibold text-emerald-700">${course.price}/mo</span>
-                                    ) : (
-                                      <span>Included in community</span>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => {
-                                      handleSelectCourse(course);
-                                      if (firstLesson) setActiveLesson(firstLesson);
-                                    }}
-                                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-indigo-700"
-                                  >
-                                    Open Classroom <ChevronRight className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </div>
+                  {/* DISCUSSION UPDATES (Skool-Style Activity) */}
+                  <section className="space-y-5">
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                      <Box className="w-6 h-6 text-indigo-500" /> Community Updates
+                    </h3>
+                    <div className="bg-white border border-gray-200 rounded-[32px] overflow-hidden shadow-sm">
+                      <div className="divide-y divide-gray-50">
+                        {studentActivities.slice(0, 5).map(act => (
+                          <div key={act.id} className="p-5 flex items-start gap-4 hover:bg-gray-50 transition-colors group cursor-default">
+                            <div className="relative shrink-0">
+                              <img src={act.avatar} className="w-10 h-10 rounded-2xl object-cover border-2 border-white shadow-md group-hover:scale-110 transition" alt="" />
+                              <div className="absolute -bottom-1 -right-1 bg-indigo-500 w-4 h-4 rounded-full border-2 border-white" />
                             </div>
-                          </article>
-                        );
-                      })}
+                            <div className="min-w-0 space-y-1">
+                              <p className="text-xs text-gray-800 leading-relaxed">
+                                <span className="font-black text-gray-900">{act.studentName}</span> 
+                                <span className="text-gray-500 mx-1">{act.action}</span> 
+                                <span className="font-bold text-indigo-600">{act.target}</span>
+                              </p>
+                              <span className="text-[10px] text-gray-400 font-black font-mono uppercase tracking-tighter">{act.time}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <button className="w-full py-4 bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-indigo-600 hover:bg-white transition-all border-t border-gray-100 cursor-pointer">
+                        View All Recent Activity
+                      </button>
                     </div>
-                  )}
+                  </section>
                 </div>
-              )}
-            </>
+
+              </div>
           )}
 
           {/* CREATE MANUAL COURSE DIALOG INLINE MODAL */}
@@ -3449,34 +3373,34 @@ export default function ClassroomView({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Acumen Description</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Description</label>
                     <textarea
                       rows={3}
-                      placeholder="e.g. Deep dive setup handling routing mechanisms, edge databases, Stripe popups..."
+                      placeholder="Briefly describe what students will learn..."
                       value={newCourseDesc}
                       onChange={(e) => setNewCourseDesc(e.target.value)}
-                      className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350"
+                      className="w-full p-4 bg-gray-50 border border-gray-100 rounded-[20px] focus:outline-none focus:bg-white focus:border-indigo-500 text-sm font-medium transition"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Cover Picture URL</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Cover Image URL</label>
                     <input
                       type="text"
-                      placeholder="https://images.unsplash.com/photo-..."
+                      placeholder="https://images.unsplash.com/..."
                       value={newCourseCover}
                       onChange={(e) => setNewCourseCover(e.target.value)}
-                      className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 font-mono"
+                      className="w-full p-4 bg-gray-50 border border-gray-100 rounded-[20px] focus:outline-none focus:bg-white focus:border-indigo-500 text-sm font-mono transition"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Course Type</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Course Type</label>
                       <select
                         value={newCourseType}
                         onChange={(e) => setNewCourseType(e.target.value as CourseType)}
-                        className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 text-xs"
+                        className="w-full p-4 bg-gray-50 border border-gray-100 rounded-[20px] focus:outline-none focus:bg-white focus:border-indigo-500 text-sm font-black appearance-none cursor-pointer transition"
                       >
                         <option value="mini_course">Mini Course</option>
                         <option value="flagship">Flagship</option>
@@ -3487,11 +3411,11 @@ export default function ClassroomView({
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Difficulty</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Difficulty</label>
                       <select
                         value={newCourseDifficulty}
                         onChange={(e) => setNewCourseDifficulty(e.target.value as DifficultyLevel)}
-                        className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 text-xs"
+                        className="w-full p-4 bg-gray-50 border border-gray-100 rounded-[20px] focus:outline-none focus:bg-white focus:border-indigo-500 text-sm font-black appearance-none cursor-pointer transition"
                       >
                         <option value="beginner">Beginner</option>
                         <option value="intermediate">Intermediate</option>
@@ -3500,25 +3424,28 @@ export default function ClassroomView({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Price ($)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={newCoursePrice}
-                        onChange={(e) => setNewCoursePrice(Number(e.target.value))}
-                        className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 text-xs"
-                      />
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Price (USD)</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black">$</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={newCoursePrice}
+                          onChange={(e) => setNewCoursePrice(Number(e.target.value))}
+                          className="w-full p-4 pl-8 bg-gray-50 border border-gray-100 rounded-[20px] focus:outline-none focus:bg-white focus:border-indigo-500 text-sm font-black transition"
+                        />
+                      </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9.5px] font-bold text-gray-500 font-mono uppercase block">Category</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Category</label>
                       <input
                         type="text"
-                        placeholder="e.g. Web Development"
+                        placeholder="e.g. Business"
                         value={newCourseCategory}
                         onChange={(e) => setNewCourseCategory(e.target.value)}
-                        className="w-full p-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-350 text-xs"
+                        className="w-full p-4 bg-gray-50 border border-gray-100 rounded-[20px] focus:outline-none focus:bg-white focus:border-indigo-500 text-sm font-black transition"
                       />
                     </div>
                   </div>
