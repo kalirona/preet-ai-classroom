@@ -4334,7 +4334,6 @@ export default function ClassroomView({
             )}
           </div>
         </div>
-      )}
 
       {/* LUXURIOUS CERTIFICATE MODAL */}
       {certificateModalOpen && selectedCourse && (
