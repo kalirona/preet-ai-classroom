@@ -2733,7 +2733,7 @@ app.get("/api/users", authenticateUser, requirePlatformPermission(PlatformPermis
   }
 });
 
-app.get("/api/database/status", authenticateUser, async (_req, res) => {
+app.get("/api/database/status", async (_req, res) => {
   try {
     await query("SELECT 1 as ok");
     const userCount = await query("SELECT COUNT(*) as count FROM users");
