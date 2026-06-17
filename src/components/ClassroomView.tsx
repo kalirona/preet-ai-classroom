@@ -3346,7 +3346,6 @@ export default function ClassroomView({
                 </div>
 
               </div>
-          )}
 
           {/* CREATE MANUAL COURSE DIALOG INLINE MODAL */}
           {showCreateCourseModal && (
@@ -3470,7 +3469,6 @@ export default function ClassroomView({
               </div>
             </div>
           )}
-        </div>
       ) : (
         /* COURSE VIDEO PLAYER & MODULES INDEX - 3 PANEL LAYOUT */
         <div className="space-y-4">
@@ -5685,3 +5683,4 @@ export default function ClassroomView({
     </div>
   );
 }
+
