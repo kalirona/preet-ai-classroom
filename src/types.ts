@@ -427,6 +427,34 @@ export interface Course {
   creatorAvatar?: string;
   averageRating?: number;
   completionRate?: number;
+  // Landing page fields
+  slug?: string;
+  visibility?: "public" | "private" | "community_only";
+  accessType?: "free" | "paid" | "subscription";
+  subtitle?: string;
+  benefits?: string[];
+  whatYouWillLearn?: string[];
+  requirements?: string[];
+  targetAudience?: string[];
+  testimonials?: Testimonial[];
+  faq?: FaqItem[];
+  seoTitle?: string;
+  seoDescription?: string;
+  metaImage?: string;
+  workspaceId?: string;
+}
+
+export interface Testimonial {
+  name: string;
+  role: string;
+  content: string;
+  rating: number;
+  avatar?: string;
+}
+
+export interface FaqItem {
+  question: string;
+  answer: string;
 }
 
 export interface CourseEnrollment {

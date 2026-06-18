@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Community, User, PlatformRole } from "../types";
-import { 
+import AdminPayoutsView from "./admin/AdminPayoutsView";
+import {
   BarChart, Activity, Users, ShieldAlert, Cpu, HardDrive, Shield, CheckCircle2, AlertTriangle, 
   Send, RefreshCw, Layers, Database, BarChart3, TrendingUp, CreditCard, DollarSign, 
   Coins, ClipboardList, Sparkles, Image, Mail, Bell, Settings, ArrowRight, Trash2, 
@@ -87,15 +88,7 @@ export default function SuperAdminView({ currentUser, communities, activeSection
     { id: "enterprise", name: "Enterprise Custom Matrix", priceMonthly: 299, commissionFee: 1.5, activeWorkspaces: 19 },
   ]);
 
-  // Owner Payouts state
-  const [ownersPayoutList, setOwnersPayoutList] = useState([
-    { id: "cr01", name: "Haskell Masterclass Co.", email: "haskell.pro@tech.org", unpaidEarnings: 1480, status: "READY", lastPayoutDate: "2026-05-12" },
-    { id: "cr02", name: "Figma UX Guild", email: "uxfigma.school@gmail.com", unpaidEarnings: 820, status: "READY", lastPayoutDate: "2026-05-18" },
-    { id: "cr03", name: "Solidity Bootcamps Inc.", email: "contracts@solidity.zone", unpaidEarnings: 3200, status: "READY", lastPayoutDate: "2026-04-30" },
-    { id: "cr04", name: "DevOps & Cloud Native Rails", email: "kubernetes.infra@outlook.com", unpaidEarnings: 0, status: "PROCESSED", lastPayoutDate: "2026-05-28" },
-    { id: "cr05", name: "Minimalist Design Co.", email: "inter.typography@gmail.com", unpaidEarnings: 450, status: "READY", lastPayoutDate: "2026-05-01" },
-  ]);
-  const [payoutProcessingId, setPayoutProcessingId] = useState<string | null>(null);
+  // Payout requests loaded by AdminPayoutsView component
 
   // System Settings state
   const [deploymentRegion, setDeploymentRegion] = useState("gcp-us-central1");
@@ -262,15 +255,6 @@ export default function SuperAdminView({ currentUser, communities, activeSection
   };
 
   // Process payouts simulation
-  const handleProcessOwnerPayoutNow = (payoutId: string) => {
-    setPayoutProcessingId(payoutId);
-    setTimeout(() => {
-      setOwnersPayoutList(prev => prev.map(cr => cr.id === payoutId ? { ...cr, unpaidEarnings: 0, status: "PROCESSED" } : cr));
-      setPayoutProcessingId(null);
-      alert("Payout processed successfully.");
-    }, 1500);
-  };
-
   // Calculated overall MRR
   const totalMRR = communities.reduce((acc, current) => acc + (current.isPremium ? current.priceMonthly * current.membersCount : 0), 0) + 7480;
 
@@ -914,62 +898,7 @@ export default function SuperAdminView({ currentUser, communities, activeSection
             {/* ========================================================== */}
             {activeSection === "payouts" && (
               <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Owner Payouts</h3>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Review and approve pending wire transfers to community owners.</p>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-200 text-slate-400 font-bold font-mono text-[9.5px] uppercase tracking-wider bg-slate-50/50">
-                          <th className="py-2.5 px-3">Organization</th>
-                          <th className="py-2.5 px-3">Email</th>
-                          <th className="py-2.5 px-3 text-right">Balance Due</th>
-                          <th className="py-2.5 px-3">Status</th>
-                          <th className="py-2.5 px-3 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {ownersPayoutList.map((cr) => (
-                          <tr key={cr.id} className="hover:bg-slate-50/80 text-[10.5px] transition">
-                            <td className="py-3 px-3 font-bold text-slate-900">{cr.name}</td>
-                            <td className="py-3 px-3 text-slate-500 font-mono">{cr.email}</td>
-                            <td className="py-3 px-3 text-right font-bold font-mono text-slate-900">
-                              ${cr.unpaidEarnings.toLocaleString()}
-                            </td>
-                            <td className="py-3 px-3">
-                              <span className={`px-2 py-0.5 rounded text-[8.5px] font-mono uppercase font-bold border ${
-                                cr.unpaidEarnings > 0 
-                                  ? "bg-amber-50 text-amber-600 border-amber-200" 
-                                  : "bg-emerald-50 text-emerald-600 border-emerald-200"
-                              }`}>
-                                {cr.unpaidEarnings > 0 ? "Pending" : "Settled"}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              {payoutProcessingId === cr.id ? (
-                                <span className="text-[11px] font-bold text-indigo-600 flex items-center gap-1 justify-end font-mono animate-pulse">
-                                  <RefreshCw className="w-3 h-3 animate-spin" /> Processing...
-                                </span>
-                              ) : cr.unpaidEarnings > 0 ? (
-                                <button
-                                  onClick={() => handleProcessOwnerPayoutNow(cr.id)}
-                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition cursor-pointer shadow-sm"
-                                >
-                                  Process Payout
-                                </button>
-                              ) : (
-                                <span className="text-slate-300 text-[10px] select-none font-medium">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <AdminPayoutsView />
               </div>
             )}
              {/* ========================================================== */}

@@ -17,7 +17,7 @@ import {
   createWorkspace, updateWorkspace, findWorkspaceMember, createWorkspaceMember,
   updateWorkspaceMember, findWorkspaceMembers, findUserWorkspaceRoles,
   findPostsByWorkspace, findPostById, createPost, updatePost,
-  findCommentsByPost, createComment, findCoursesWithContent, findCourseById,
+  findCommentsByPost, createComment, findCoursesWithContent, findCourseById, findCourseBySlug,
   createCourse, updateCourse, deleteCourse, findModulesByCourse, createModule,
   findLessonsByModule, findLessonById, createLesson,
   findEventsByWorkspace, findEventById, createEvent, updateEvent,
@@ -30,6 +30,8 @@ import {
   findWorkspaceUserIds, findUsersByIds, findAllUsers, query, transaction,
   isDatabaseSeeded, createSchema, cleanupExpiredSessions, cleanupExpiredResetTokens, getPool,
   findEnrollmentsByCourse, findEnrollmentsByUser, findEnrollment, createEnrollment, updateEnrollment,
+  createPayoutRequest, findPayoutRequestsByWorkspace, findPayoutRequestById, findAllPayoutRequests, updatePayoutRequest,
+  findWorkspaceStudents,
   findResourcesByModule, createResource, deleteResource,
   findCertificateByEnrollment, createCertificate, findCertificatesByUser,
 } from "./server/db.js";
@@ -1456,6 +1458,14 @@ app.post("/api/courses", authenticateUser, requireWorkspacePermission(WorkspaceP
       creator_name: req.user.fullName, creator_avatar: req.user.avatarUrl,
     });
 
+    // Auto-generate slug if not provided
+    if (!course.slug && name) {
+      let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const existing = await findCourseBySlug(slug);
+      if (existing) slug = `${slug}-${Date.now()}`;
+      await updateCourse(courseId, { slug });
+    }
+
     for (const mod of modules || []) {
       const savedMod = await createModule({
         id: mod.id || `mod-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -1543,6 +1553,15 @@ app.put("/api/courses/:id", authenticateUser, requireWorkspacePermission(Workspa
         updateFields.published_at = new Date().toISOString();
         newStatus = "published";
       }
+    }
+
+    // Auto-generate slug if name changed and no explicit slug
+    if (!updateFields.slug && (updateFields.name || !existing.slug)) {
+      const nameForSlug = updateFields.name || existing.name;
+      let slug = nameForSlug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const existingBySlug = await findCourseBySlug(slug);
+      if (existingBySlug && existingBySlug.id !== id) slug = `${slug}-${Date.now()}`;
+      updateFields.slug = slug;
     }
 
     await updateCourse(id, updateFields);
@@ -1844,6 +1863,221 @@ app.post("/api/courses/generate-ai", authenticateUser, requireWorkspacePermissio
   } catch (err) {
     console.error("AI generate course error:", err);
     res.status(500).json({ error: "Failed to generate course with AI." });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PUBLIC COURSE API (no auth required)
+// ═══════════════════════════════════════════════════════════════
+
+app.get("/api/public/courses/:slug", async (req: any, res: any) => {
+  try {
+    const course = await findCourseBySlug(req.params.slug);
+    if (!course) return res.status(404).json({ error: "Course not found." });
+    if (course.visibility !== "public") return res.status(404).json({ error: "Course not found." });
+
+    // Only return public-safe fields
+    const publicCourse = {
+      id: course.id,
+      slug: course.slug,
+      name: course.name,
+      subtitle: course.subtitle,
+      description: course.description,
+      cover_url: course.cover_url,
+      price: parseFloat(course.price || "0"),
+      access_type: course.access_type,
+      benefits: course.benefits || [],
+      what_you_will_learn: course.what_you_will_learn || [],
+      requirements: course.requirements || [],
+      target_audience: course.target_audience || [],
+      testimonials: typeof course.testimonials === "string" ? JSON.parse(course.testimonials) : course.testimonials || [],
+      faq: typeof course.faq === "string" ? JSON.parse(course.faq) : course.faq || [],
+      creator_name: course.creator_name,
+      creator_avatar: course.creator_avatar,
+      average_rating: parseFloat(course.average_rating || "0"),
+      enrolled_count: course.enrolled_count || 0,
+      estimated_hours: parseFloat(course.estimated_hours || "0"),
+      difficulty_level: course.difficulty_level || "beginner",
+      tags: course.tags || [],
+      seo_title: course.seo_title,
+      seo_description: course.seo_description,
+      meta_image: course.meta_image,
+      modules: [],
+    };
+
+    // Include curriculum (module/lesson structure) for display
+    const modsResult = await query(
+      `SELECT m.id, m.title, m.description, m.index, m.is_free_preview,
+              l.id AS lesson_id, l.title AS lesson_title, l.duration_minutes, l.index AS lesson_index,
+              l.is_free_preview AS lesson_free_preview
+       FROM modules m
+       LEFT JOIN lessons l ON l.module_id = m.id
+       WHERE m.course_id = $1
+       ORDER BY m.index ASC, l.index ASC`,
+      [course.id]
+    );
+
+    const moduleMap = new Map<string, any>();
+    for (const row of modsResult.rows) {
+      if (!moduleMap.has(row.id)) {
+        moduleMap.set(row.id, {
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          index: row.index,
+          isFreePreview: row.is_free_preview,
+          lessons: [],
+        });
+      }
+      if (row.lesson_id) {
+        const mod = moduleMap.get(row.id);
+        mod.lessons.push({
+          id: row.lesson_id,
+          title: row.lesson_title,
+          durationMinutes: row.duration_minutes,
+          index: row.lesson_index,
+          isFreePreview: row.lesson_free_preview,
+        });
+      }
+    }
+    publicCourse.modules = Array.from(moduleMap.values());
+
+    res.json({ course: publicCourse });
+  } catch (err) {
+    console.error("Public course fetch error:", err);
+    res.status(500).json({ error: "Failed to fetch course." });
+  }
+});
+
+app.post("/api/public/courses/:slug/enroll", async (req: any, res: any) => {
+  try {
+    const course = await findCourseBySlug(req.params.slug);
+    if (!course) return res.status(404).json({ error: "Course not found." });
+    if (course.visibility !== "public") return res.status(404).json({ error: "Course not found." });
+    if (course.status !== "published") return res.status(400).json({ error: "Course is not open for enrollment." });
+    if (course.access_type === "paid") return res.status(400).json({ error: "Paid courses require payment. Use the checkout endpoint." });
+    if (course.max_enrollments && course.enrolled_count >= course.max_enrollments) {
+      return res.status(400).json({ error: "Course is full." });
+    }
+
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId is required." });
+
+    const existingEnrollment = await findEnrollment(course.id, userId);
+    if (existingEnrollment) return res.status(400).json({ error: "Already enrolled." });
+
+    const enrollment = await createEnrollment({
+      id: `enr-${Date.now()}`,
+      course_id: course.id,
+      user_id: userId,
+      workspace_id: course.workspace_id,
+      status: "active",
+      progress: 0,
+      completed_lessons: [],
+    });
+
+    await updateCourse(course.id, { enrolled_count: (course.enrolled_count || 0) + 1 });
+
+    res.json({ success: true, enrollment });
+  } catch (err) {
+    console.error("Public enroll error:", err);
+    res.status(500).json({ error: "Failed to enroll." });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// WORKSPACE STUDENTS (enrollments with user + course info)
+// ═══════════════════════════════════════════════════════════════
+
+app.get("/api/workspace/:workspaceId/students", authenticateUser, async (req: any, res: any) => {
+  try {
+    const { workspaceId } = req.params;
+    const students = await findWorkspaceStudents(workspaceId);
+    res.json({ students });
+  } catch (err) {
+    console.error("Workspace students error:", err);
+    res.status(500).json({ error: "Failed to fetch students." });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PAYOUT REQUESTS (Creator: submit & view, Admin: manage all)
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/api/payouts/request", authenticateUser, async (req: any, res: any) => {
+  try {
+    const { workspaceId, amount, notes } = req.body;
+    if (!workspaceId || !amount) return res.status(400).json({ error: "workspaceId and amount are required." });
+    if (amount <= 0) return res.status(400).json({ error: "Amount must be positive." });
+
+    const payout = await createPayoutRequest({
+      creator_user_id: req.user.id,
+      creator_name: req.user.fullName,
+      workspace_id: workspaceId,
+      amount,
+      notes: notes || "",
+      status: "pending",
+    });
+
+    await addAuditLog(req.user.id, req.user.fullName, "PAYOUT_REQUESTED", `Withdrawal request for $${amount}`, workspaceId);
+    res.json({ success: true, payout });
+  } catch (err) {
+    console.error("Payout request error:", err);
+    res.status(500).json({ error: "Failed to submit payout request." });
+  }
+});
+
+app.get("/api/payouts", authenticateUser, async (req: any, res: any) => {
+  try {
+    const workspaceId = req.query.workspaceId as string;
+    if (!workspaceId) return res.status(400).json({ error: "workspaceId is required." });
+    const payouts = await findPayoutRequestsByWorkspace(workspaceId);
+    res.json({ payouts });
+  } catch (err) {
+    console.error("Fetch payouts error:", err);
+    res.status(500).json({ error: "Failed to fetch payouts." });
+  }
+});
+
+// Super Admin: manage all payout requests
+app.get("/api/admin/payouts", authenticateUser, async (req: any, res: any) => {
+  try {
+    if (req.user.platformRole !== "super_admin") return res.status(403).json({ error: "Access denied." });
+    const status = req.query.status as string;
+    const payouts = await findAllPayoutRequests(status || undefined);
+    res.json({ payouts });
+  } catch (err) {
+    console.error("Admin payouts error:", err);
+    res.status(500).json({ error: "Failed to fetch payouts." });
+  }
+});
+
+app.put("/api/admin/payouts/:id", authenticateUser, async (req: any, res: any) => {
+  try {
+    if (req.user.platformRole !== "super_admin") return res.status(403).json({ error: "Access denied." });
+    const { id } = req.params;
+    const { status, adminNotes } = req.body;
+    if (!status || !["approved", "rejected", "paid"].includes(status)) {
+      return res.status(400).json({ error: "Valid status is required: approved, rejected, or paid." });
+    }
+
+    const existing = await findPayoutRequestById(id);
+    if (!existing) return res.status(404).json({ error: "Payout request not found." });
+
+    const updateFields: Record<string, any> = {
+      status,
+      admin_notes: adminNotes || existing.admin_notes || "",
+      processed_by: req.user.id,
+      processed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const updated = await updatePayoutRequest(id, updateFields);
+    await addAuditLog(req.user.id, req.user.fullName, "PAYOUT_UPDATED", `Payout ${id} → ${status}`, existing.workspace_id);
+    res.json({ success: true, payout: updated });
+  } catch (err) {
+    console.error("Admin payout update error:", err);
+    res.status(500).json({ error: "Failed to update payout." });
   }
 });
 

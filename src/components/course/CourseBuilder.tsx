@@ -25,10 +25,23 @@ import {
   Target,
   TrendingUp,
   Users,
+  X,
 } from "lucide-react";
 import { CourseDraft } from "./CourseTypes";
+import { courseTemplates } from "./CourseTemplates";
 import CourseCreationWizard from "./CourseCreationWizard";
-import CourseEditor from "./CourseEditor";
+import CourseBuilderStudio from "./CourseBuilderStudio";
+import ResourceLibrary from "./ResourceLibrary";
+
+const templateIcons: Record<string, string> = {
+  blank: "from-gray-400 to-gray-500",
+  mini: "from-emerald-400 to-emerald-600",
+  masterclass: "from-indigo-500 to-purple-600",
+  workshop: "from-amber-500 to-orange-600",
+  coaching: "from-rose-400 to-rose-600",
+  membership: "from-cyan-400 to-cyan-600",
+  challenge: "from-violet-400 to-violet-600",
+};
 
 interface CourseBuilderProps {
   communityId: string;
@@ -67,6 +80,7 @@ export default function CourseBuilder({
   const [courses, setCourses] = useState<CourseDraft[]>(initialCourses);
   const [activeDraft, setActiveDraft] = useState<CourseDraft | null>(null);
   const [showWizard, setShowWizard] = useState(false);
+  const [showResources, setShowResources] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>("all");
   const [builderView, setBuilderView] = useState<BuilderView>("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -193,7 +207,7 @@ export default function CourseBuilder({
 
   if (activeDraft) {
     return (
-      <CourseEditor
+      <CourseBuilderStudio
         draft={activeDraft}
         onUpdate={handleDraftUpdate}
         onBack={() => setActiveDraft(null)}
@@ -458,6 +472,44 @@ export default function CourseBuilder({
           </div>
         </section>
 
+        {/* Template quick-create grid */}
+        <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Start with a template</h2>
+              <p className="text-xs text-gray-500">Pre-built course structures to accelerate creation</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowWizard(true)}
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+            >
+              See all
+            </button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+            {courseTemplates.map((t) => {
+              const gradient = templateIcons[t.id] || "from-indigo-500 to-purple-500";
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    // Quick-create: prepopulate wizard with this template
+                    setShowWizard(true);
+                  }}
+                  className="flex flex-col items-center text-center shrink-0 w-32 p-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-sm bg-white transition-all group"
+                >
+                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center mb-2 group-hover:scale-105 transition-transform`}>
+                    <FileText className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-xs font-medium text-gray-900 mb-0.5">{t.name}</span>
+                  <span className="text-[10px] text-gray-400">{t.moduleCount}m · {t.lessonCount}l</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
             { label: "Courses", value: courseMetrics.total, icon: BookOpen },
@@ -508,13 +560,15 @@ export default function CourseBuilder({
               <div className="mt-3 space-y-2">
                 {[
                   { label: "Create drip schedule", icon: CalendarClock },
+                  { label: "Resource Library", icon: FileText, action: () => setShowResources(true) },
                   { label: "Add certificate", icon: GraduationCap },
                   { label: "Configure access", icon: Settings },
                   { label: "Student leaderboard", icon: BarChart3 },
-                ].map((tool) => (
+                ].map((tool: any) => (
                   <button
                     key={tool.label}
                     type="button"
+                    onClick={tool.action}
                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
                   >
                     <span className="flex items-center gap-2">
@@ -642,6 +696,22 @@ export default function CourseBuilder({
           onComplete={handleWizardComplete}
           onCancel={() => setShowWizard(false)}
         />
+      )}
+
+      {showResources && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowResources(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <h2 className="text-lg font-bold text-gray-900">Resource Library</h2>
+              <button onClick={() => setShowResources(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ResourceLibrary />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

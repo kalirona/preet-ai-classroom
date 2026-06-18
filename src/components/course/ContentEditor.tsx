@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Heading1, Heading2, Type, Video, Image, FileQuestion, ClipboardList, Paperclip, Quote, Minus, Code, Headphones, FileText, BarChart3, Lightbulb, Sparkles, Bot, PenSquare, MessageSquare, Users, MousePointerClick, ArrowUpRight, Calendar, GripVertical, Trash2, ChevronDown } from "lucide-react";
+import { Plus, Heading1, Heading2, Type, Video, Image, FileQuestion, ClipboardList, Paperclip, Quote, Minus, Code, Headphones, FileText, BarChart3, Lightbulb, Sparkles, Bot, PenSquare, MessageSquare, Users, MousePointerClick, ArrowUpRight, Calendar, GripVertical, Trash2, ChevronDown, Download, Pointer, ExternalLink } from "lucide-react";
 import { ContentBlock, BlockType } from "./CourseTypes";
 
 interface ContentEditorProps {
@@ -22,6 +22,8 @@ const blockTypeConfig: { type: BlockType; label: string; icon: React.ElementType
   { type: "code", label: "Code", icon: Code, color: "text-cyan-600" },
   { type: "audio", label: "Audio", icon: Headphones, color: "text-pink-600" },
   { type: "pdf", label: "PDF", icon: FileText, color: "text-red-600" },
+  { type: "button", label: "Button", icon: Pointer, color: "text-gray-900" },
+  { type: "embed", label: "Embed", icon: ExternalLink, color: "text-cyan-600" },
   { type: "poll", label: "Poll", icon: BarChart3, color: "text-violet-600" },
   { type: "reflection", label: "Reflection", icon: Lightbulb, color: "text-yellow-600" },
   { type: "ai_summary", label: "AI Summary", icon: Sparkles, color: "text-cyan-600" },
@@ -45,7 +47,7 @@ function getBlockColor(type: BlockType): string {
   return blockTypeConfig.find((b) => b.type === type)?.color || "text-gray-600";
 }
 
-function renderBlockContent(block: ContentBlock, onChange: (content: string) => void) {
+function renderBlockContent(block: ContentBlock, onChange: (content: string) => void, onMetaChange?: (key: string, value: any) => void) {
   switch (block.type) {
     case "heading":
       return (
@@ -169,6 +171,115 @@ function renderBlockContent(block: ContentBlock, onChange: (content: string) => 
             className="w-full text-xs text-green-400 bg-transparent border-none outline-none resize-none p-4 font-mono placeholder:text-gray-600"
             spellCheck={false}
           />
+        </div>
+      );
+    case "file":
+      return (
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-rose-800 mb-2">
+            <Download className="w-4 h-4" />
+            Download
+          </div>
+          <input
+            type="text"
+            value={block.content}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="File URL or upload path..."
+            className="w-full text-sm text-gray-700 bg-white border border-rose-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-rose-500/20"
+          />
+        </div>
+      );
+    case "audio":
+      return (
+        <div className="bg-pink-50 border border-pink-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-pink-800 mb-2">
+            <Headphones className="w-4 h-4" />
+            Audio
+          </div>
+          <input
+            type="text"
+            value={block.content}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Audio file URL (MP3, WAV)..."
+            className="w-full text-sm text-gray-700 bg-white border border-pink-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500/20"
+          />
+          {block.content && (
+            <audio controls src={block.content} className="mt-2 w-full h-10 rounded-lg" />
+          )}
+        </div>
+      );
+    case "pdf":
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-red-800 mb-2">
+            <FileText className="w-4 h-4" />
+            PDF Document
+          </div>
+          <input
+            type="text"
+            value={block.content}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="PDF URL..."
+            className="w-full text-sm text-gray-700 bg-white border border-red-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-500/20"
+          />
+          {block.content && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-red-600 bg-white rounded-lg px-3 py-2 border border-red-100">
+              <FileText className="w-4 h-4" />
+              <span>PDF document linked</span>
+            </div>
+          )}
+        </div>
+      );
+    case "button":
+      return (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-3">
+            <Pointer className="w-4 h-4" />
+            Button
+          </div>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={block.content}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="Button text..."
+              className="w-full text-sm text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-gray-900/10"
+            />
+            <input
+              type="text"
+              value={block.meta?.url || ""}
+              onChange={(e) => onMetaChange?.("url", e.target.value)}
+              placeholder="Button URL..."
+              className="w-full text-sm text-gray-500 bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-gray-900/10"
+            />
+          </div>
+          <div className="mt-3 flex justify-center">
+            <div className="inline-flex items-center gap-2 bg-gray-900 text-white text-sm font-medium px-6 py-2.5 rounded-xl">
+              {block.content || "Button Text"}
+            </div>
+          </div>
+        </div>
+      );
+    case "embed":
+      return (
+        <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-cyan-800 mb-2">
+            <ExternalLink className="w-4 h-4" />
+            Embed
+          </div>
+          <input
+            type="text"
+            value={block.content}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Paste embed URL or code (YouTube, Vimeo, CodePen, etc.)..."
+            className="w-full text-sm text-gray-700 bg-white border border-cyan-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-500/20"
+          />
+          {block.content && (
+            <div className="mt-2 aspect-video bg-white rounded-lg border border-cyan-100 flex items-center justify-center text-xs text-cyan-500">
+              <ExternalLink className="w-6 h-6 mr-2" />
+              Embed: {block.content.slice(0, 60)}{block.content.length > 60 ? "..." : ""}
+            </div>
+          )}
         </div>
       );
     case "divider":
@@ -433,7 +544,10 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
 
             {/* Block content */}
             <div className="px-4 pb-3">
-              {renderBlockContent(block, (content) => updateBlockContent(block.id, content))}
+              {renderBlockContent(block, (content) => updateBlockContent(block.id, content), (key, value) => {
+                const updated = blocks.map((b) => b.id === block.id ? { ...b, meta: { ...b.meta, [key]: value } } : b);
+                onChange(updated);
+              })}
             </div>
           </div>
         ))}

@@ -179,6 +179,20 @@ export async function createSchema() {
     `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS creator_avatar TEXT`,
     `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS average_rating DECIMAL(3,2) DEFAULT 0`,
     `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS completion_rate DECIMAL(5,2) DEFAULT 0`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS slug TEXT`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'private'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS access_type TEXT DEFAULT 'paid'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS subtitle TEXT`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS benefits TEXT[] DEFAULT '{}'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS what_you_will_learn TEXT[] DEFAULT '{}'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS requirements TEXT[] DEFAULT '{}'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS target_audience TEXT[] DEFAULT '{}'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS testimonials JSONB DEFAULT '[]'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS faq JSONB DEFAULT '[]'`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS seo_title TEXT`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS seo_description TEXT`,
+    `ALTER TABLE IF EXISTS courses ADD COLUMN IF NOT EXISTS meta_image TEXT`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_slug ON courses(slug) WHERE slug IS NOT NULL`,
 
     `CREATE TABLE IF NOT EXISTS modules (
       id TEXT PRIMARY KEY,
@@ -326,6 +340,25 @@ export async function createSchema() {
       payment_id TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`,
+
+    `CREATE TABLE IF NOT EXISTS payout_requests (
+      id TEXT PRIMARY KEY,
+      creator_user_id TEXT NOT NULL REFERENCES users(id),
+      creator_name TEXT,
+      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      workspace_name TEXT,
+      amount DECIMAL(10,2) NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      notes TEXT,
+      admin_notes TEXT,
+      processed_by TEXT REFERENCES users(id),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      processed_at TIMESTAMPTZ
+    )`,
+
+    `CREATE INDEX IF NOT EXISTS idx_payouts_workspace ON payout_requests(workspace_id, status)`,
+    `CREATE INDEX IF NOT EXISTS idx_payouts_creator ON payout_requests(creator_user_id)`,
 
     `CREATE TABLE IF NOT EXISTS audit_logs (
       id TEXT PRIMARY KEY,
@@ -595,7 +628,7 @@ const ALLOWED_MEMBER_COLUMNS = ["role", "status"];
 
 const ALLOWED_POST_COLUMNS = ["title", "content", "category", "likes", "liked_by_user_ids", "comments_count", "is_pinned", "is_announcement", "tags", "space_id"];
 
-const ALLOWED_COURSE_COLUMNS = ["name", "description", "cover_url", "is_premium_only", "modules_count", "enrolled_count", "status", "course_type", "scheduled_at", "price", "certificate_enabled", "estimated_hours", "difficulty_level", "max_enrollments", "tags", "category", "creator_name", "creator_avatar", "average_rating", "completion_rate"];
+const ALLOWED_COURSE_COLUMNS = ["name", "description", "cover_url", "is_premium_only", "modules_count", "enrolled_count", "status", "course_type", "scheduled_at", "price", "certificate_enabled", "estimated_hours", "difficulty_level", "max_enrollments", "tags", "category", "creator_name", "creator_avatar", "average_rating", "completion_rate", "slug", "visibility", "access_type", "subtitle", "benefits", "what_you_will_learn", "requirements", "target_audience", "testimonials", "faq", "seo_title", "seo_description", "meta_image"];
 
 const ALLOWED_ENROLLMENT_COLUMNS = ["status", "progress", "completed_lessons", "grade", "last_accessed_at", "completed_at"];
 
@@ -846,6 +879,9 @@ export async function findCoursesWithContent(workspaceId: string): Promise<any[]
       c.price, c.certificate_enabled, c.estimated_hours, c.difficulty_level,
       c.max_enrollments, c.tags, c.category, c.creator_name, c.creator_avatar,
       c.average_rating, c.completion_rate,
+      c.slug, c.visibility, c.access_type, c.subtitle, c.benefits,
+      c.what_you_will_learn, c.requirements, c.target_audience,
+      c.testimonials, c.faq, c.seo_title, c.seo_description, c.meta_image,
       m.id AS module_id, m.title AS module_title, m.index AS module_index,
       m.description AS module_description, m.is_free_preview AS module_is_free_preview,
       l.id AS lesson_id, l.module_id AS lesson_module_id, l.title AS lesson_title,
@@ -889,6 +925,19 @@ export async function findCoursesWithContent(workspaceId: string): Promise<any[]
         creator_avatar: row.creator_avatar,
         average_rating: parseFloat(row.average_rating || "0"),
         completion_rate: parseFloat(row.completion_rate || "0"),
+        slug: row.slug,
+        visibility: row.visibility || "private",
+        access_type: row.access_type || "paid",
+        subtitle: row.subtitle,
+        benefits: row.benefits || [],
+        what_you_will_learn: row.what_you_will_learn || [],
+        requirements: row.requirements || [],
+        target_audience: row.target_audience || [],
+        testimonials: typeof row.testimonials === "string" ? JSON.parse(row.testimonials) : row.testimonials || [],
+        faq: typeof row.faq === "string" ? JSON.parse(row.faq) : row.faq || [],
+        seo_title: row.seo_title,
+        seo_description: row.seo_description,
+        meta_image: row.meta_image,
         modules: [],
       });
     }
@@ -933,8 +982,10 @@ export async function createCourse(course: Partial<DbRow>): Promise<DbRow> {
   const result = await query(
     `INSERT INTO courses (id, workspace_id, name, description, cover_url, is_premium_only, modules_count, enrolled_count,
      status, course_type, scheduled_at, price, certificate_enabled, estimated_hours, difficulty_level,
-     max_enrollments, tags, category, creator_name, creator_avatar)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *`,
+     max_enrollments, tags, category, creator_name, creator_avatar, slug, visibility, access_type, subtitle,
+     benefits, what_you_will_learn, requirements, target_audience, testimonials, faq, seo_title, seo_description, meta_image)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+     $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33) RETURNING *`,
     [
       id, course.workspace_id, course.name, course.description || "",
       course.cover_url || null, course.is_premium_only || false,
@@ -945,9 +996,20 @@ export async function createCourse(course: Partial<DbRow>): Promise<DbRow> {
       course.difficulty_level || "beginner", course.max_enrollments || null,
       course.tags || [], course.category || null,
       course.creator_name || null, course.creator_avatar || null,
+      course.slug || null, course.visibility || "private", course.access_type || "paid",
+      course.subtitle || null, course.benefits || [],
+      course.what_you_will_learn || [], course.requirements || [],
+      course.target_audience || [], JSON.stringify(course.testimonials || []),
+      JSON.stringify(course.faq || []), course.seo_title || null,
+      course.seo_description || null, course.meta_image || null,
     ]
   );
   return result.rows[0];
+}
+
+export async function findCourseBySlug(slug: string): Promise<DbRow | null> {
+  const result = await query("SELECT * FROM courses WHERE slug = $1", [slug]);
+  return result.rows[0] || null;
 }
 
 export async function updateCourse(id: string, fields: Record<string, any>): Promise<DbRow | null> {
@@ -1282,6 +1344,83 @@ export async function findUserTransactionsByWorkspace(userId: string, workspaceI
   const result = await query(
     "SELECT * FROM transactions WHERE user_id = $1 AND workspace_id = $2 ORDER BY created_at DESC",
     [userId, workspaceId]
+  );
+  return result.rows;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PAYOUT REQUESTS
+// ═══════════════════════════════════════════════════════════════
+
+export async function createPayoutRequest(req: Partial<DbRow>): Promise<DbRow> {
+  const id = req.id || `payout-${Date.now()}`;
+  const result = await query(
+    `INSERT INTO payout_requests (id, creator_user_id, creator_name, workspace_id, workspace_name, amount, status, notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [id, req.creator_user_id, req.creator_name || "", req.workspace_id, req.workspace_name || "",
+     req.amount || 0, req.status || "pending", req.notes || ""]
+  );
+  return result.rows[0];
+}
+
+export async function findPayoutRequestsByWorkspace(workspaceId: string): Promise<DbRow[]> {
+  const result = await query(
+    "SELECT * FROM payout_requests WHERE workspace_id = $1 ORDER BY created_at DESC",
+    [workspaceId]
+  );
+  return result.rows;
+}
+
+export async function findPayoutRequestById(id: string): Promise<DbRow | null> {
+  const result = await query("SELECT * FROM payout_requests WHERE id = $1", [id]);
+  return result.rows[0] || null;
+}
+
+export async function findAllPayoutRequests(status?: string): Promise<DbRow[]> {
+  let sql = "SELECT * FROM payout_requests";
+  const params: any[] = [];
+  if (status) {
+    sql += " WHERE status = $1";
+    params.push(status);
+  }
+  sql += " ORDER BY created_at DESC";
+  const result = await query(sql, params);
+  return result.rows;
+}
+
+export async function updatePayoutRequest(id: string, fields: Record<string, any>): Promise<DbRow | null> {
+  const allowedColumns = ["status", "admin_notes", "notes", "processed_by", "processed_at", "updated_at"];
+  const allowed = filterAllowedFields(fields, allowedColumns);
+  const entries = Object.entries(allowed);
+  if (entries.length === 0) return findPayoutRequestById(id);
+  const setClauses = entries.map((_, i) => `${entries[i][0]} = $${i + 1}`);
+  const values = entries.map(([_, v]) => v);
+  values.push(id);
+  const result = await query(
+    `UPDATE payout_requests SET ${setClauses.join(", ")} WHERE id = $${values.length} RETURNING *`,
+    values
+  );
+  return result.rows[0] || null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WORKSPACE STUDENTS (Enrollments with user + course info)
+// ═══════════════════════════════════════════════════════════════
+
+export async function findWorkspaceStudents(workspaceId: string): Promise<any[]> {
+  const result = await query(
+    `SELECT
+       ce.id AS enrollment_id, ce.course_id, ce.user_id, ce.status AS enrollment_status,
+       ce.progress, ce.completed_lessons, ce.started_at, ce.completed_at, ce.last_accessed_at,
+       ce.certificate_issued, ce.grade,
+       u.full_name, u.avatar_url, u.email, u.last_login_at,
+       c.name AS course_name, c.cover_url AS course_cover, c.id AS course_ref_id
+     FROM course_enrollments ce
+     JOIN users u ON u.id = ce.user_id
+     JOIN courses c ON c.id = ce.course_id
+     WHERE ce.workspace_id = $1
+     ORDER BY ce.last_accessed_at DESC`,
+    [workspaceId]
   );
   return result.rows;
 }

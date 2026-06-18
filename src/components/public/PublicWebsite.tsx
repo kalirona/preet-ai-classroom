@@ -10,7 +10,9 @@ import ContactPage from "./home/ContactPage";
 import AuthPage from "./auth/AuthPage";
 import CommunityLandingPage from "./community/CommunityLandingPage";
 import CommunitiesDirectory from "./community/CommunitiesDirectory";
-import CourseSalesPage from "./course/CourseSalesPage";
+import CourseLandingPage from "./course/CourseLandingPage";
+import CourseCheckout from "./course/CourseCheckout";
+import CourseThankYou from "./course/CourseThankYou";
 import CoursesDirectory from "./course/CoursesDirectory";
 import CreatorLandingPage from "./creator/CreatorLandingPage";
 import WebsiteBuilder from "./builder/WebsiteBuilder";
@@ -29,7 +31,9 @@ export default function PublicWebsite({ onAuthSuccess }: PublicWebsiteProps) {
 
       // Dynamic routes
       const communityMatch = path.match(/^\/community\/(.+)$/);
-      const courseMatch = path.match(/^\/course\/(.+)$/);
+      const courseCheckoutMatch = path.match(/^\/course\/([^/]+)\/checkout$/);
+      const courseThankYouMatch = path.match(/^\/course\/([^/]+)\/thank-you$/);
+      const courseMatch = path.match(/^\/course\/([^/]+)$/);
       const creatorMatch = path.match(/^\/creator\/(.+)$/);
       const blogPostMatch = path.match(/^\/blog\/(.+)$/);
 
@@ -45,6 +49,8 @@ export default function PublicWebsite({ onAuthSuccess }: PublicWebsiteProps) {
       else if (path === "/register") setRoute("register");
       else if (path === "/builder") setRoute("builder");
       else if (communityMatch) { setRoute("community"); setParams({ slug: communityMatch[1] }); }
+      else if (courseCheckoutMatch) { setRoute("course-checkout"); setParams({ slug: courseCheckoutMatch[1] }); }
+      else if (courseThankYouMatch) { setRoute("course-thank-you"); setParams({ slug: courseThankYouMatch[1] }); }
       else if (courseMatch) { setRoute("course"); setParams({ slug: courseMatch[1] }); }
       else if (creatorMatch) { setRoute("creator"); setParams({ username: creatorMatch[1] }); }
       else if (blogPostMatch) { setRoute("blog-post"); setParams({ slug: blogPostMatch[1] }); }
@@ -70,7 +76,9 @@ export default function PublicWebsite({ onAuthSuccess }: PublicWebsiteProps) {
       case "about": return <AboutPage />;
       case "contact": return <ContactPage />;
       case "community": return <CommunityLandingPage slug={params.slug} />;
-      case "course": return <CourseSalesPage slug={params.slug} />;
+      case "course": return <CourseLandingPage slug={params.slug} />;
+      case "course-checkout": return <CourseCheckout slug={params.slug} />;
+      case "course-thank-you": return <CourseThankYou slug={params.slug} />;
       case "creator": return <CreatorLandingPage username={params.username} />;
       case "blog-post": return <BlogPage />;
       case "builder": return <WebsiteBuilder />;

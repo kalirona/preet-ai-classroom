@@ -11,6 +11,8 @@ export type BlockType =
   | "code"
   | "audio"
   | "pdf"
+  | "button"
+  | "embed"
   | "poll"
   | "reflection"
   | "ai_summary"
@@ -51,15 +53,29 @@ export interface CourseDraftLesson {
   status: "draft" | "published";
 }
 
+export interface CourseSettings {
+  certificate: boolean;
+  dripContent: boolean;
+  dripDays: number;
+  prerequisites: string[];
+  completionRules: "all_lessons" | "quiz_pass" | "assignment_submit";
+  allowComments: boolean;
+  allowDiscussions: boolean;
+  allowDownloads: boolean;
+  seoTitle: string;
+  seoDescription: string;
+}
+
 export interface CourseDraft {
   id: string;
   communityId: string;
   name: string;
+  slug: string;
   description: string;
   coverUrl: string;
   category: string;
   modules: CourseDraftModule[];
-  status: "draft" | "published" | "archived";
+  status: "draft" | "published" | "archived" | "scheduled";
   price: number;
   isFree: boolean;
   instructorName: string;
@@ -71,6 +87,9 @@ export interface CourseDraft {
   updatedAt: string;
   templateId?: string;
   sourceCourseId?: string;
+  settings?: CourseSettings;
+  scheduledDate?: string;
+  visibility?: "public" | "private";
 }
 
 export interface CourseTemplate {
@@ -106,4 +125,16 @@ export interface CourseStructureTreeProps {
   onMoveLesson: (moduleId: string, lessonId: string, direction: "up" | "down") => void;
   onRenameModule: (id: string, title: string) => void;
   onRenameLesson: (id: string, title: string) => void;
+}
+
+export interface ResourceItem {
+  id: string;
+  title: string;
+  type: "video" | "pdf" | "audio" | "image" | "file";
+  url: string;
+  tags: string[];
+  folder: string;
+  usageCount: number;
+  createdAt: string;
+  size: string;
 }

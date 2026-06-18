@@ -4,7 +4,7 @@ import {
   MessageSquare, BookOpen, Calendar, Trophy, BarChart3, Star, Layers, Sparkles, X, ChevronDown, 
   Menu, Info, Users, ShieldAlert, LogOut, FileText, Settings, Bookmark, Bell, ShoppingCart, UserCheck, ChevronLeft, ChevronRight, HelpCircle, Shield, Database,
   LayoutDashboard, Receipt, Repeat, Ticket, HeartHandshake, ShieldCheck, ScrollText, Flag,
-  Globe, DollarSign, CreditCard
+  Globe, DollarSign, CreditCard, Edit
 } from "lucide-react";
 
 interface SidebarProps {
@@ -68,14 +68,19 @@ export default function Sidebar({
     ? [
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
-        { id: "courses", name: "Courses", icon: BookOpen },
-        { id: "course-builder", name: "Course Builder", icon: BookOpen },
+        { id: "classroom", name: "Classroom", icon: BookOpen },
+        { id: "courses", name: "Courses", icon: Layers },
+        { id: "course-studio", name: "Course Studio", icon: Edit },
+        { id: "students", name: "Students", icon: Users },
         { id: "calendar", name: "Calendar", icon: Calendar },
         { id: "members", name: "Members", icon: Users },
         { id: "resources", name: "Resources", icon: FileText },
-        { id: "analytics", name: "Analytics", icon: BarChart3 },
         { id: "audit_logs_tab", name: "Audit Logs", icon: ScrollText },
         { id: "monetization", name: "Monetization", icon: DollarSign },
+        { id: "sales", name: "Sales", icon: Receipt },
+        { id: "subscriptions", name: "Subscriptions", icon: Repeat },
+        { id: "coupons", name: "Coupons", icon: Ticket },
+        { id: "payouts", name: "Payouts", icon: CreditCard },
         { id: "settings", name: "Settings", icon: Settings },
         { id: "chat", name: "Chat", icon: MessageSquare },
         { id: "support", name: "Support", icon: HelpCircle },
@@ -87,10 +92,11 @@ export default function Sidebar({
     ? [
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
-        { id: "courses", name: "Courses", icon: BookOpen },
-        { id: "course-builder", name: "Course Builder", icon: BookOpen },
+        { id: "classroom", name: "Classroom", icon: BookOpen },
+        { id: "courses", name: "Courses", icon: Layers },
+        { id: "course-studio", name: "Course Studio", icon: Edit },
+        { id: "students", name: "Students", icon: Users },
         { id: "members", name: "Members", icon: Users },
-        { id: "analytics", name: "Analytics", icon: BarChart3 },
         { id: "audit_logs_tab", name: "Audit Logs", icon: ScrollText },
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
         { id: "chat", name: "Chat", icon: MessageSquare },
@@ -103,7 +109,9 @@ export default function Sidebar({
     ? [
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Feed", icon: MessageSquare },
-        { id: "course-builder", name: "Course Builder", icon: BookOpen },
+        { id: "classroom", name: "Classroom", icon: BookOpen },
+        { id: "courses", name: "Courses", icon: Layers },
+        { id: "course-studio", name: "Course Studio", icon: Edit },
         { id: "students", name: "Students", icon: Users },
         { id: "calendar", name: "Calendar", icon: Calendar },
         { id: "resources", name: "Resources", icon: FileText },
@@ -130,7 +138,7 @@ export default function Sidebar({
   const studentNavigation = isStudent
     ? [
         { id: "feed", name: "Feed", icon: LayoutDashboard },
-        { id: "courses", name: "Courses", icon: BookOpen },
+        { id: "classroom", name: "Classroom", icon: BookOpen },
         { id: "calendar", name: "Calendar", icon: Calendar },
         { id: "resources", name: "Resources", icon: FileText },
         { id: "profile", name: "Profile", icon: UserCheck },

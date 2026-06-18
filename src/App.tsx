@@ -20,7 +20,6 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     case "workspaces":
     case "users":
     case "revenue":
-    case "payouts":
     case "security":
     case "logs":
       return false;
@@ -34,10 +33,17 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     case "settings":
       return wsRole === WorkspaceRole.OWNER;
 
+    // Owner, Admin, or Instructor
+    case "courses":
+      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.INSTRUCTOR;
+
     // Owner or Admin
-    case "analytics":
-    case "course-builder":
+    case "course-studio":
       return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN;
+
+    // Super Admin platform analytics (handled by super admin early return)
+    case "analytics":
+      return false;
 
     // Owner, Admin, or Moderator
     case "members":
@@ -46,9 +52,13 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     case "reports":
       return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.MODERATOR;
 
-    // Instructor-only tabs
+    // Creator/Instructor tabs (progress tracking)
     case "students":
-      return wsRole === WorkspaceRole.INSTRUCTOR;
+      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.INSTRUCTOR;
+
+    // Owner payout management
+    case "payouts":
+      return wsRole === WorkspaceRole.OWNER;
 
     // Staff tabs (any role above basic member)
     case "dashboard":
@@ -64,7 +74,9 @@ import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import FeedView from "./components/FeedView";
 import PublicWebsite from "./components/public/PublicWebsite";
-import ClassroomView from "./components/ClassroomView";
+import ClassroomView from "./components/classroom/ClassroomView";
+import CoursesView from "./components/courses/CoursesView";
+import CourseBuilder from "./components/course/CourseBuilder";
 import CalendarView from "./components/CalendarView";
 import CreatorDashboard from "./components/CreatorDashboard";
 import MembersView from "./components/MembersView";
@@ -86,11 +98,11 @@ import ModerationCenter from "./components/ModerationCenter";
 import ReportsView from "./components/ReportsView";
 import NotificationsView from "./components/NotificationsView";
 import SupportView from "./components/SupportView";
-import StudentsView from "./components/StudentsView";
+import StudentProgressView from "./components/courses/StudentProgressView";
+import CreatorPayoutsView from "./components/courses/CreatorPayoutsView";
 import { SocketProvider } from "./components/SocketProvider";
 
 import { Sparkles, X, ArrowRight } from "lucide-react";
-import { WorkspaceRole } from "./types";
 
 export default function App() {
   // Global Workspace states
@@ -635,7 +647,7 @@ export default function App() {
 
         {/* Tab Route Content Mount */}
         <main className="flex-1 overflow-hidden">
-          {activeTab === "dashboard" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN && (
+          {activeTab === "dashboard" && (
             <ErrorBoundary>
               <WorkspaceDashboardView
                 currentUser={currentUser}
@@ -661,49 +673,124 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "courses" && (
+          {activeTab === "classroom" && (
             <ErrorBoundary>
               <ClassroomView
                 currentUser={currentUser}
                 activeCommunity={activeCommunity}
                 courses={courses}
-                onAddCourse={handleAddCourse}
-                onRefreshCourses={handleRefreshCourses}
               />
             </ErrorBoundary>
           )}
 
-          {activeTab === "course-builder" && canAccessTab("course-builder", currentUser, activeCommunityId) ? (
+          {activeTab === "courses" && canAccessTab("courses", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
-              <ClassroomView
+              <CoursesView
+                communityId={activeCommunityId}
                 currentUser={currentUser}
-                activeCommunity={activeCommunity}
                 courses={courses}
                 onAddCourse={handleAddCourse}
                 onRefreshCourses={handleRefreshCourses}
-                isCourseBuilderOnly={true}
+                onEditCourse={(courseId) => {
+                  setActiveTab("course-studio");
+                  window.location.hash = "course-studio";
+                }}
               />
             </ErrorBoundary>
-          ) : activeTab === "course-builder" ? (
+          ) : activeTab === "courses" ? (
             <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Course Builder is restricted to Owner or Admin.
+              403 Forbidden - Courses is restricted to Instructor, Owner, or Admin.
             </div>
           ) : null}
 
-          {activeTab === "analytics" && canAccessTab("analytics", currentUser, activeCommunityId) ? (
+          {activeTab === "course-studio" && canAccessTab("course-studio", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
-              <ClassroomView
+              <CourseBuilder
+                communityId={activeCommunityId}
+                initialCourses={courses.map(c => ({
+                  id: c.id,
+                  communityId: c.communityId || activeCommunityId,
+                  name: c.name || "Untitled",
+                  description: c.description || "",
+                  coverUrl: c.coverUrl || "",
+                  category: "General",
+                  modules: (c.modules || []).map(m => ({
+                    id: m.id || `mod-${Math.random().toString(36).slice(2, 6)}`,
+                    title: m.title || "Module",
+                    index: m.index || 0,
+                    lessons: (m.lessons || []).map(l => ({
+                      id: l.id || `lesson-${Math.random().toString(36).slice(2, 6)}`,
+                      title: l.title || "Lesson",
+                      durationMinutes: l.durationMinutes || 10,
+                      contentType: l.contentType || "text" as const,
+                      blocks: [
+                        { id: `block-${Date.now()}`, type: "heading" as const, content: l.title || "Lesson" },
+                        { id: `block-${Date.now() + 1}`, type: "paragraph" as const, content: "Content goes here." },
+                      ],
+                      isLocked: l.isLocked || false,
+                      status: "draft" as const,
+                      videoUrl: l.videoUrl || "",
+                      textContent: l.textContent || "",
+                      quizQuestions: l.quizQuestions || [],
+                      assignmentInstructions: l.assignmentInstructions || "",
+                      attachments: l.attachments || [],
+                    })),
+                  })),
+                  status: (c.status || "draft") as "draft" | "published" | "archived",
+                  price: 0,
+                  isFree: true,
+                  instructorName: "",
+                  instructorAvatar: "",
+                  enrolledCount: c.enrolledCount || 0,
+                  completionRate: 0,
+                  revenue: 0,
+                  createdAt: c.createdAt || new Date().toISOString(),
+                  updatedAt: c.updatedAt || new Date().toISOString(),
+                }))}
+                onCoursesChange={(updated) => {
+                  updated.forEach((d: any) => {
+                    const course: Course = {
+                      id: d.id,
+                      communityId: d.communityId,
+                      name: d.name,
+                      description: d.description,
+                      coverUrl: d.coverUrl,
+                      isPremiumOnly: false,
+                      modulesCount: d.modules.length,
+                      enrolledCount: d.enrolledCount,
+                      status: d.status,
+                      modules: d.modules.map((m: any) => ({
+                        id: m.id,
+                        courseId: d.id,
+                        title: m.title,
+                        index: m.index,
+                        lessons: m.lessons.map((l: any) => ({
+                          id: l.id,
+                          moduleId: m.id,
+                          title: l.title,
+                          durationMinutes: l.durationMinutes,
+                          videoUrl: l.videoUrl,
+                          textContent: l.textContent,
+                          index: 0,
+                          isLocked: l.isLocked,
+                          contentType: l.contentType,
+                          attachments: l.attachments || [],
+                          quizQuestions: l.quizQuestions || [],
+                          assignmentInstructions: l.assignmentInstructions || "",
+                        })),
+                      })),
+                      createdAt: d.createdAt,
+                      updatedAt: d.updatedAt,
+                    };
+                    handleAddCourse(course);
+                  });
+                }}
                 currentUser={currentUser}
-                activeCommunity={activeCommunity}
-                courses={courses}
-                onAddCourse={handleAddCourse}
-                onRefreshCourses={handleRefreshCourses}
-                isAnalyticsOnly={true}
               />
             </ErrorBoundary>
-          ) : activeTab === "analytics" ? (
+          ) : activeTab === "course-studio" ? (
             <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Analytics is restricted to Owner or Admin.
+              403 Forbidden - Course Studio is restricted to Owner or Admin.
             </div>
           ) : null}
 
@@ -734,14 +821,11 @@ export default function App() {
 
           {activeTab === "students" && canAccessTab("students", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
-              <StudentsView
-                currentUser={currentUser}
-                activeCommunityId={activeCommunityId}
-              />
+              <StudentProgressView workspaceId={activeCommunityId} />
             </ErrorBoundary>
           ) : activeTab === "students" ? (
             <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Students is restricted to Instructor.
+              403 Forbidden - Students is restricted.
             </div>
           ) : null}
 
@@ -773,6 +857,19 @@ export default function App() {
             </div>
           ) : null}
 
+          {activeTab === "payouts" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN && canAccessTab("payouts", currentUser, activeCommunityId) ? (
+            <ErrorBoundary>
+              <CreatorPayoutsView
+                workspaceId={activeCommunityId}
+                workspaceName={activeCommunity?.name}
+              />
+            </ErrorBoundary>
+          ) : activeTab === "payouts" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden
+            </div>
+          ) : null}
+
           {activeTab === "notifications_tab" && (
             <ErrorBoundary>
               <NotificationsView
@@ -799,7 +896,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "settings" && canAccessTab("settings", currentUser, activeCommunityId) ? (
+          {activeTab === "settings" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN && canAccessTab("settings", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <SettingsView
                 currentUser={currentUser}
