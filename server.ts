@@ -1850,7 +1850,6 @@ async function generateAICourse(prompt: string, communityId: string, userId: str
         attachments: [],
       })),
     }),
-  })
 
   return { course, curriculum };
 }
