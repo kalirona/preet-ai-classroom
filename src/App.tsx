@@ -488,20 +488,6 @@ export default function App() {
     setNotifications([freshAlert, ...notifications]);
   };
 
-  // Dynamic Syllabus creator hook for Classroom
-  const handleAddCourse = (newCourse: any) => {
-    setCourses([newCourse, ...courses]);
-    
-    // Auto-award level badge
-    if (currentUser && !currentUser.badges.includes("Course Master")) {
-      setCurrentUser({
-        ...currentUser,
-        badges: [...currentUser.badges, "Course Master"],
-        xp: currentUser.xp + 30
-      });
-    }
-  };
-
   const handleRefreshCourses = async () => {
     if (!activeCommunityId) return;
     try {
@@ -750,42 +736,49 @@ export default function App() {
                   updatedAt: c.updatedAt || new Date().toISOString(),
                 }))}
                 onCoursesChange={(updated) => {
-                  updated.forEach((d: any) => {
-                    const course: Course = {
-                      id: d.id,
-                      communityId: d.communityId,
-                      name: d.name,
-                      description: d.description,
-                      coverUrl: d.coverUrl,
-                      isPremiumOnly: false,
-                      modulesCount: d.modules.length,
-                      enrolledCount: d.enrolledCount,
-                      status: d.status,
-                      modules: d.modules.map((m: any) => ({
-                        id: m.id,
-                        courseId: d.id,
-                        title: m.title,
-                        index: m.index,
-                        lessons: m.lessons.map((l: any) => ({
-                          id: l.id,
-                          moduleId: m.id,
-                          title: l.title,
-                          durationMinutes: l.durationMinutes,
-                          videoUrl: l.videoUrl,
-                          textContent: l.textContent,
-                          index: 0,
-                          isLocked: l.isLocked,
-                          contentType: l.contentType,
-                          attachments: l.attachments || [],
-                          quizQuestions: l.quizQuestions || [],
-                          assignmentInstructions: l.assignmentInstructions || "",
+                  setCourses(prev => {
+                    const courseMap = new Map(prev.map(c => [c.id, c]));
+                    updated.forEach((d: any) => {
+                      courseMap.set(d.id, {
+                        id: d.id,
+                        communityId: d.communityId || activeCommunityId,
+                        name: d.name,
+                        description: d.description,
+                        coverUrl: d.coverUrl,
+                        isPremiumOnly: false,
+                        modulesCount: d.modules?.length || 0,
+                        enrolledCount: d.enrolledCount || 0,
+                        status: d.status,
+                        modules: (d.modules || []).map((m: any) => ({
+                          id: m.id,
+                          courseId: d.id,
+                          title: m.title,
+                          index: m.index,
+                          lessons: (m.lessons || []).map((l: any) => ({
+                            id: l.id,
+                            moduleId: m.id,
+                            title: l.title,
+                            durationMinutes: l.durationMinutes,
+                            videoUrl: l.videoUrl,
+                            textContent: l.textContent,
+                            index: 0,
+                            isLocked: l.isLocked,
+                            contentType: l.contentType,
+                            attachments: l.attachments || [],
+                            quizQuestions: l.quizQuestions || [],
+                            assignmentInstructions: l.assignmentInstructions || "",
+                          })),
                         })),
-                      })),
-                      createdAt: d.createdAt,
-                      updatedAt: d.updatedAt,
-                    };
-                    handleAddCourse(course);
+                        createdAt: d.createdAt,
+                        updatedAt: d.updatedAt,
+                      });
+                    });
+                    return Array.from(courseMap.values());
                   });
+                  // Award badge once
+                  if (currentUser && !currentUser.badges.includes("Course Master")) {
+                    setCurrentUser({ ...currentUser, badges: [...currentUser.badges, "Course Master"], xp: currentUser.xp + 30 });
+                  }
                 }}
                 currentUser={currentUser}
               />

@@ -414,6 +414,15 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
   const [showBlockPicker, setShowBlockPicker] = useState(false);
   const [showTypeMenu, setShowTypeMenu] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const blocksContainerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll newly added block into view
+  useEffect(() => {
+    if (selectedBlockId) {
+      const el = blocksContainerRef.current?.querySelector(`[data-block-id="${selectedBlockId}"]`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [blocks.length, selectedBlockId]);
 
   const addBlock = (type: BlockType) => {
     const newBlock: ContentBlock = {
@@ -485,7 +494,7 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
       </div>
 
       {/* Blocks */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-3">
+      <div ref={blocksContainerRef} className="flex-1 overflow-y-auto px-8 py-6 space-y-3">
         {blocks.length === 0 && (
           <div className="text-center py-16">
             <p className="text-sm text-gray-400 mb-4">No blocks yet. Add your first block.</p>
@@ -501,6 +510,7 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
         {blocks.map((block, idx) => (
           <div
             key={block.id}
+            data-block-id={block.id}
             className={`group relative rounded-xl transition-all ${
               selectedBlockId === block.id
                 ? "ring-2 ring-gray-900/10 bg-gray-50/50 shadow-sm"
