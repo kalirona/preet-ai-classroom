@@ -835,7 +835,8 @@ app.get("/auth/google-simulated", (_req, res) => {
       function showCustom(){document.getElementById('custom-form').classList.toggle('hidden')}
       async function selectAccount(email,name,avatar){
         const r=await fetch('/api/auth/google-callback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,fullName:name,avatarUrl:avatar})});
-        const d=await r.json();if(d.success&&window.opener){window.opener.postMessage({type:'OAUTH_AUTH_SUCCESS',user:d.user},'*');window.close()}
+        const d=await r.json();if(d.success&&window.opener){window.opener.postMessage({type:'OAUTH_AUTH_SUCCESS',user:d.user},window.location.origin);window.close()}
+</parameter=new Event('oauth-success');window.dispatchEvent(window.close)}
         else{alert(d.error||'Error')}}
       function submitCustom(){const e=document.getElementById('custom-email').value;const n=document.getElementById('custom-name').value||e.split('@')[0];if(e)selectAccount(e,n,'')}
     </script></body></html>
@@ -903,59 +904,6 @@ app.put("/api/auth/profile", authenticateUser, async (req: any, res: any) => {
   } catch (err) {
     console.error("Profile update error:", err);
     res.status(500).json({ error: "Failed to update profile." });
-  }
-});
-
-// Self-service role switch for testing (no Super Admin required)
-app.post("/api/auth/switch-role", authenticateUser, async (req: any, res: any) => {
-  try {
-    const { role, userId } = req.body;
-    const targetId = userId || req.user.id;
-    if (!role) return res.status(400).json({ error: "Role is required." });
-
-    // Accept both WorkspaceRole and UserRole values
-    const validRoles = ["owner", "admin", "instructor", "moderator", "member", "super_admin"];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: "Invalid role." });
-    }
-
-    // Super Admin role still requires Super Admin platform role
-    if (role === "super_admin" && req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
-      return res.status(403).json({ error: "Only super admins can assign super_admin role." });
-    }
-
-    const target = await findUserById(targetId);
-    if (!target) return res.status(404).json({ error: "User not found." });
-
-    let platformRole = "user";
-    if (role === "super_admin") platformRole = "super_admin";
-
-    await updateUser(target.id, { role, platform_role: platformRole });
-
-    const workspaceId = req.headers["x-workspace-id"] || null;
-    if (workspaceId) {
-      let wsRole = "member";
-      if (role === "super_admin") wsRole = "owner";
-      else if (role === "admin") wsRole = "admin";
-      else if (role === "instructor") wsRole = "instructor";
-      else if (role === "moderator") wsRole = "moderator";
-      else wsRole = "member";
-
-      const existing = await findWorkspaceMember(workspaceId, target.id);
-      if (existing) {
-        await updateWorkspaceMember(workspaceId, target.id, { role: wsRole });
-      } else {
-        await createWorkspaceMember({ workspace_id: workspaceId, user_id: target.id, role: wsRole, status: "active" });
-      }
-    }
-
-    await addAuditLog(req.user.id, req.user.fullName, "ROLE_UPDATED", `User '${target.full_name}' role set to '${role}'.`, workspaceId || undefined);
-
-    const userResponse = await formatUserForResponse(target.id);
-    res.json({ success: true, user: userResponse });
-  } catch (err) {
-    console.error("Role switch error:", err);
-    res.status(500).json({ error: "Failed to switch role." });
   }
 });
 
@@ -1832,20 +1780,87 @@ app.post("/api/courses/:id/status", authenticateUser, requireWorkspacePermission
   }
 });
 
+async function generateAICourse(prompt: string, communityId: string, userId: string) {
+  const ai = getAIClient();
+  let curriculum: any = null;
+
+  if (ai) {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: `Create a curriculum about: "${prompt}"`,
+        config: {
+          systemInstruction: `You are an expert curriculum designer. Output valid JSON matching:
+          {"name":"Course Title","description":"...","modules":[{"title":"Module Title","lessons":[{"title":"Lesson title","durationMinutes":15,"textContent":"..."}]}]}`,
+          responseMimeType: "application/json",
+        },
+      });
+      curriculum = JSON.parse(response.text.replace(/```json/g, "").replace(/```/g, "").trim());
+    } catch { /* fallback */ }
+  }
+
+  if (!curriculum) {
+    curriculum = {
+      name: `The Ultimate Guide to ${prompt}`,
+      description: `A fast-track curriculum to master ${prompt}.`,
+      modules: [
+        {
+          title: "Module 1: Fundamentals",
+          lessons: [
+            { title: `Core concepts of ${prompt}`, durationMinutes: 12, textContent: `Introduction to ${prompt}.` },
+            { title: "Your first workbook", durationMinutes: 15, textContent: "Step-by-step guide." },
+          ],
+        },
+        {
+          title: "Module 2: Advanced Strategies",
+          lessons: [
+            { title: "CI/CD Workflow", durationMinutes: 18, textContent: "Automate your pipelines." },
+          ],
+        },
+      ],
+    };
+  }
+
+  const courseId = `course-ai-${Date.now()}`;
+  const course = await createCourse({
+    id: courseId,
+    workspace_id: communityId,
+    name: curriculum.name,
+    description: curriculum.description,
+    status: "draft",
+    price: 0,
+    is_free: true,
+    category: "AI Generated",
+    created_by: userId,
+    modules: curriculum.modules.map((m: any, mi: number) => ({
+      id: `mod-${Date.now()}-${mi}`,
+      title: m.title,
+      index: mi,
+      lessons: m.lessons.map((l: any, li: number) => ({
+        id: `lesson-${Date.now()}-${mi}-${li}`,
+        title: l.title,
+        durationMinutes: l.durationMinutes || 15,
+        contentType: "text",
+        blocks: [{ id: `block-${Date.now()}-${mi}-${li}`, type: "paragraph", content: l.textContent || "" }],
+        isLocked: false,
+        status: "draft",
+        textContent: l.textContent || "",
+        quizQuestions: [],
+        assignmentInstructions: "",
+        attachments: [],
+      })),
+    }),
+  });
+
+  return { course, curriculum };
+}
+
 app.post("/api/courses/generate-ai", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
   try {
     const { prompt, communityId } = req.body;
     if (!prompt || !communityId) return res.status(400).json({ error: "Prompt and communityId required." });
 
-    const course = await (async () => {
-      const response = await fetch(`http://localhost:${process.env.PORT || 3000}/api/ai/generate-course`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, communityId }),
-      });
-      return response.json();
-    })();
-
+    const { course } = await generateAICourse(prompt, communityId, req.user.id);
     res.json(course);
   } catch (err) {
     console.error("AI generate course error:", err);
@@ -2170,7 +2185,7 @@ app.get("/api/lessons/:id/stream", authenticateUser, requireWorkspacePermission(
       }
       res.end();
     } catch {
-      res.redirect(videoUrl);
+      return res.status(502).json({ error: "Video unavailable. Could not proxy stream." });
     }
   } catch (err) {
     console.error("Stream error:", err);
@@ -2872,70 +2887,7 @@ app.post("/api/ai/generate-course", authenticateUser, requireWorkspacePermission
     const { prompt, communityId } = req.body;
     if (!prompt || !communityId) return res.status(400).json({ error: "Prompt and communityId required." });
 
-    const ai = getAIClient();
-    let curriculum: any = null;
-
-    if (ai) {
-      try {
-        const response = await ai.models.generateContent({
-          model: "gemini-2.0-flash",
-          contents: `Create a curriculum about: "${prompt}"`,
-          config: {
-            systemInstruction: `You are an expert curriculum designer. Output valid JSON matching:
-            {"name":"Course Title","description":"...","modules":[{"title":"Module Title","lessons":[{"title":"Lesson title","durationMinutes":15,"textContent":"..."}]}]}`,
-            responseMimeType: "application/json",
-          },
-        });
-        curriculum = JSON.parse(response.text.replace(/```json/g, "").replace(/```/g, "").trim());
-      } catch { /* fallback */ }
-    }
-
-    if (!curriculum) {
-      curriculum = {
-        name: `The Ultimate Guide to ${prompt}`,
-        description: `A fast-track curriculum to master ${prompt}.`,
-        modules: [
-          {
-            title: "Module 1: Fundamentals",
-            lessons: [
-              { title: `Core concepts of ${prompt}`, durationMinutes: 12, textContent: `Introduction to ${prompt}.` },
-              { title: "Your first workbook", durationMinutes: 15, textContent: "Step-by-step guide." },
-            ],
-          },
-          {
-            title: "Module 2: Advanced Strategies",
-            lessons: [
-              { title: "CI/CD Workflow", durationMinutes: 18, textContent: "Automate your pipelines." },
-            ],
-          },
-        ],
-      };
-    }
-
-    const courseId = `course-ai-${Date.now()}`;
-    const course = await createCourse({
-      id: courseId, workspace_id: communityId,
-      name: curriculum.name, description: curriculum.description,
-      cover_url: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600",
-      is_premium_only: false, modules_count: curriculum.modules.length, enrolled_count: 1,
-    });
-
-    for (let mIdx = 0; mIdx < curriculum.modules.length; mIdx++) {
-      const m = curriculum.modules[mIdx];
-      const mod = await createModule({ course_id: courseId, title: m.title, index: mIdx });
-
-      for (let lIdx = 0; lIdx < m.lessons.length; lIdx++) {
-        const l = m.lessons[lIdx];
-        await createLesson({
-          module_id: mod.id, workspace_id: communityId,
-          title: l.title, duration_minutes: l.durationMinutes || 12,
-          text_content: l.textContent || "Content coming soon.",
-          index: lIdx, is_locked: mIdx > 0, content_type: "video",
-          video_url: "https://www.w3schools.com/html/mov_bbb.mp4",
-        });
-      }
-    }
-
+    const { course, curriculum } = await generateAICourse(prompt, communityId, req.user.id);
     res.json({ success: true, course: { ...rowToCourse(course), modules: curriculum.modules } });
   } catch (err) {
     console.error("AI course generation error:", err);
