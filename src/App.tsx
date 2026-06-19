@@ -378,19 +378,16 @@ export default function App() {
 
   // Upvote / Like Post
   const handleLikePost = async (postId: string) => {
-    try {
-      const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
-      const data = await res.json();
-      if (data.success && data.post) {
-        setPosts(posts.map(p => {
-          if (p.id === postId) {
-            return { ...p, likes: data.post.likes, likedByUserIds: data.post.likedByUserIds || p.likedByUserIds };
-          }
-          return p;
-        }));
-      }
-    } catch (err) {
-      console.error(err);
+    const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to like post.");
+    if (data.success && data.post) {
+      setPosts(posts.map(p => {
+        if (p.id === postId) {
+          return { ...p, likes: data.post.likes, likedByUserIds: data.post.likedByUserIds || p.likedByUserIds };
+        }
+        return p;
+      }));
     }
   };
 
@@ -414,44 +411,41 @@ export default function App() {
 
   // Add Dynamic Post Discussions
   const handleAddPost = async (title: string, content: string, category: string, tags: string[]) => {
-    try {
-      const res = await fetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          communityId: activeCommunityId,
-          title,
-          content,
-          category,
-          tags
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.post) {
-        // Prepend new post
-        setPosts([data.post, ...posts]);
-        
-        // Award XP!
-        if (currentUser) {
-          const updatedXp = currentUser.xp + 15;
-          const updatedLevel = Math.floor(updatedXp / 200) > currentUser.level ? currentUser.level + 1 : currentUser.level;
-          setCurrentUser({ ...currentUser, xp: updatedXp, level: updatedLevel });
-        }
-        
-        // Trigger alert notifications locally
-        const freshAlert: Notification = {
-          id: `n-${Date.now()}`,
-          userId: currentUser?.id || "user-student",
-          title: "Discussion Created Key (+15 XP) 🎉",
-          message: `Your channel subject "${title}" has been successfully drafted to PostgreSQL.`,
-          type: "comment",
-          isRead: false,
-          createdAt: new Date().toISOString()
-        };
-        setNotifications([freshAlert, ...notifications]);
+    const res = await fetch("/api/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        communityId: activeCommunityId,
+        title,
+        content,
+        category,
+        tags
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to create post.");
+    if (data.success && data.post) {
+      // Prepend new post
+      setPosts([data.post, ...posts]);
+      
+      // Award XP!
+      if (currentUser) {
+        const updatedXp = currentUser.xp + 15;
+        const updatedLevel = Math.floor(updatedXp / 200) > currentUser.level ? currentUser.level + 1 : currentUser.level;
+        setCurrentUser({ ...currentUser, xp: updatedXp, level: updatedLevel });
       }
-    } catch (e) {
-      console.error("Drafting post error", e);
+      
+      // Trigger alert notifications locally
+      const freshAlert: Notification = {
+        id: `n-${Date.now()}`,
+        userId: currentUser?.id || "user-student",
+        title: "Discussion Created Key (+15 XP) 🎉",
+        message: `Your channel subject "${title}" has been successfully drafted to PostgreSQL.`,
+        type: "comment",
+        isRead: false,
+        createdAt: new Date().toISOString()
+      };
+      setNotifications([freshAlert, ...notifications]);
     }
   };
 
@@ -696,6 +690,7 @@ export default function App() {
                 onLikePost={handleLikePost}
                 onAddPost={handleAddPost}
                 onPinPost={handlePinPost}
+                onUpdateCommunity={handleUpdateActiveCommunity}
               />
             </ErrorBoundary>
           )}

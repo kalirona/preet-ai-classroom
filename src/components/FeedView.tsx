@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Community, Post, Comment, WorkspaceRole } from "../types";
-import { MessageSquare, ThumbsUp, Pin, Volume2, Search, ArrowRight, MessageCircle, Sparkles, Send, Eye, X, Loader2 } from "lucide-react";
+import { MessageSquare, ThumbsUp, Pin, Volume2, Search, ArrowRight, MessageCircle, Sparkles, Send, Eye, X, Loader2, Plus } from "lucide-react";
 
 interface FeedViewProps {
   userRole: WorkspaceRole;
@@ -10,6 +10,7 @@ interface FeedViewProps {
   onLikePost: (id: string) => void;
   onAddPost: (title: string, content: string, category: string, tags: string[]) => Promise<any>;
   onPinPost?: (id: string) => void;
+  onUpdateCommunity?: (fields: Partial<Community>) => Promise<boolean>;
 }
 
 export default function FeedView({
@@ -19,7 +20,8 @@ export default function FeedView({
   posts,
   onLikePost,
   onAddPost,
-  onPinPost
+  onPinPost,
+  onUpdateCommunity
 }: FeedViewProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -33,6 +35,10 @@ export default function FeedView({
   
   // AI assist state inside post creator
   const [aiTopic, setAiTopic] = useState("");
+
+  // Channel creation state
+  const [showChannelInput, setShowChannelInput] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
   const [isAiGenerating, setIsAiGenerating] = useState(false);
 
   // Active expanded comments drawer state
@@ -45,6 +51,17 @@ export default function FeedView({
 
   // Filter posts
   const categories = ["All", ...((activeCommunity?.categories?.length ? activeCommunity.categories : ["General Discussions", "Announcements", "Resources"]))];
+
+  const handleCreateChannel = async () => {
+    if (!newChannelName.trim() || !onUpdateCommunity || !activeCommunity) return;
+    const updated = await onUpdateCommunity({
+      categories: [...(activeCommunity.categories || []), newChannelName.trim()]
+    });
+    if (updated) {
+      setNewChannelName("");
+      setShowChannelInput(false);
+    }
+  };
 
   const handleLikeWithFeedback = async (postId: string) => {
     setFeedError(null);
@@ -134,14 +151,16 @@ export default function FeedView({
   const handleCreatePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPostTitle.trim() || !newPostContent.trim()) return;
+    setFeedError(null);
 
     const cat = newPostCategory || activeCommunity?.categories?.[0] || "General Discussions";
     const tagsArr = newPostTags ? newPostTags.split(",").map(t => t.trim()) : [];
     
     try {
       await onAddPost(newPostTitle, newPostContent, cat, tagsArr);
-    } catch (er) {
-      console.error("Publish post error:", er);
+    } catch (er: any) {
+      setFeedError(er?.message || "Failed to publish post.");
+      return;
     }
     
     // Reset fields
@@ -185,6 +204,31 @@ export default function FeedView({
               );
             })}
           </div>
+          {showChannelInput ? (
+            <div className="mt-2 flex gap-2">
+              <input
+                type="text"
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+                placeholder="Channel name"
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                autoFocus
+                onKeyDown={(e) => e.key === "Enter" && handleCreateChannel()}
+              />
+              <button onClick={handleCreateChannel} className="px-2 py-1 bg-indigo-600 text-white rounded-xl text-xs cursor-pointer">Add</button>
+              <button onClick={() => { setShowChannelInput(false); setNewChannelName(""); }} className="px-2 py-1 text-gray-400 hover:text-gray-600 text-xs cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowChannelInput(true)}
+              className="mt-2 w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Create channel
+            </button>
+          )}
         </div>
 
         {/* Dynamic Tips & Guidelines Bento Row */}
@@ -393,6 +437,16 @@ export default function FeedView({
 
             {/* Main Form Fields */}
             <form onSubmit={handleCreatePostSubmit}>
+              {feedError && (
+                <div className="px-6 pt-4">
+                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-700 flex items-center justify-between">
+                    <span>{feedError}</span>
+                    <button onClick={() => setFeedError(null)} className="text-red-400 hover:text-red-600 ml-3 cursor-pointer">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Post Title</label>
