@@ -2086,6 +2086,12 @@ app.get("/api/lessons/:id", authenticateUser, requireWorkspacePermission(Workspa
     if (lesson.is_locked && !isStaff) {
       return res.status(403).json({ error: "Lesson is locked. Complete previous lessons first." });
     }
+    if (!isStaff) {
+      const enrollment = await findEnrollment(course.id, req.user.id);
+      if (!enrollment) {
+        return res.status(403).json({ error: "You must enroll in this course to access lessons." });
+      }
+    }
 
     res.json({
       lesson: {
@@ -2111,6 +2117,15 @@ app.get("/api/lessons/:id/stream", authenticateUser, requireWorkspacePermission(
     if (courseResult.rows.length === 0) return res.status(404).json({ error: "Course not found." });
 
     const course = courseResult.rows[0];
+    const member = await findWorkspaceMember(course.workspace_id, req.user.id);
+    const isStaff = req.user.platformRole === "super_admin" ||
+      (member && ["owner", "admin"].includes(member.role));
+    if (!isStaff) {
+      const enrollment = await findEnrollment(course.id, req.user.id);
+      if (!enrollment) {
+        return res.status(403).json({ error: "You must enroll in this course to access lessons." });
+      }
+    }
 
     let videoUrl = lesson.video_url || "";
     if (!videoUrl) {

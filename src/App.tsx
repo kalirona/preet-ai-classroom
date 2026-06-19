@@ -198,34 +198,38 @@ export default function App() {
   useEffect(() => {
     if (!activeCommunityId) return;
 
+    let ignore = false;
+
     async function syncCommunityData() {
       try {
         // Fetch posts
         const postRes = await fetch(`/api/posts?communityId=${activeCommunityId}`);
         const postData = await postRes.json();
-        if (postData.posts) {
+        if (!ignore && postData.posts) {
           setPosts(postData.posts);
         }
 
         // Fetch courses
         const courseRes = await fetch(`/api/courses?communityId=${activeCommunityId}`);
         const courseData = await courseRes.json();
-        if (courseData.courses) {
+        if (!ignore && courseData.courses) {
           setCourses(courseData.courses);
         }
 
         // Fetch events
         const eventRes = await fetch(`/api/events?communityId=${activeCommunityId}`);
         const eventData = await eventRes.json();
-        if (eventData.events) {
+        if (!ignore && eventData.events) {
           setEvents(eventData.events);
         }
 
       } catch (err) {
-        console.error("Community feed and courses sync error:", err);
+        if (!ignore) console.error("Community feed and courses sync error:", err);
       }
     }
     syncCommunityData();
+
+    return () => { ignore = true; };
   }, [activeCommunityId]);
 
   // Synchronic URL state mapping with loop protection and functional state updates
@@ -570,16 +574,19 @@ export default function App() {
 
   // Fetch tenant-isolated security logs whenever the active tab pivots
   useEffect(() => {
-    if (activeTab === "audit_logs_tab" && activeCommunityId) {
-      setLoadingWsLogs(true);
-      fetch(`/api/rbac/audit-logs?workspaceId=${activeCommunityId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.auditLogs) setWorkspaceLogs(data.auditLogs);
-        })
-        .catch(err => console.error("Error fetching workspace secure timeline:", err))
-        .finally(() => setLoadingWsLogs(false));
-    }
+    if (activeTab !== "audit_logs_tab" || !activeCommunityId) return;
+
+    const controller = new AbortController();
+    setLoadingWsLogs(true);
+    fetch(`/api/rbac/audit-logs?workspaceId=${activeCommunityId}`, { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => {
+        if (!controller.signal.aborted && data.auditLogs) setWorkspaceLogs(data.auditLogs);
+      })
+      .catch(err => { if (!controller.signal.aborted) console.error("Error fetching workspace secure timeline:", err); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingWsLogs(false); });
+
+    return () => controller.abort();
   }, [activeTab, activeCommunityId]);
 
   if (!currentUser || isPublicRoute) {
