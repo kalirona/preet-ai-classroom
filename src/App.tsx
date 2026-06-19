@@ -30,7 +30,6 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     case "sales":
     case "subscriptions":
     case "coupons":
-    case "settings":
       return wsRole === WorkspaceRole.OWNER;
 
     // Owner, Admin, or Instructor
@@ -112,6 +111,7 @@ export default function App() {
   // Tab syncs corresponding to Skool navbar
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [settingsSubTab, setSettingsSubTab] = useState<string>("");
   
   // Data array state
   const [posts, setPosts] = useState<Post[]>([]);
@@ -225,8 +225,15 @@ export default function App() {
         targetTab = "superadmin";
       } else if (path.startsWith("/creator") || hash === "#mrr") {
         targetTab = "mrr";
-      } else if (path.startsWith("/settings") || hash === "#settings") {
+      } else if (path.startsWith("/settings") || hash?.startsWith("#settings")) {
         targetTab = "settings";
+        // Extract sub-tab from URL query (e.g. #settings?tab=appearance)
+        const qIdx = hash?.indexOf("?");
+        if (qIdx && qIdx > 0) {
+          const qs = hash.substring(qIdx + 1);
+          const params = new URLSearchParams(qs);
+          setSettingsSubTab(params.get("tab") || "");
+        }
       } else if (hash) {
         const potentialTab = hash.substring(1);
         if (potentialTab) targetTab = potentialTab;
@@ -874,18 +881,18 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "settings" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN && canAccessTab("settings", currentUser, activeCommunityId) ? (
+          {activeTab === "settings" && canAccessTab("settings", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <SettingsView
                 currentUser={currentUser}
                 activeCommunity={activeCommunity}
                 onUpdateCommunity={handleUpdateActiveCommunity}
+                wsRole={currentUser?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER}
+                onUpdateUser={setCurrentUser}
+                onTabChange={setActiveTab}
+                initialSubTab={settingsSubTab}
               />
             </ErrorBoundary>
-          ) : activeTab === "settings" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Workspace Settings are restricted to the Owner.
-            </div>
           ) : null}
 
           {activeTab === "audit_logs_tab" && canAccessTab("audit_logs_tab", currentUser, activeCommunityId) ? (

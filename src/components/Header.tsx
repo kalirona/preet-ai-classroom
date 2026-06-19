@@ -264,6 +264,7 @@ export default function Header({
                 <button
                   className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
                   onClick={() => {
+                    window.location.hash = "settings?tab=appearance";
                     onTabChange("settings");
                     setShowProfileMenu(false);
                   }}
