@@ -215,10 +215,7 @@ function rowToUser(row: any): any {
     earnings: row.earnings,
     referredBy: row.referred_by,
     mfaEnabled: row.mfa_enabled,
-    mfaSecret: row.mfa_secret,
-    mfaBackupCodes: row.mfa_backup_codes || [],
     completedLessons: row.completed_lessons || [],
-    password: row.password_hash,
   };
 }
 
@@ -692,29 +689,34 @@ app.post("/api/auth/logout", async (req, res) => {
 });
 
 app.post("/api/auth/reset-password-request", async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: "Email is required." });
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required." });
 
-  const emailLower = email.toLowerCase().trim();
-  const user = await findUserByEmail(emailLower);
+    const emailLower = email.toLowerCase().trim();
+    const user = await findUserByEmail(emailLower);
 
-  if (user) {
-    const resetToken = generateTokenString();
-    const resetTokenHash = hashToken(resetToken);
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    if (user) {
+      const resetToken = generateTokenString();
+      const resetTokenHash = hashToken(resetToken);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-    await query(
-      "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
-      [user.id, resetTokenHash, expiresAt]
-    );
+      await query(
+        "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
+        [user.id, resetTokenHash, expiresAt]
+      );
 
-    const resetLink = `${req.protocol}://${req.headers.host || "localhost:3000"}/auth/reset-password?token=${resetToken}`;
-    await sendPasswordResetEmail(user.email, resetLink, user.full_name || user.username);
+      const resetLink = `${req.protocol}://${req.headers.host || "localhost:3000"}/auth/reset-password?token=${resetToken}`;
+      await sendPasswordResetEmail(user.email, resetLink, user.full_name || user.username);
 
-    await addAuditLog(user.id, user.full_name, "RESET_REQUESTED", `Password reset requested for ${user.email}.`);
+      await addAuditLog(user.id, user.full_name, "RESET_REQUESTED", `Password reset requested for ${user.email}.`);
+    }
+
+    res.json({ success: true, message: "If an account exists, a reset link has been generated." });
+  } catch (err) {
+    console.error("Password reset request error:", err);
+    res.status(500).json({ error: "Failed to process password reset request." });
   }
-
-  res.json({ success: true, message: "If an account exists, a reset link has been generated." });
 });
 
 app.post("/api/auth/reset-password", async (req, res) => {
@@ -983,7 +985,7 @@ app.post("/api/auth/onboarding", authenticateUser, async (req: any, res: any) =>
         if (role === "super_admin") wsRole = "owner";
         else if (role === "admin") wsRole = "admin";
         else if (role === "instructor") wsRole = "instructor";
-        else if (role === UserRole.MODERATOR) wsRole = "moderator";
+        else if (role === WorkspaceRole.MODERATOR) wsRole = "moderator";
 
         const existing = await findWorkspaceMember(targetCommunityId, req.user.id);
         if (!existing) {

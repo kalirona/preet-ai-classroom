@@ -240,15 +240,14 @@ export default function App() {
       
       // Select appropriate tab based on route
       let targetTab: string | null = null;
-      if (path.startsWith("/admin") || path.startsWith("/platform") || path.startsWith("/enterprise") || path.startsWith("/security") || path.startsWith("/global-analytics") || hash === "#superadmin" || hash === "#platform" || hash === "#admin") {
+      if (path.startsWith("/admin") || path.startsWith("/platform") || path.startsWith("/enterprise") || path.startsWith("/security") || path.startsWith("/global-analytics") || hash?.startsWith("#superadmin") || hash?.startsWith("#platform") || hash?.startsWith("#admin")) {
         targetTab = "superadmin";
-      } else if (path.startsWith("/creator") || hash === "#mrr") {
+      } else if (path.startsWith("/creator") || hash?.startsWith("#mrr")) {
         targetTab = "mrr";
       } else if (path.startsWith("/settings") || hash?.startsWith("#settings")) {
         targetTab = "settings";
-        // Extract sub-tab from URL query (e.g. #settings?tab=appearance)
-        const qIdx = hash?.indexOf("?");
-        if (qIdx && qIdx > 0) {
+        const qIdx = hash ? hash.indexOf("?") : -1;
+        if (qIdx >= 0) {
           const qs = hash.substring(qIdx + 1);
           const params = new URLSearchParams(qs);
           setSettingsSubTab(params.get("tab") || "");
@@ -424,11 +423,12 @@ export default function App() {
     if (!res.ok) throw new Error(data.error || "Failed to create post.");
     if (data.success && data.post) {
       setPosts(prev => [data.post, ...prev]);
-      if (currentUser) {
-        const updatedXp = currentUser.xp + 15;
-        const updatedLevel = Math.floor(updatedXp / 200) > currentUser.level ? currentUser.level + 1 : currentUser.level;
-        setCurrentUser({ ...currentUser, xp: updatedXp, level: updatedLevel });
-      }
+      setCurrentUser(prev => {
+        if (!prev) return prev;
+        const updatedXp = prev.xp + 15;
+        const updatedLevel = Math.floor(updatedXp / 200) > prev.level ? prev.level + 1 : prev.level;
+        return { ...prev, xp: updatedXp, level: updatedLevel };
+      });
       const freshAlert: Notification = {
         id: `n-${Date.now()}`,
         userId: currentUser?.id || "user-student",
@@ -449,23 +449,26 @@ export default function App() {
     if (!res.ok) throw new Error(data.error || "Failed to RSVP.");
     if (data.success && data.event) {
       setEvents(prev => prev.map(e => e.id === eventId ? data.event : e));
-      if (currentUser) {
-        const updatedXp = currentUser.xp + 20;
-        const updatedLevel = Math.floor(updatedXp / 200) > currentUser.level ? currentUser.level + 1 : currentUser.level;
-        setCurrentUser({ ...currentUser, xp: updatedXp, level: updatedLevel });
-      }
+      setCurrentUser(prev => {
+        if (!prev) return prev;
+        const updatedXp = prev.xp + 20;
+        const updatedLevel = Math.floor(updatedXp / 200) > prev.level ? prev.level + 1 : prev.level;
+        return { ...prev, xp: updatedXp, level: updatedLevel };
+      });
     }
   };
 
   const handleAwardXp = (amount: number) => {
-    if (!currentUser) return;
-    const updatedXp = currentUser.xp + amount;
-    const updatedLevel = Math.floor(updatedXp / 200) > currentUser.level ? currentUser.level + 1 : currentUser.level;
-    setCurrentUser({ ...currentUser, xp: updatedXp, level: updatedLevel });
+    setCurrentUser(prev => {
+      if (!prev) return prev;
+      const updatedXp = prev.xp + amount;
+      const updatedLevel = Math.floor(updatedXp / 200) > prev.level ? prev.level + 1 : prev.level;
+      return { ...prev, xp: updatedXp, level: updatedLevel };
+    });
 
     const freshAlert: Notification = {
       id: `n-custom-xp-${Date.now()}`,
-      userId: currentUser.id,
+      userId: currentUser?.id || "",
       title: `Quest Completed (+${amount} XP) 🏅`,
       message: `Successfully resolved dynamic workspace challenge! Level progress increased.`,
       type: "level_up",
@@ -480,7 +483,8 @@ export default function App() {
     try {
       const res = await fetch(`/api/courses?communityId=${activeCommunityId}`);
       const data = await res.json();
-      if (res.ok && data.courses) setCourses(data.courses);
+      if (!res.ok) throw new Error(data.error || "Failed to fetch courses.");
+      if (data.courses) setCourses(data.courses);
     } catch (err) {
       console.error("Failed to refresh courses:", err);
     }
@@ -784,7 +788,7 @@ export default function App() {
                 userRole={currentUser?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER}
                 activeCommunityId={activeCommunityId}
                 events={events}
-                onAddEvent={(evt) => setEvents([evt, ...events])}
+                onAddEvent={(evt) => setEvents(prev => [evt, ...prev])}
                 onRsvpEvent={handleRsvpEvent}
               />
             </ErrorBoundary>

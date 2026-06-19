@@ -51,11 +51,23 @@ export default function CourseBuilderStudio({ draft, onUpdate, onBack, currentUs
   const [showRightPanel, setShowRightPanel] = useState(true);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragItem, setDragItem] = useState<{ type: "module" | "lesson"; id: string } | null>(null);
+  const [nameInput, setNameInput] = useState(draft.name);
 
   const dragNode = useRef<HTMLElement | null>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (nameInput !== draft.name) {
+        onUpdate({ ...draftRef.current, name: nameInput });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [nameInput, onUpdate, draft.name]);
 
   const selectedLesson = selectedLessonId
-    ? draft.modules.flatMap((m) => m.lessons).find((l) => l.id === selectedLessonId) || null
+    ? draftRef.current.modules.flatMap((m) => m.lessons).find((l) => l.id === selectedLessonId) || null
     : null;
 
   const selectedBlock = selectedBlockId && selectedLesson
@@ -68,35 +80,39 @@ export default function CourseBuilderStudio({ draft, onUpdate, onBack, currentUs
 
   // --- Module operations ---
   const addModule = useCallback(() => {
+    const d = draftRef.current;
     const newMod: CourseDraftModule = {
       id: `mod-${Date.now()}`,
-      title: `Module ${draft.modules.length + 1}`,
-      index: draft.modules.length,
+      title: `Module ${d.modules.length + 1}`,
+      index: d.modules.length,
       lessons: [],
     };
-    onUpdate({ ...draft, modules: [...draft.modules, newMod] });
+    onUpdate({ ...d, modules: [...d.modules, newMod] });
     setSelectedModuleId(newMod.id);
     setExpandedModules((prev) => [...prev, newMod.id]);
-  }, [draft, onUpdate]);
+  }, [onUpdate]);
 
   const deleteModule = useCallback((id: string) => {
-    if (draft.modules.length <= 1) return;
-    const filtered = draft.modules.filter((m) => m.id !== id);
-    onUpdate({ ...draft, modules: filtered });
+    const d = draftRef.current;
+    if (d.modules.length <= 1) return;
+    const filtered = d.modules.filter((m) => m.id !== id);
+    onUpdate({ ...d, modules: filtered });
     if (selectedModuleId === id) {
       const next = filtered[0]?.id || null;
       setSelectedModuleId(next);
       setSelectedLessonId(next ? (filtered.find((m) => m.id === next)?.lessons[0]?.id || null) : null);
     }
-  }, [draft, onUpdate, selectedModuleId]);
+  }, [onUpdate, selectedModuleId]);
 
   const renameModule = useCallback((id: string, title: string) => {
-    onUpdate({ ...draft, modules: draft.modules.map((m) => m.id === id ? { ...m, title } : m) });
-  }, [draft, onUpdate]);
+    const d = draftRef.current;
+    onUpdate({ ...d, modules: d.modules.map((m) => m.id === id ? { ...m, title } : m) });
+  }, [onUpdate]);
 
   // --- Lesson operations ---
   const addLesson = useCallback((moduleId: string) => {
-    const targetModule = draft.modules.find((m) => m.id === moduleId);
+    const d = draftRef.current;
+    const targetModule = d.modules.find((m) => m.id === moduleId);
     const newLesson: CourseDraftLesson = {
       id: `lesson-${Date.now()}`,
       title: `Lesson ${(targetModule?.lessons.length || 0) + 1}`,
@@ -107,21 +123,22 @@ export default function CourseBuilderStudio({ draft, onUpdate, onBack, currentUs
       status: "draft",
     };
     onUpdate({
-      ...draft,
-      modules: draft.modules.map((m) =>
+      ...d,
+      modules: d.modules.map((m) =>
         m.id === moduleId ? { ...m, lessons: [...m.lessons, newLesson] } : m
       ),
     });
     setSelectedLessonId(newLesson.id);
     setSelectedBlockId(newLesson.blocks[0]?.id || null);
-  }, [draft, onUpdate]);
+  }, [onUpdate]);
 
   const deleteLesson = useCallback((id: string) => {
-    const mod = draft.modules.find((m) => m.lessons.some((l) => l.id === id));
+    const d = draftRef.current;
+    const mod = d.modules.find((m) => m.lessons.some((l) => l.id === id));
     if (!mod || mod.lessons.length <= 1) return;
     onUpdate({
-      ...draft,
-      modules: draft.modules.map((m) =>
+      ...d,
+      modules: d.modules.map((m) =>
         m.id === mod.id ? { ...m, lessons: m.lessons.filter((l) => l.id !== id) } : m
       ),
     });
@@ -129,30 +146,33 @@ export default function CourseBuilderStudio({ draft, onUpdate, onBack, currentUs
       const remaining = mod.lessons.filter((l) => l.id !== id);
       setSelectedLessonId(remaining[0]?.id || null);
     }
-  }, [draft, onUpdate, selectedLessonId]);
+  }, [onUpdate, selectedLessonId]);
 
   const renameLesson = useCallback((id: string, title: string) => {
+    const d = draftRef.current;
     onUpdate({
-      ...draft,
-      modules: draft.modules.map((m) => ({
+      ...d,
+      modules: d.modules.map((m) => ({
         ...m,
         lessons: m.lessons.map((l) => l.id === id ? { ...l, title } : l),
       })),
     });
-  }, [draft, onUpdate]);
+  }, [onUpdate]);
 
   // --- Move operations (drag-and-drop) ---
   const moveModule = useCallback((fromIndex: number, toIndex: number) => {
-    const updated = [...draft.modules];
+    const d = draftRef.current;
+    const updated = [...d.modules];
     const [moved] = updated.splice(fromIndex, 1);
     updated.splice(toIndex, 0, moved);
-    onUpdate({ ...draft, modules: updated.map((m, i) => ({ ...m, index: i })) });
-  }, [draft, onUpdate]);
+    onUpdate({ ...d, modules: updated.map((m, i) => ({ ...m, index: i })) });
+  }, [onUpdate]);
 
   const moveLesson = useCallback((moduleId: string, fromIndex: number, toIndex: number) => {
+    const d = draftRef.current;
     onUpdate({
-      ...draft,
-      modules: draft.modules.map((m) => {
+      ...d,
+      modules: d.modules.map((m) => {
         if (m.id !== moduleId) return m;
         const updated = [...m.lessons];
         const [moved] = updated.splice(fromIndex, 1);
@@ -160,21 +180,22 @@ export default function CourseBuilderStudio({ draft, onUpdate, onBack, currentUs
         return { ...m, lessons: updated };
       }),
     });
-  }, [draft, onUpdate]);
+  }, [onUpdate]);
 
   const moveLessonBetweenModules = useCallback((fromModuleId: string, lessonId: string, toModuleId: string) => {
-    const fromMod = draft.modules.find((m) => m.id === fromModuleId);
+    const d = draftRef.current;
+    const fromMod = d.modules.find((m) => m.id === fromModuleId);
     const lesson = fromMod?.lessons.find((l) => l.id === lessonId);
     if (!lesson) return;
     onUpdate({
-      ...draft,
-      modules: draft.modules.map((m) => {
+      ...d,
+      modules: d.modules.map((m) => {
         if (m.id === fromModuleId) return { ...m, lessons: m.lessons.filter((l) => l.id !== lessonId) };
         if (m.id === toModuleId) return { ...m, lessons: [...m.lessons, lesson] };
         return m;
       }),
     });
-  }, [draft, onUpdate]);
+  }, [onUpdate]);
 
   // Drag-and-drop handlers
   const handleDragStart = (type: "module" | "lesson", id: string) => (e: React.DragEvent) => {
@@ -228,41 +249,45 @@ export default function CourseBuilderStudio({ draft, onUpdate, onBack, currentUs
   // --- Block operations ---
   const updateBlocks = useCallback((blocks: ContentBlock[]) => {
     if (!selectedLessonId) return;
+    const d = draftRef.current;
     onUpdate({
-      ...draft,
-      modules: draft.modules.map((m) => ({
+      ...d,
+      modules: d.modules.map((m) => ({
         ...m,
         lessons: m.lessons.map((l) => l.id === selectedLessonId ? { ...l, blocks } : l),
       })),
     });
-  }, [draft, onUpdate, selectedLessonId]);
+  }, [onUpdate, selectedLessonId]);
 
   const updateLesson = useCallback((lessonId: string, updates: Partial<CourseDraftLesson>) => {
+    const d = draftRef.current;
     onUpdate({
-      ...draft,
-      modules: draft.modules.map((m) => ({
+      ...d,
+      modules: d.modules.map((m) => ({
         ...m,
         lessons: m.lessons.map((l) => l.id === lessonId ? { ...l, ...updates } : l),
       })),
     });
-  }, [draft, onUpdate]);
+  }, [onUpdate]);
 
   const handlePublish = useCallback(() => {
+    const d = draftRef.current;
     const updated = {
-      ...draft,
+      ...d,
       status: "published" as const,
       updatedAt: new Date().toISOString(),
-      modules: draft.modules.map((m) => ({
+      modules: d.modules.map((m) => ({
         ...m,
         lessons: m.lessons.map((l) => ({ ...l, status: "published" as const })),
       })),
     };
     onUpdate(updated);
-  }, [draft, onUpdate]);
+  }, [onUpdate]);
 
   const handleSave = useCallback(() => {
-    onUpdate({ ...draft, updatedAt: new Date().toISOString() });
-  }, [draft, onUpdate]);
+    const d = draftRef.current;
+    onUpdate({ ...d, updatedAt: new Date().toISOString() });
+  }, [onUpdate]);
 
   const startEdit = (id: string, currentTitle: string) => {
     setEditingId(id);
@@ -304,8 +329,8 @@ export default function CourseBuilderStudio({ draft, onUpdate, onBack, currentUs
             <BookOpen className="w-4 h-4 text-gray-400" />
             <input
               type="text"
-              value={draft.name}
-              onChange={(e) => onUpdate({ ...draft, name: e.target.value })}
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
               className="text-sm font-semibold text-gray-900 bg-transparent border-none outline-none p-0 placeholder:text-gray-300"
               placeholder="Course name"
             />

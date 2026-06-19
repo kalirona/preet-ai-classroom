@@ -88,7 +88,7 @@ export default function CourseBuilder({
 
   useEffect(() => {
     setCourses(initialCourses);
-  }, [initialCourses]);
+  }, []);
 
   const courseMetrics = useMemo(() => {
     const lessonCount = courses.reduce(

@@ -133,12 +133,25 @@ function renderBlockContent(block: ContentBlock, onChange: (content: string) => 
             className="w-full text-sm text-gray-700 bg-white border border-amber-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/20 mb-2"
           />
           <div className="space-y-1.5">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full border border-amber-300 flex items-center justify-center text-[10px] font-medium text-amber-600">{String.fromCharCode(65 + i)}</div>
-                <input type="text" placeholder={`Option ${String.fromCharCode(65 + i)}`} className="flex-1 text-xs bg-white border border-amber-200 rounded px-2 py-1.5 outline-none" />
-              </div>
-            ))}
+            {[0, 1, 2, 3].map((i) => {
+              const options = (block.meta?.options as string[]) || ["", "", "", ""];
+              return (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full border border-amber-300 flex items-center justify-center text-[10px] font-medium text-amber-600">{String.fromCharCode(65 + i)}</div>
+                  <input
+                    type="text"
+                    value={options[i] || ""}
+                    onChange={(e) => {
+                      const newOptions = [...options];
+                      newOptions[i] = e.target.value;
+                      onMetaChange?.("options", newOptions);
+                    }}
+                    placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                    className="flex-1 text-xs bg-white border border-amber-200 rounded px-2 py-1.5 outline-none"
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       );

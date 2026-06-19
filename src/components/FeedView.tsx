@@ -48,6 +48,7 @@ export default function FeedView({
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [localCommentCounts, setLocalCommentCounts] = useState<Record<string, number>>({});
   const [feedError, setFeedError] = useState<string | null>(null);
+  const [isPosting, setIsPosting] = useState(false);
 
   // Filter posts
   const categories = ["All", ...((activeCommunity?.categories?.length ? activeCommunity.categories : ["General Discussions", "Announcements", "Resources"]))];
@@ -98,6 +99,7 @@ export default function FeedView({
 
   const handleOpenComments = (post: Post) => {
     setSelectedPost(post);
+    setNewCommentText("");
     fetchComments(post.id);
     setFeedError(null);
   };
@@ -107,8 +109,11 @@ export default function FeedView({
     if (!selectedPost || !newCommentText.trim()) return;
     setFeedError(null);
 
+    const postId = selectedPost.id;
+    const currentCount = selectedPost.commentsCount;
+
     try {
-      const res = await fetch(`/api/posts/${selectedPost.id}/comments`, {
+      const res = await fetch(`/api/posts/${postId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: newCommentText })
@@ -117,8 +122,8 @@ export default function FeedView({
       if (!res.ok) { setFeedError(data.error || "Failed to add comment."); return; }
       if (data.success) {
         setNewCommentText("");
-        fetchComments(selectedPost.id);
-        setLocalCommentCounts(prev => ({ ...prev, [selectedPost!.id]: (prev[selectedPost!.id] ?? selectedPost!.commentsCount) + 1 }));
+        fetchComments(postId);
+        setLocalCommentCounts(prev => ({ ...prev, [postId]: (prev[postId] ?? currentCount) + 1 }));
       }
     } catch (e) {
       console.error("Comment submission error", e);
@@ -151,7 +156,9 @@ export default function FeedView({
   const handleCreatePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPostTitle.trim() || !newPostContent.trim()) return;
+    if (isPosting) return;
     setFeedError(null);
+    setIsPosting(true);
 
     const cat = newPostCategory || activeCommunity?.categories?.[0] || "General Discussions";
     const tagsArr = newPostTags ? newPostTags.split(",").map(t => t.trim()) : [];
@@ -160,10 +167,11 @@ export default function FeedView({
       await onAddPost(newPostTitle, newPostContent, cat, tagsArr);
     } catch (er: any) {
       setFeedError(er?.message || "Failed to publish post.");
+      setIsPosting(false);
       return;
     }
     
-    // Reset fields
+    setIsPosting(false);
     setNewPostTitle("");
     setNewPostContent("");
     setNewPostCategory("");
@@ -510,10 +518,20 @@ export default function FeedView({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                  disabled={isPosting}
+                  className={`px-5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm ${isPosting ? "bg-indigo-400" : "bg-indigo-600 hover:bg-indigo-700 text-white"}`}
                 >
-                  Publish Topic
-                  <ArrowRight className="w-4 h-4" />
+                  {isPosting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      Publish Topic
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -567,7 +585,7 @@ export default function FeedView({
               </div>
             ) : comments.length === 0 ? (
               <div className="py-12 text-center text-gray-400 text-xs bg-white rounded-2xl border border-gray-200">
-                🚀 No responses yet. Be the absolute first to answer Alex Rivera!
+                🚀 No responses yet. Be the absolute first to answer {selectedPost?.authorName || "the author"}!
               </div>
             ) : (
               comments.map((comm) => (
