@@ -584,7 +584,7 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
           {showBlockPicker && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowBlockPicker(false)} />
-              <div className="absolute left-4 bottom-full mb-1 w-64 bg-white rounded-xl border border-gray-200 shadow-xl z-20 py-3 max-h-80 overflow-y-auto">
+              <div className="absolute left-4 top-full mt-1 w-64 bg-white rounded-xl border border-gray-200 shadow-xl z-20 py-3 max-h-80 overflow-y-auto">
                 <p className="px-4 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Content Blocks</p>
                 {blockTypeConfig.slice(0, 10).map((cfg) => {
                   const Icon = cfg.icon;

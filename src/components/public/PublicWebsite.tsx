@@ -21,6 +21,38 @@ interface PublicWebsiteProps {
   onAuthSuccess?: (user: any) => void;
 }
 
+function CoursePreview({ id }: { id: string }) {
+  const [course, setCourse] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/courses/${id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.course) {
+          setCourse(data.course);
+          // Redirect to slug-based URL if available
+          if (data.course.slug) {
+            window.location.replace(`/course/${data.course.slug}`);
+            return;
+          }
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full" /></div>;
+  }
+
+  if (!course) {
+    return <div className="flex items-center justify-center min-h-screen text-slate-500">Course not found.</div>;
+  }
+
+  return <CourseLandingPage slug={course.slug || course.id} />;
+}
+
 export default function PublicWebsite({ onAuthSuccess }: PublicWebsiteProps) {
   const [route, setRoute] = useState("");
   const [params, setParams] = useState<Record<string, string>>({});
@@ -34,6 +66,7 @@ export default function PublicWebsite({ onAuthSuccess }: PublicWebsiteProps) {
       const courseCheckoutMatch = path.match(/^\/course\/([^/]+)\/checkout$/);
       const courseThankYouMatch = path.match(/^\/course\/([^/]+)\/thank-you$/);
       const courseMatch = path.match(/^\/course\/([^/]+)$/);
+      const coursePreviewMatch = path.match(/^\/preview\/course\/([^/]+)$/);
       const creatorMatch = path.match(/^\/creator\/(.+)$/);
       const blogPostMatch = path.match(/^\/blog\/(.+)$/);
 
@@ -53,6 +86,7 @@ export default function PublicWebsite({ onAuthSuccess }: PublicWebsiteProps) {
       else if (courseCheckoutMatch) { setRoute("course-checkout"); setParams({ slug: courseCheckoutMatch[1] }); }
       else if (courseThankYouMatch) { setRoute("course-thank-you"); setParams({ slug: courseThankYouMatch[1] }); }
       else if (courseMatch) { setRoute("course"); setParams({ slug: courseMatch[1] }); }
+      else if (coursePreviewMatch) { setRoute("preview-course"); setParams({ id: coursePreviewMatch[1] }); }
       else if (creatorMatch) { setRoute("creator"); setParams({ username: creatorMatch[1] }); }
       else if (blogPostMatch) { setRoute("blog-post"); setParams({ slug: blogPostMatch[1] }); }
       else setRoute("home");
@@ -79,6 +113,7 @@ export default function PublicWebsite({ onAuthSuccess }: PublicWebsiteProps) {
       case "faq": return <HomePage />;
       case "community": return <CommunityLandingPage slug={params.slug} />;
       case "course": return <CourseLandingPage slug={params.slug} />;
+      case "preview-course": return <CoursePreview id={params.id} />;
       case "course-checkout": return <CourseCheckout slug={params.slug} />;
       case "course-thank-you": return <CourseThankYou slug={params.slug} />;
       case "creator": return <CreatorLandingPage username={params.username} />;

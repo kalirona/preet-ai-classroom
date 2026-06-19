@@ -325,7 +325,7 @@ export default function CourseBuilder({
             <button
               type="button"
               onClick={() => {
-                window.open(`/preview/course/${course.id}`, "_blank");
+                window.open(course.slug ? `/course/${course.slug}` : `/preview/course/${course.id}`, "_blank");
                 setOpenMenuId(null);
               }}
               className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
@@ -450,7 +450,7 @@ export default function CourseBuilder({
             </button>
             <button
               type="button"
-              onClick={() => window.open(`/preview/course/${course.id}`, "_blank")}
+              onClick={() => window.open(course.slug ? `/course/${course.slug}` : `/preview/course/${course.id}`, "_blank")}
               className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               <Eye className="h-4 w-4" />

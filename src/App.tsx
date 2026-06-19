@@ -112,6 +112,25 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [settingsSubTab, setSettingsSubTab] = useState<string>("");
+
+  // Check if current path is a public course/preview route
+  const isPublicRoute = typeof window !== "undefined" && (
+    window.location.pathname.startsWith("/course/") ||
+    window.location.pathname.startsWith("/preview/course/") ||
+    window.location.pathname.startsWith("/community/") ||
+    window.location.pathname.startsWith("/creator/") ||
+    window.location.pathname.startsWith("/communities") ||
+    window.location.pathname.startsWith("/courses") ||
+    window.location.pathname.startsWith("/features") ||
+    window.location.pathname.startsWith("/pricing") ||
+    window.location.pathname.startsWith("/blog") ||
+    window.location.pathname.startsWith("/about") ||
+    window.location.pathname.startsWith("/contact") ||
+    window.location.pathname.startsWith("/faq") ||
+    window.location.pathname.startsWith("/builder") ||
+    window.location.pathname === "/" ||
+    window.location.pathname === ""
+  );
   
   // Data array state
   const [posts, setPosts] = useState<Post[]>([]);
@@ -234,6 +253,9 @@ export default function App() {
           const params = new URLSearchParams(qs);
           setSettingsSubTab(params.get("tab") || "");
         }
+      } else if (path.startsWith("/preview/course/") || path.startsWith("/course/")) {
+        // Public course pages should load the public website, not the dashboard
+        return; // Let the SPA fall through to PublicWebsite
       } else if (hash) {
         const potentialTab = hash.substring(1);
         if (potentialTab) targetTab = potentialTab;
@@ -589,7 +611,7 @@ export default function App() {
     }
   }, [activeTab, activeCommunityId]);
 
-  if (!currentUser) {
+  if (!currentUser || isPublicRoute) {
     return (
       <PublicWebsite
         onAuthSuccess={(user) => {
