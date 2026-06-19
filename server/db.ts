@@ -567,7 +567,22 @@ export async function createSchema() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_member_activity_workspace ON member_activity(workspace_id, created_at DESC)`,
-    `CREATE INDEX IF NOT EXISTS idx_member_activity_user ON member_activity(user_id, created_at DESC)`
+    `CREATE INDEX IF NOT EXISTS idx_member_activity_user ON member_activity(user_id, created_at DESC)`,
+
+    // Migration: Add missing columns to existing tables
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS creator_user_id TEXT REFERENCES users(id)`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS creator_name TEXT`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS workspace_name TEXT`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS amount DECIMAL(10,2)`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS notes TEXT`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS admin_notes TEXT`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS processed_by TEXT REFERENCES users(id)`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`,
+    `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ`,
   ];
 
   for (const statement of statements) {
