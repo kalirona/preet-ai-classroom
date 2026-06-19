@@ -113,7 +113,12 @@ export default function CreatorDashboard({
     }
   };
 
-  return (
+  return isLoading ? (
+    <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+      <Loader className="w-4 h-4 animate-spin mr-2" />
+      Loading dashboard...
+    </div>
+  ) : (
     <div className="p-6 h-full overflow-y-auto" id="creator-dashboard-workspace">
 
       {/* 1. KEY ADMINISTRATIVE METRICS (Bento Row) */}

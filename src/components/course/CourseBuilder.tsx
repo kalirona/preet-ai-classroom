@@ -163,19 +163,87 @@ export default function CourseBuilder({
     onCoursesChange?.(updatedCourses);
   };
 
-  const handleWizardComplete = (draft: CourseDraft) => {
+  const handleWizardComplete = async (draft: CourseDraft) => {
     const updated = [draft, ...courses];
     setCourses(updated);
     setActiveDraft(draft);
     setShowWizard(false);
     onCoursesChange?.(updated);
+    try {
+      await fetch(`/api/courses/${draft.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draft.name,
+          description: draft.description,
+          coverUrl: draft.coverUrl,
+          status: draft.status,
+          price: draft.price,
+          category: draft.category,
+          modules: draft.modules.map((m, mi) => ({
+            id: m.id,
+            title: m.title,
+            index: mi,
+            lessons: m.lessons.map((l, li) => ({
+              id: l.id,
+              title: l.title,
+              durationMinutes: l.durationMinutes,
+              contentType: l.contentType,
+              videoUrl: l.videoUrl || "",
+              textContent: l.textContent || "",
+              index: li,
+              isLocked: l.isLocked,
+              attachments: l.attachments || [],
+              quizQuestions: l.quizQuestions || [],
+              assignmentInstructions: l.assignmentInstructions || "",
+            })),
+          })),
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save course:", err);
+    }
   };
 
-  const handleDraftUpdate = (updated: CourseDraft) => {
+  const handleDraftUpdate = async (updated: CourseDraft) => {
     const updatedCourses = courses.map((course) => (course.id === updated.id ? updated : course));
     setCourses(updatedCourses);
     setActiveDraft(updated);
     onCoursesChange?.(updatedCourses);
+    try {
+      await fetch(`/api/courses/${updated.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: updated.name,
+          description: updated.description,
+          coverUrl: updated.coverUrl,
+          status: updated.status,
+          price: updated.price,
+          category: updated.category,
+          modules: updated.modules.map((m, mi) => ({
+            id: m.id,
+            title: m.title,
+            index: mi,
+            lessons: m.lessons.map((l, li) => ({
+              id: l.id,
+              title: l.title,
+              durationMinutes: l.durationMinutes,
+              contentType: l.contentType,
+              videoUrl: l.videoUrl || "",
+              textContent: l.textContent || "",
+              index: li,
+              isLocked: l.isLocked,
+              attachments: l.attachments || [],
+              quizQuestions: l.quizQuestions || [],
+              assignmentInstructions: l.assignmentInstructions || "",
+            })),
+          })),
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save course:", err);
+    }
   };
 
   const handleArchive = (id: string) => {
@@ -395,7 +463,7 @@ export default function CourseBuilder({
   };
 
   return (
-    <div className="min-h-full overflow-y-auto bg-slate-50">
+    <div className="h-full overflow-y-auto bg-slate-50">
       <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
         <section className="mb-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
           <div className="grid gap-0 lg:grid-cols-[1fr_340px]">

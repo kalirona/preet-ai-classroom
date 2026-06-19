@@ -119,10 +119,14 @@ export default function FeedView({
     e.preventDefault();
     if (!newPostTitle.trim() || !newPostContent.trim()) return;
 
-    const cat = newPostCategory || activeCommunity?.categories[0] || "General Discussions";
+    const cat = newPostCategory || activeCommunity?.categories?.[0] || "General Discussions";
     const tagsArr = newPostTags ? newPostTags.split(",").map(t => t.trim()) : [];
     
-    await onAddPost(newPostTitle, newPostContent, cat, tagsArr);
+    try {
+      await onAddPost(newPostTitle, newPostContent, cat, tagsArr);
+    } catch (er) {
+      console.error("Publish post error:", er);
+    }
     
     // Reset fields
     setNewPostTitle("");

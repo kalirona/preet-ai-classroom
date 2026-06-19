@@ -269,7 +269,7 @@ export default function ChatView({ currentUser, activeCommunityId }: ChatViewPro
     <div className="h-full flex bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm m-4 lg:m-6">
       {/* Channel sidebar */}
       <div className="w-56 border-r border-slate-200/80 bg-slate-50/50 flex flex-col shrink-0">
-        <div className="p-4 border-b border-slate-200/80 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Channels</h3>
             <div className="flex items-center gap-1.5 mt-1">
@@ -277,7 +277,7 @@ export default function ChatView({ currentUser, activeCommunityId }: ChatViewPro
               <span className="text-[10px] text-slate-400">{isConnected ? "Connected" : "Offline"}</span>
             </div>
           </div>
-          {currentUser && ["owner", "admin", "moderator"].includes(currentUser.role) && (
+          {(() => { const chatWsRole = currentUser?.workspaceRoles?.[activeCommunityId]; return chatWsRole && ["owner", "admin", "moderator"].includes(chatWsRole); })() && (
             <button
               onClick={() => setShowCreateChannel(true)}
               className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition cursor-pointer"
@@ -322,7 +322,7 @@ export default function ChatView({ currentUser, activeCommunityId }: ChatViewPro
       {/* Main chat area */}
       <div className="flex-1 flex flex-col bg-white min-w-0">
         {/* Header */}
-        <div className="p-4 border-b border-slate-200/80 bg-white flex justify-between items-center shrink-0">
+        <div className="px-6 py-4 border-b border-slate-200/80 bg-white flex justify-between items-center shrink-0">
           <div>
             <h4 className="text-sm font-semibold text-slate-900">{activeChannel?.name || "Select a channel"}</h4>
             <p className="text-xs text-slate-400 mt-0.5 truncate">{activeChannel?.description}</p>

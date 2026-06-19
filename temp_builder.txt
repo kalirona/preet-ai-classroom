@@ -1,0 +1,8 @@
+﻿import React, { useState, useCallback, useRef } from "react";
+import {
+  Plus, GripVertical, Trash2, ChevronDown, ChevronRight, Heading1, Type, Image, Video,
+  FileText, ClipboardList, CheckSquare, MessageSquare, MousePointerClick, ExternalLink,
+  Clock, Lock, Eye, Download, Globe, Settings, PlayCircle, BookOpen, Layers, Sparkles,
+  FileQuestion, PanelLeft, PanelRight, Bold, Italic, Link, List, Quote, Code, Minus
+} from "lucide-react";
+import { CourseDraft, CourseDraftLesson, ContentBlock, BlockType, CourseDraftModule } from "./CourseTypes";

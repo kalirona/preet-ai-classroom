@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { User, WorkspaceRole, Notification } from "../types";
-import { Bell, HelpCircle, Trophy, ShieldCheck, Menu, LogOut, Settings, Palette, User as UserIcon, Plus, Search } from "lucide-react";
+import { User, WorkspaceRole, PlatformRole, Notification } from "../types";
+import { Bell, HelpCircle, Trophy, ShieldCheck, Menu, LogOut, Settings, Palette, User as UserIcon, Plus, Search, Shield, Sparkles } from "lucide-react";
 
 interface HeaderProps {
   user: User | null;
@@ -21,6 +21,7 @@ const roleLabel: Record<string, string> = {
   instructor: "Instructor",
   moderator: "Moderator",
   member: "Member",
+  super_admin: "Super Admin",
 };
 
 const roleColor: Record<string, string> = {
@@ -29,6 +30,7 @@ const roleColor: Record<string, string> = {
   instructor: "bg-cyan-100 text-cyan-700",
   moderator: "bg-purple-100 text-purple-700",
   member: "bg-slate-100 text-slate-600",
+  super_admin: "bg-red-100 text-red-700",
 };
 
 export default function Header({
@@ -48,6 +50,9 @@ export default function Header({
   const profileRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLDivElement>(null);
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const displayRole = user?.platformRole === PlatformRole.SUPER_ADMIN
+    ? "super_admin"
+    : user?.workspaceRoles?.[activeCommunity?.id] || "member";
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -97,18 +102,26 @@ export default function Header({
       {/* Right: Actions + Notifications + Profile */}
       <div className="flex items-center gap-3">
         {/* Role Switcher */}
-        <select
-          value={user?.workspaceRoles?.[activeCommunity?.id] || WorkspaceRole.MEMBER}
-          onChange={(e) => onRoleChange(e.target.value as WorkspaceRole)}
-          className="text-sm bg-slate-50 text-slate-700 border border-slate-200 rounded-lg py-1.5 px-3 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 cursor-pointer hidden sm:block"
-          id="role-picker-testing"
-        >
-          <option value={WorkspaceRole.OWNER}>Creator</option>
-          <option value={WorkspaceRole.ADMIN}>Admin</option>
-          <option value={WorkspaceRole.INSTRUCTOR}>Instructor</option>
-          <option value={WorkspaceRole.MODERATOR}>Moderator</option>
-          <option value={WorkspaceRole.MEMBER}>Member</option>
-        </select>
+        <div className="relative group hidden sm:block">
+          <select
+            value={user?.workspaceRoles?.[activeCommunity?.id] || WorkspaceRole.MEMBER}
+            onChange={(e) => onRoleChange(e.target.value as WorkspaceRole)}
+            className="text-sm bg-slate-50 text-slate-700 border border-slate-200 rounded-lg py-1.5 px-3 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 cursor-pointer"
+            id="role-picker-testing"
+          >
+            <option value={WorkspaceRole.OWNER}>Creator</option>
+            <option value={WorkspaceRole.ADMIN}>Admin</option>
+            <option value={WorkspaceRole.INSTRUCTOR}>Instructor</option>
+            <option value={WorkspaceRole.MODERATOR}>Moderator</option>
+            <option value={WorkspaceRole.MEMBER}>Member</option>
+            {user?.platformRole === PlatformRole.SUPER_ADMIN && (
+              <option value="super_admin">Super Admin</option>
+            )}
+          </select>
+          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
+            Switch roles to see different views
+          </div>
+        </div>
 
         {/* New Community Button */}
         <button
@@ -204,8 +217,8 @@ export default function Header({
                     <div className="text-base font-semibold text-slate-900 truncate">{user?.fullName || "User"}</div>
                     <div className="text-sm text-slate-400 truncate mt-0.5">{user?.email}</div>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${roleColor[user?.role || "member"] || "bg-slate-100 text-slate-600"}`}>
-                        {roleLabel[user?.role || "member"] || "Member"}
+                      <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${roleColor[displayRole] || "bg-slate-100 text-slate-600"}`}>
+                        {roleLabel[displayRole] || "Member"}
                       </span>
                       <div className="flex items-center gap-1 text-xs text-amber-600">
                         <Trophy className="w-3 h-3" />
@@ -241,7 +254,17 @@ export default function Header({
                 <button
                   className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
                   onClick={() => {
-                    onTabChange("profile");
+                    openOnboarding();
+                    setShowProfileMenu(false);
+                  }}
+                >
+                  <Sparkles className="w-4 h-4 text-slate-400" />
+                  Onboarding Guide
+                </button>
+                <button
+                  className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
+                  onClick={() => {
+                    onTabChange("settings");
                     setShowProfileMenu(false);
                   }}
                 >

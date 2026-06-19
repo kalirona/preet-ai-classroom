@@ -45,6 +45,7 @@ export default function PublicWebsite({ onAuthSuccess }: PublicWebsiteProps) {
       else if (path === "/blog") setRoute("blog");
       else if (path === "/about") setRoute("about");
       else if (path === "/contact") setRoute("contact");
+      else if (path === "/faq") setRoute("faq");
       else if (path === "/login") setRoute("login");
       else if (path === "/register") setRoute("register");
       else if (path === "/builder") setRoute("builder");
@@ -75,6 +76,7 @@ export default function PublicWebsite({ onAuthSuccess }: PublicWebsiteProps) {
       case "blog": return <BlogPage />;
       case "about": return <AboutPage />;
       case "contact": return <ContactPage />;
+      case "faq": return <HomePage />;
       case "community": return <CommunityLandingPage slug={params.slug} />;
       case "course": return <CourseLandingPage slug={params.slug} />;
       case "course-checkout": return <CourseCheckout slug={params.slug} />;

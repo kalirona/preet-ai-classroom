@@ -37,9 +37,9 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     case "courses":
       return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.INSTRUCTOR;
 
-    // Owner or Admin
+    // Owner, Admin, or Instructor
     case "course-studio":
-      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN;
+      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.INSTRUCTOR;
 
     // Super Admin platform analytics (handled by super admin early return)
     case "analytics":
@@ -75,7 +75,6 @@ import Sidebar from "./components/Sidebar";
 import FeedView from "./components/FeedView";
 import PublicWebsite from "./components/public/PublicWebsite";
 import ClassroomView from "./components/classroom/ClassroomView";
-import CoursesView from "./components/courses/CoursesView";
 import CourseBuilder from "./components/course/CourseBuilder";
 import CalendarView from "./components/CalendarView";
 import CreatorDashboard from "./components/CreatorDashboard";
@@ -124,7 +123,7 @@ export default function App() {
   const [loadingWsLogs, setLoadingWsLogs] = useState(false);
 
   // UX modal triggers
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("skool_onboarding_dismissed"));
   const [showCreateCommunity, setShowCreateCommunity] = useState(false);
 
   // New community wizard inputs
@@ -633,12 +632,15 @@ export default function App() {
           activeCommunity={activeCommunity}
           notifications={notifications}
           onMarkNotificationsRead={handleMarkNotificationsRead}
-          openOnboarding={() => setShowOnboarding(true)}
+          openOnboarding={() => { localStorage.removeItem("skool_onboarding_dismissed"); setShowOnboarding(true); }}
           openCreateCommunity={() => setShowCreateCommunity(true)}
           onTabChange={(tab) => {
             if (canAccessTab(tab, currentUser, activeCommunityId)) {
               setActiveTab(tab);
               window.location.hash = tab;
+            } else if (tab !== activeTab) {
+              setActiveTab("feed");
+              window.location.hash = "feed";
             }
           }}
           onToggleSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
@@ -682,26 +684,6 @@ export default function App() {
               />
             </ErrorBoundary>
           )}
-
-          {activeTab === "courses" && canAccessTab("courses", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <CoursesView
-                communityId={activeCommunityId}
-                currentUser={currentUser}
-                courses={courses}
-                onAddCourse={handleAddCourse}
-                onRefreshCourses={handleRefreshCourses}
-                onEditCourse={(courseId) => {
-                  setActiveTab("course-studio");
-                  window.location.hash = "course-studio";
-                }}
-              />
-            </ErrorBoundary>
-          ) : activeTab === "courses" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Courses is restricted to Instructor, Owner, or Admin.
-            </div>
-          ) : null}
 
           {activeTab === "course-studio" && canAccessTab("course-studio", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
@@ -790,7 +772,7 @@ export default function App() {
             </ErrorBoundary>
           ) : activeTab === "course-studio" ? (
             <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Course Studio is restricted to Owner or Admin.
+               403 Forbidden - Course Studio is restricted to Owner, Admin, or Instructor.
             </div>
           ) : null}
 
@@ -1056,7 +1038,7 @@ export default function App() {
             {/* Modal branding */}
             <div className="p-6 bg-slate-900 text-white relative">
               <button
-                onClick={() => setShowOnboarding(false)}
+                onClick={() => { localStorage.setItem("skool_onboarding_dismissed", "1"); setShowOnboarding(false); }}
                 className="absolute top-4 right-4 p-1 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -1156,7 +1138,7 @@ export default function App() {
             <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end rounded-b-3xl">
               <button
                 type="button"
-                onClick={() => setShowOnboarding(false)}
+                onClick={() => { localStorage.setItem("skool_onboarding_dismissed", "1"); setShowOnboarding(false); }}
                 className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium transition cursor-pointer flex items-center gap-2"
                 id="btn-close-onboarding-banner"
               >

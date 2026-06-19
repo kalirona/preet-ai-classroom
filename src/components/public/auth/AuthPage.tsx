@@ -160,6 +160,17 @@ export default function AuthPage({ initialMode = "login", onAuthSuccess }: AuthP
             </button>
           </form>
 
+          {mode === "login" && (
+            <div className="mt-6 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-[10px] font-semibold text-amber-800 uppercase tracking-wide mb-1.5">Demo Accounts</p>
+              <div className="space-y-1 text-[11px] text-amber-700">
+                <p><span className="font-mono font-bold">admin@example.com</span> / <span className="font-mono">admin123</span> — Super Admin</p>
+                <p><span className="font-mono font-bold">creator@example.com</span> / <span className="font-mono">demo123</span> — Creator</p>
+                <p><span className="font-mono font-bold">instructor@example.com</span> / <span className="font-mono">demo123</span> — Instructor</p>
+              </div>
+            </div>
+          )}
+
           <p className="text-xs text-gray-500 mt-6 text-center">
             {mode === "login" ? (
               <>Don't have an account? <button onClick={() => { setMode("register"); setError(""); }} className="font-medium text-gray-900 underline underline-offset-2">Sign up free</button></>

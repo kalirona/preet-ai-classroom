@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { LiveEvent, WorkspaceRole } from "../types";
+import { Calendar, Plus, Check, Video, Clock, Globe, Users, ExternalLink, X, Sparkles } from "lucide-react";
 
 interface CalendarViewProps {
   userRole: WorkspaceRole;

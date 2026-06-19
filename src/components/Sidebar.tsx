@@ -69,7 +69,6 @@ export default function Sidebar({
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
         { id: "classroom", name: "Classroom", icon: BookOpen },
-        { id: "courses", name: "Courses", icon: Layers },
         { id: "course-studio", name: "Course Studio", icon: Edit },
         { id: "students", name: "Students", icon: Users },
         { id: "calendar", name: "Calendar", icon: Calendar },
@@ -93,10 +92,11 @@ export default function Sidebar({
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
         { id: "classroom", name: "Classroom", icon: BookOpen },
-        { id: "courses", name: "Courses", icon: Layers },
         { id: "course-studio", name: "Course Studio", icon: Edit },
         { id: "students", name: "Students", icon: Users },
         { id: "members", name: "Members", icon: Users },
+        { id: "calendar", name: "Calendar", icon: Calendar },
+        { id: "resources", name: "Resources", icon: FileText },
         { id: "audit_logs_tab", name: "Audit Logs", icon: ScrollText },
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
         { id: "chat", name: "Chat", icon: MessageSquare },
@@ -110,7 +110,6 @@ export default function Sidebar({
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Feed", icon: MessageSquare },
         { id: "classroom", name: "Classroom", icon: BookOpen },
-        { id: "courses", name: "Courses", icon: Layers },
         { id: "course-studio", name: "Course Studio", icon: Edit },
         { id: "students", name: "Students", icon: Users },
         { id: "calendar", name: "Calendar", icon: Calendar },
@@ -123,6 +122,7 @@ export default function Sidebar({
   // Moderator: Moderation center
   const moderatorNavigation = isWsModerator
     ? [
+        { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
         { id: "members", name: "Members", icon: Users },
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
