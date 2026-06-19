@@ -353,7 +353,7 @@ export default function App() {
           isRead: false,
           createdAt: new Date().toISOString()
         };
-        setNotifications([mockNotif, ...notifications]);
+        setNotifications(prev => [mockNotif, ...prev]);
 
         // Auto-revert tab back to feed if switching away and current tab lacks clearance
         if (!canAccessTab(activeTab, updatedUser, activeCommunityId)) {
@@ -370,7 +370,7 @@ export default function App() {
   const handleMarkNotificationsRead = async () => {
     try {
       await fetch("/api/notifications/read-all", { method: "POST" });
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (err) {
       console.error(err);
     }
@@ -382,7 +382,7 @@ export default function App() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to like post.");
     if (data.success && data.post) {
-      setPosts(posts.map(p => {
+      setPosts(prev => prev.map(p => {
         if (p.id === postId) {
           return { ...p, likes: data.post.likes, likedByUserIds: data.post.likedByUserIds || p.likedByUserIds };
         }
@@ -393,19 +393,14 @@ export default function App() {
 
   // Pin Post toggle (Creator Privilege)
   const handlePinPost = async (postId: string) => {
-    try {
-      const res = await fetch(`/api/posts/${postId}/pin`, { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
-        setPosts(posts.map(p => {
-          if (p.id === postId) {
-            return { ...p, isPinned: !p.isPinned };
-          }
-          return p;
-        }));
-      }
-    } catch (e) {
-      console.error(e);
+    const res = await fetch(`/api/posts/${postId}/pin`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to pin post.");
+    if (data.success) {
+      setPosts(prev => prev.map(p => {
+        if (p.id === postId) return { ...p, isPinned: !p.isPinned };
+        return p;
+      }));
     }
   };
 
@@ -425,17 +420,12 @@ export default function App() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to create post.");
     if (data.success && data.post) {
-      // Prepend new post
-      setPosts([data.post, ...posts]);
-      
-      // Award XP!
+      setPosts(prev => [data.post, ...prev]);
       if (currentUser) {
         const updatedXp = currentUser.xp + 15;
         const updatedLevel = Math.floor(updatedXp / 200) > currentUser.level ? currentUser.level + 1 : currentUser.level;
         setCurrentUser({ ...currentUser, xp: updatedXp, level: updatedLevel });
       }
-      
-      // Trigger alert notifications locally
       const freshAlert: Notification = {
         id: `n-${Date.now()}`,
         userId: currentUser?.id || "user-student",
@@ -445,28 +435,22 @@ export default function App() {
         isRead: false,
         createdAt: new Date().toISOString()
       };
-      setNotifications([freshAlert, ...notifications]);
+      setNotifications(prev => [freshAlert, ...prev]);
     }
   };
 
-  // Register Event RSVP RSVP
+  // Register Event RSVP
   const handleRsvpEvent = async (eventId: string) => {
-    try {
-      const res = await fetch(`/api/events/${eventId}/rsvp`, { method: "POST" });
-      const data = await res.json();
-      if (data.success && data.event) {
-        // Update local events list
-        setEvents(events.map(e => e.id === eventId ? data.event : e));
-        
-        // Boost user XP
-        if (currentUser) {
-          const updatedXp = currentUser.xp + 20;
-          const updatedLevel = Math.floor(updatedXp / 200) > currentUser.level ? currentUser.level + 1 : currentUser.level;
-          setCurrentUser({ ...currentUser, xp: updatedXp, level: updatedLevel });
-        }
+    const res = await fetch(`/api/events/${eventId}/rsvp`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to RSVP.");
+    if (data.success && data.event) {
+      setEvents(prev => prev.map(e => e.id === eventId ? data.event : e));
+      if (currentUser) {
+        const updatedXp = currentUser.xp + 20;
+        const updatedLevel = Math.floor(updatedXp / 200) > currentUser.level ? currentUser.level + 1 : currentUser.level;
+        setCurrentUser({ ...currentUser, xp: updatedXp, level: updatedLevel });
       }
-    } catch (e) {
-      console.error(e);
     }
   };
 
@@ -485,7 +469,7 @@ export default function App() {
       isRead: false,
       createdAt: new Date().toISOString()
     };
-    setNotifications([freshAlert, ...notifications]);
+    setNotifications(prev => [freshAlert, ...prev]);
   };
 
   const handleRefreshCourses = async () => {
@@ -493,7 +477,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/courses?communityId=${activeCommunityId}`);
       const data = await res.json();
-      if (data.courses) setCourses(data.courses);
+      if (res.ok && data.courses) setCourses(data.courses);
     } catch (err) {
       console.error("Failed to refresh courses:", err);
     }
@@ -522,8 +506,9 @@ export default function App() {
         })
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create community.");
       if (data.success && data.community) {
-        setCommunities([...communities, data.community]);
+        setCommunities(prev => [...prev, data.community]);
         setActiveCommunityId(data.community.id);
         
         // Reset states
@@ -536,7 +521,6 @@ export default function App() {
         setNewCommCategoryInput("AI Builders, General discussions");
         setShowCreateCommunity(false);
 
-        // Notify user about multi-tenant workspace spin up
         const targetNotif: Notification = {
           id: `comm-notif-${Date.now()}`,
           userId: currentUser?.id || "user-student",
@@ -546,7 +530,7 @@ export default function App() {
           isRead: false,
           createdAt: new Date().toISOString()
         };
-        setNotifications([targetNotif, ...notifications]);
+        setNotifications(prev => [targetNotif, ...prev]);
       }
     } catch (ex) {
       console.error("Multi-tenant subdomain deployment failed:", ex);
@@ -564,9 +548,9 @@ export default function App() {
         body: JSON.stringify(updatedFields)
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update community.");
       if (data.success && data.community) {
-        // Sync modified fields locally
-        setCommunities(communities.map(c => c.id === activeCommunityId ? { ...c, ...updatedFields } : c));
+        setCommunities(prev => prev.map(c => c.id === activeCommunityId ? { ...c, ...updatedFields } : c));
         return true;
       }
     } catch (err) {

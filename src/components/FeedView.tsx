@@ -118,7 +118,7 @@ export default function FeedView({
       if (data.success) {
         setNewCommentText("");
         fetchComments(selectedPost.id);
-        setLocalCommentCounts(prev => ({ ...prev, [selectedPost.id]: (localCommentCounts[selectedPost.id] ?? selectedPost.commentsCount) + 1 }));
+        setLocalCommentCounts(prev => ({ ...prev, [selectedPost!.id]: (prev[selectedPost!.id] ?? selectedPost!.commentsCount) + 1 }));
       }
     } catch (e) {
       console.error("Comment submission error", e);
