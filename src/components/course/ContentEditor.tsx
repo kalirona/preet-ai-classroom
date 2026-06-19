@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import { Plus, Heading1, Heading2, Type, Video, Image, FileQuestion, ClipboardList, Paperclip, Quote, Minus, Code, Headphones, FileText, BarChart3, Lightbulb, Sparkles, Bot, PenSquare, MessageSquare, Users, MousePointerClick, ArrowUpRight, Calendar, GripVertical, Trash2, ChevronDown, Download, Pointer, ExternalLink } from "lucide-react";
 import { ContentBlock, BlockType } from "./CourseTypes";
 
@@ -416,11 +416,10 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
   const editorRef = useRef<HTMLDivElement>(null);
   const blocksContainerRef = useRef<HTMLDivElement>(null);
 
-  // Scroll newly added block into view
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selectedBlockId) {
       const el = blocksContainerRef.current?.querySelector(`[data-block-id="${selectedBlockId}"]`);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [blocks.length, selectedBlockId]);
 

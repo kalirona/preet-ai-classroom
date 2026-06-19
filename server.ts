@@ -1328,11 +1328,6 @@ app.post("/api/posts/:id/like", authenticateUser, requireWorkspacePermission(Wor
     const post = await findPostById(id);
     if (!post) return res.status(404).json({ error: "Post not found." });
 
-    const member = await findWorkspaceMember(post.workspace_id, req.user.id);
-    if (!member || member.status !== "active") {
-      return res.status(403).json({ error: "Not a member of this workspace." });
-    }
-
     const likedBy = post.liked_by_user_ids || [];
     const idx = likedBy.indexOf(req.user.id);
 
@@ -1366,11 +1361,6 @@ app.get("/api/posts/:id/comments", authenticateUser, requireWorkspacePermission(
     const post = await findPostById(req.params.id);
     if (!post) return res.status(404).json({ error: "Post not found." });
 
-    const member = await findWorkspaceMember(post.workspace_id, req.user.id);
-    if (!member || member.status !== "active") {
-      return res.status(403).json({ error: "Not a member of this workspace." });
-    }
-
     const comments = await findCommentsByPost(req.params.id);
     res.json({ comments: comments.map(rowToComment) });
   } catch (err) {
@@ -1386,11 +1376,6 @@ app.post("/api/posts/:id/comments", authenticateUser, requireWorkspacePermission
 
     const post = await findPostById(id);
     if (!post) return res.status(404).json({ error: "Post not found." });
-
-    const member = await findWorkspaceMember(post.workspace_id, req.user.id);
-    if (!member || member.status !== "active") {
-      return res.status(403).json({ error: "Not a member of this workspace." });
-    }
 
     const wsRole = req.user.workspaceRoles?.[post.workspace_id] || "member";
     const authorRoleLabel = wsRole === "owner" ? "Owner" : wsRole === "admin" ? "Admin" : wsRole === "moderator" ? "Moderator" : "Member";
@@ -2094,12 +2079,8 @@ app.get("/api/lessons/:id", authenticateUser, requireWorkspacePermission(Workspa
 
     const course = courseResult.rows[0];
     const member = await findWorkspaceMember(course.workspace_id, req.user.id);
-    if (!member || member.status !== "active") {
-      return res.status(403).json({ error: "Access denied. Not a member." });
-    }
-
     const isStaff = req.user.platformRole === "super_admin" ||
-      ["owner", "admin"].includes(member.role);
+      (member && ["owner", "admin"].includes(member.role));
     if (lesson.is_locked && !isStaff) {
       return res.status(403).json({ error: "Lesson is locked. Complete previous lessons first." });
     }
@@ -2128,10 +2109,6 @@ app.get("/api/lessons/:id/stream", authenticateUser, requireWorkspacePermission(
     if (courseResult.rows.length === 0) return res.status(404).json({ error: "Course not found." });
 
     const course = courseResult.rows[0];
-    const member = await findWorkspaceMember(course.workspace_id, req.user.id);
-    if (!member || member.status !== "active") {
-      return res.status(403).json({ error: "Access denied." });
-    }
 
     let videoUrl = lesson.video_url || "";
     if (!videoUrl) {

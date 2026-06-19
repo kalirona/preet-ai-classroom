@@ -309,6 +309,9 @@ export default function App() {
     if (currentUser && activeCommunityId) {
       if (!canAccessTab(activeTab, currentUser, activeCommunityId)) {
         setActiveTab("feed");
+        if (window.location.hash !== "#feed") {
+          window.location.hash = "feed";
+        }
       }
     }
   }, [activeTab, currentUser, activeCommunityId]);
@@ -599,11 +602,13 @@ export default function App() {
           setActiveCommunityId(id);
           // When switching workspaces, revert tab back to dashboard
           setActiveTab("dashboard");
+          window.location.hash = "dashboard";
           setIsMobileSidebarOpen(false); // Auto-dismiss on workspace change
         }}
         activeTab={activeTab}
         onChangeTab={(tab) => {
           setActiveTab(tab);
+          window.location.hash = tab;
           setIsMobileSidebarOpen(false); // Auto-dismiss on tab click
         }}
         isMobileOpen={isMobileSidebarOpen}
@@ -643,7 +648,7 @@ export default function App() {
                 currentUser={currentUser}
                 activeCommunity={activeCommunity}
                 communities={communities}
-                onChangeTab={setActiveTab}
+                onChangeTab={(tab) => { setActiveTab(tab); window.location.hash = tab; }}
                 onAddXp={handleAwardXp}
               />
             </ErrorBoundary>
