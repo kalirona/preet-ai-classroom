@@ -352,18 +352,13 @@ export default function App() {
     try {
       const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.post) {
         setPosts(posts.map(p => {
           if (p.id === postId) {
-            return { ...p, likes: p.likes + 1 };
+            return { ...p, likes: data.post.likes, likedByUserIds: data.post.likedByUserIds || p.likedByUserIds };
           }
           return p;
         }));
-        
-        // Smoothly boost user XP state locally (+10 upvote participation XP!)
-        if (currentUser) {
-          setCurrentUser({ ...currentUser, xp: currentUser.xp + 10 });
-        }
       }
     } catch (err) {
       console.error(err);
@@ -666,6 +661,7 @@ export default function App() {
             <ErrorBoundary>
               <FeedView
                 userRole={currentUser?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER}
+                currentUserId={currentUser?.id}
                 activeCommunity={activeCommunity}
                 posts={posts}
                 onLikePost={handleLikePost}

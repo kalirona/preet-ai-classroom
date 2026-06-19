@@ -4,6 +4,7 @@ import { MessageSquare, ThumbsUp, Pin, Volume2, Search, ArrowRight, MessageCircl
 
 interface FeedViewProps {
   userRole: WorkspaceRole;
+  currentUserId?: string;
   activeCommunity: Community | null;
   posts: Post[];
   onLikePost: (id: string) => void;
@@ -13,6 +14,7 @@ interface FeedViewProps {
 
 export default function FeedView({
   userRole,
+  currentUserId,
   activeCommunity,
   posts,
   onLikePost,
@@ -38,10 +40,21 @@ export default function FeedView({
   const [comments, setComments] = useState<Comment[]>([]);
   const [newCommentText, setNewCommentText] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [localCommentCounts, setLocalCommentCounts] = useState<Record<string, number>>({});
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   // Filter posts
-  const categories = ["All", ...(activeCommunity?.categories || [])];
-  
+  const categories = ["All", ...((activeCommunity?.categories?.length ? activeCommunity.categories : ["General Discussions", "Announcements", "Resources"]))];
+
+  const handleLikeWithFeedback = async (postId: string) => {
+    setFeedError(null);
+    try {
+      await onLikePost(postId);
+    } catch (e: any) {
+      setFeedError(e?.message || "Failed to like post.");
+    }
+  };
+
   const filteredPosts = posts.filter(p => {
     const categoryMatches = selectedCategory === "All" || p.category.toLowerCase() === selectedCategory.toLowerCase();
     const searchMatches = searchQuery === "" || 
@@ -69,11 +82,13 @@ export default function FeedView({
   const handleOpenComments = (post: Post) => {
     setSelectedPost(post);
     fetchComments(post.id);
+    setFeedError(null);
   };
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPost || !newCommentText.trim()) return;
+    setFeedError(null);
 
     try {
       const res = await fetch(`/api/posts/${selectedPost.id}/comments`, {
@@ -82,14 +97,15 @@ export default function FeedView({
         body: JSON.stringify({ content: newCommentText })
       });
       const data = await res.json();
+      if (!res.ok) { setFeedError(data.error || "Failed to add comment."); return; }
       if (data.success) {
         setNewCommentText("");
         fetchComments(selectedPost.id);
-        // Sync local comments count increment
-        selectedPost.commentsCount += 1;
+        setLocalCommentCounts(prev => ({ ...prev, [selectedPost.id]: (localCommentCounts[selectedPost.id] ?? selectedPost.commentsCount) + 1 }));
       }
     } catch (e) {
       console.error("Comment submission error", e);
+      setFeedError("Network error. Please try again.");
     }
   };
 
@@ -216,6 +232,14 @@ export default function FeedView({
 
         {/* FEED POSTS LISTING */}
         <div className="space-y-4">
+          {feedError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-700 flex items-center justify-between">
+              <span>{feedError}</span>
+              <button onClick={() => setFeedError(null)} className="text-red-400 hover:text-red-600 ml-3 cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           {filteredPosts.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200/80 py-16 text-center shadow-sm">
               <MessageCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
@@ -297,11 +321,11 @@ export default function FeedView({
                 {/* Footer Likes / Comments interactive grid */}
                 <div className="flex items-center gap-6 pt-4 border-t border-gray-100">
                   <button
-                    onClick={() => onLikePost(post.id)}
+                    onClick={() => handleLikeWithFeedback(post.id)}
                     className="flex items-center gap-2 text-xs font-semibold text-gray-400 hover:text-indigo-600 transition"
                     id={`post-like-button-${post.id}`}
                   >
-                    <ThumbsUp className="w-4 h-4 fill-none" />
+                    <ThumbsUp className={`w-4 h-4 ${currentUserId && post.likedByUserIds?.includes(currentUserId) ? "fill-indigo-600 text-indigo-600" : "fill-none"}`} />
                     <span>{post.likes} Upvotes</span>
                   </button>
 
@@ -311,7 +335,7 @@ export default function FeedView({
                     id={`post-comment-button-${post.id}`}
                   >
                     <MessageSquare className="w-4 h-4" />
-                    <span>{post.commentsCount} comments / discussions</span>
+                    <span>{localCommentCounts[post.id] ?? post.commentsCount} comments / discussions</span>
                   </button>
                 </div>
 

@@ -79,12 +79,28 @@ function renderBlockContent(block: ContentBlock, onChange: (content: string) => 
             placeholder="YouTube/Vimeo URL or video embed URL..."
             className="w-full text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
           />
-          {block.content && (
-            <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-              <Video className="w-8 h-8 text-gray-300 mr-2" />
-              Video embed
-            </div>
-          )}
+          {block.content && (() => {
+            const vidId = block.content.match(
+              /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/
+            );
+            const vimeoId = block.content.match(/vimeo\.com\/(\d+)/);
+            const embedUrl = vidId
+              ? `https://www.youtube.com/embed/${vidId[1]}`
+              : vimeoId
+              ? `https://player.vimeo.com/video/${vimeoId[1]}`
+              : block.content;
+            return (
+              <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                <iframe
+                  src={embedUrl}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title="Video preview"
+                />
+              </div>
+            );
+          })()}
         </div>
       );
     case "image":
@@ -405,7 +421,11 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
       type,
       content: "",
     };
-    const idx = selectedBlockId ? blocks.findIndex((b) => b.id === selectedBlockId) : blocks.length - 1;
+    let idx = blocks.length - 1;
+    if (selectedBlockId) {
+      const found = blocks.findIndex((b) => b.id === selectedBlockId);
+      if (found !== -1) idx = found;
+    }
     const updated = [...blocks];
     updated.splice(idx + 1, 0, newBlock);
     onChange(updated);
@@ -564,23 +584,23 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
           {showBlockPicker && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowBlockPicker(false)} />
-              <div className="absolute left-4 bottom-full mb-1 w-56 bg-white rounded-xl border border-gray-200 shadow-xl z-20 py-2 max-h-72 overflow-y-auto">
-                <p className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Content Blocks</p>
+              <div className="absolute left-4 bottom-full mb-1 w-64 bg-white rounded-xl border border-gray-200 shadow-xl z-20 py-3 max-h-80 overflow-y-auto">
+                <p className="px-4 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Content Blocks</p>
                 {blockTypeConfig.slice(0, 10).map((cfg) => {
                   const Icon = cfg.icon;
                   return (
-                    <button key={cfg.type} onClick={() => addBlock(cfg.type)} className="flex items-center gap-2.5 w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
-                      <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />{cfg.label}
+                    <button key={cfg.type} onClick={() => addBlock(cfg.type)} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                      <Icon className={`w-4 h-4 ${cfg.color}`} />{cfg.label}
                     </button>
                   );
                 })}
-                <div className="border-t border-gray-100 my-1" />
-                <p className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">AI & Community</p>
+                <div className="border-t border-gray-100 my-1.5" />
+                <p className="px-4 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">AI & Community</p>
                 {blockTypeConfig.slice(10).map((cfg) => {
                   const Icon = cfg.icon;
                   return (
-                    <button key={cfg.type} onClick={() => addBlock(cfg.type)} className="flex items-center gap-2.5 w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
-                      <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />{cfg.label}
+                    <button key={cfg.type} onClick={() => addBlock(cfg.type)} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                      <Icon className={`w-4 h-4 ${cfg.color}`} />{cfg.label}
                     </button>
                   );
                 })}

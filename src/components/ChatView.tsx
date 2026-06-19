@@ -266,7 +266,7 @@ export default function ChatView({ currentUser, activeCommunityId }: ChatViewPro
   const typingList = Array.from(typingUsers.values());
 
   return (
-    <div className="h-full flex bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm m-4 lg:m-6">
+    <div className="h-full flex bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm m-2 sm:m-4 lg:m-6">
       {/* Channel sidebar */}
       <div className="w-56 border-r border-slate-200/80 bg-slate-50/50 flex flex-col shrink-0">
         <div className="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between">
