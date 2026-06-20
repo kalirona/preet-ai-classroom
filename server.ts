@@ -1780,91 +1780,176 @@ app.post("/api/courses/:id/status", authenticateUser, requireWorkspacePermission
   }
 });
 
-async function generateAICourse(prompt: string, communityId: string, userId: string) {
+async function generateAIStructuredCourse(params: {
+  topic: string;
+  audience: string;
+  level: string;
+  duration: string;
+  goal: string;
+}) {
   const ai = getAIClient();
-  let curriculum: any = null;
+  let result: any = null;
+
+  const prompt = `Create a course about "${params.topic}" for ${params.audience} (${params.level} level, ${params.duration} duration).
+Goal: ${params.goal}
+
+Output valid JSON (no markdown) matching:
+{
+  "title": "Course Title",
+  "description": "SEO-optimized course description (2-3 sentences)",
+  "learningOutcomes": ["Outcome 1", "Outcome 2", "Outcome 3"],
+  "estimatedDuration": "X weeks/hours",
+  "modules": [
+    {
+      "title": "Module Title",
+      "description": "Brief module description",
+      "lessons": [
+        { "title": "Lesson title", "durationMinutes": 10 }
+      ]
+    }
+  ]
+}`;
 
   if (ai) {
     try {
       const response = await ai.models.generateContent({
         model: "gemini-2.0-flash",
-        contents: `Create a curriculum about: "${prompt}"`,
+        contents: prompt,
         config: {
-          systemInstruction: `You are an expert curriculum designer. Output valid JSON matching:
-          {"name":"Course Title","description":"...","modules":[{"title":"Module Title","lessons":[{"title":"Lesson title","durationMinutes":15,"textContent":"..."}]}]}`,
+          systemInstruction: "You are an expert curriculum designer. Always output valid JSON only, no markdown formatting, no code fences.",
           responseMimeType: "application/json",
         },
       });
-      curriculum = JSON.parse(response.text.replace(/```json/g, "").replace(/```/g, "").trim());
-    } catch { /* fallback */ }
+      const raw = response.text;
+      const cleaned = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+      result = JSON.parse(cleaned);
+    } catch (e) {
+      console.error("AI generation failed, using fallback:", e);
+    }
   }
 
-  if (!curriculum) {
-    curriculum = {
-      name: `The Ultimate Guide to ${prompt}`,
-      description: `A fast-track curriculum to master ${prompt}.`,
+  if (!result) {
+    result = {
+      title: `The Complete Guide to ${params.topic}`,
+      description: `A comprehensive course designed for ${params.audience} at ${params.level} level over ${params.duration}. ${params.goal}`,
+      learningOutcomes: [
+        `Master the core concepts of ${params.topic}`,
+        `Apply best practices for ${params.topic}`,
+        `Build real-world projects using ${params.topic}`,
+        `Troubleshoot common ${params.topic} issues`,
+      ],
+      estimatedDuration: params.duration,
       modules: [
         {
-          title: "Module 1: Fundamentals",
+          title: "Module 1: Getting Started",
+          description: `Introduction to ${params.topic} for ${params.audience}`,
           lessons: [
-            { title: `Core concepts of ${prompt}`, durationMinutes: 12, textContent: `Introduction to ${prompt}.` },
-            { title: "Your first workbook", durationMinutes: 15, textContent: "Step-by-step guide." },
+            { title: `What is ${params.topic}?`, durationMinutes: 10 },
+            { title: "Setting Up Your Environment", durationMinutes: 15 },
           ],
         },
         {
-          title: "Module 2: Advanced Strategies",
+          title: "Module 2: Core Concepts",
+          description: `Deep dive into ${params.topic} fundamentals`,
           lessons: [
-            { title: "CI/CD Workflow", durationMinutes: 18, textContent: "Automate your pipelines." },
+            { title: "Understanding the Basics", durationMinutes: 15 },
+            { title: "Practical Applications", durationMinutes: 20 },
+          ],
+        },
+        {
+          title: "Module 3: Advanced Topics",
+          description: `Advanced ${params.topic} techniques and strategies`,
+          lessons: [
+            { title: "Advanced Strategies", durationMinutes: 20 },
+            { title: "Best Practices", durationMinutes: 15 },
           ],
         },
       ],
     };
   }
 
-  const courseId = `course-ai-${Date.now()}`;
-  const course = await createCourse({
-    id: courseId,
-    workspace_id: communityId,
-    name: curriculum.name,
-    description: curriculum.description,
-    status: "draft",
-    price: 0,
-    is_free: true,
-    category: "AI Generated",
-    created_by: userId,
-    modules: curriculum.modules.map((m: any, mi: number) => ({
+  return result;
+}
+
+// Deduct AI credit from user
+async function deductAICredit(userId: string): Promise<boolean> {
+  const user = await findUserById(userId);
+  if (!user) return false;
+  const credits = parseInt(user.ai_credits || "0", 10);
+  if (credits <= 0) return false;
+  await updateUser(userId, { ai_credits: credits - 1 });
+  return true;
+}
+
+app.post("/api/courses/generate-ai-structure", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { topic, audience, level, duration, goal } = req.body;
+    if (!topic || !audience || !level || !duration || !goal) {
+      return res.status(400).json({ error: "topic, audience, level, duration, and goal are required." });
+    }
+
+    // Check credits
+    const user = await findUserById(req.user.id);
+    const credits = parseInt(user?.ai_credits || "0", 10);
+    if (credits <= 0) {
+      return res.status(403).json({ error: "No AI credits remaining.", code: "NO_CREDITS" });
+    }
+
+    const curriculum = await generateAIStructuredCourse({ topic, audience, level, duration, goal });
+
+    res.json({ curriculum, creditsRemaining: credits - 1 });
+  } catch (err) {
+    console.error("AI generate structure error:", err);
+    res.status(500).json({ error: "Failed to generate course structure with AI." });
+  }
+});
+
+app.post("/api/courses/generate-ai-approve", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { curriculum, communityId } = req.body;
+    if (!curriculum || !communityId) {
+      return res.status(400).json({ error: "curriculum and communityId are required." });
+    }
+
+    // Deduct credit
+    const deducted = await deductAICredit(req.user.id);
+    if (!deducted) {
+      return res.status(403).json({ error: "No AI credits remaining.", code: "NO_CREDITS" });
+    }
+
+    const courseId = `course-ai-${Date.now()}`;
+    const modules = curriculum.modules.map((m: any, mi: number) => ({
       id: `mod-${Date.now()}-${mi}`,
       title: m.title,
       index: mi,
-      lessons: m.lessons.map((l: any, li: number) => ({
+      lessons: (m.lessons || []).map((l: any, li: number) => ({
         id: `lesson-${Date.now()}-${mi}-${li}`,
         title: l.title,
         durationMinutes: l.durationMinutes || 15,
         contentType: "text",
-        blocks: [{ id: `block-${Date.now()}-${mi}-${li}`, type: "paragraph", content: l.textContent || "" }],
+        blocks: [{ id: `block-${Date.now()}-${mi}-${li}`, type: "paragraph" as const, content: "Start writing lesson content here..." }],
         isLocked: false,
-        status: "draft",
-        textContent: l.textContent || "",
-        quizQuestions: [],
-        assignmentInstructions: "",
-        attachments: [],
+        status: "draft" as const,
       })),
-  })),
-  });
+    }));
 
-  return { course, curriculum };
-}
+    const course = await createCourse({
+      id: courseId,
+      workspace_id: communityId,
+      name: curriculum.title,
+      description: curriculum.description,
+      status: "draft",
+      price: 0,
+      is_free: true,
+      category: "AI Generated",
+      created_by: req.user.id,
+      modules,
+    });
 
-app.post("/api/courses/generate-ai", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
-  try {
-    const { prompt, communityId } = req.body;
-    if (!prompt || !communityId) return res.status(400).json({ error: "Prompt and communityId required." });
-
-    const { course } = await generateAICourse(prompt, communityId, req.user.id);
-    res.json(course);
+    res.json({ course, creditsRemaining: (parseInt((await findUserById(req.user.id))?.ai_credits || "0", 10)) });
   } catch (err) {
-    console.error("AI generate course error:", err);
-    res.status(500).json({ error: "Failed to generate course with AI." });
+    console.error("AI approve error:", err);
+    res.status(500).json({ error: "Failed to create course from AI generation." });
   }
 });
 

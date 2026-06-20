@@ -571,6 +571,7 @@ export async function createSchema() {
 
     // Migration: Add missing columns to existing tables
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_credits INTEGER DEFAULT 10`,
     `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE`,
     `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS creator_user_id TEXT REFERENCES users(id)`,
     `ALTER TABLE payout_requests ADD COLUMN IF NOT EXISTS creator_name TEXT`,

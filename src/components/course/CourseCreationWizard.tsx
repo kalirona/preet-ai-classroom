@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   X, BookOpen, Sparkles, FileText, ChevronRight, ChevronLeft, Check,
   Plus, GripVertical, Trash2, Edit3, Video, Headphones, Download,
-  Globe, Lock, Clock, CalendarDays, Search, Eye, EyeOff
+  Globe, Lock, Clock, CalendarDays, Search, Eye, EyeOff,
+  Wand2, RefreshCw, Users, Target, GraduationCap, Timer, AlertCircle,
+  Bot, Loader2, Zap, Layers, CheckCircle2, PenSquare, Lightbulb
 } from "lucide-react";
 import { CourseDraft, CourseDraftModule, CourseDraftLesson, CourseTemplate, ContentBlock } from "./CourseTypes";
 import { courseTemplates } from "./CourseTemplates";
@@ -30,7 +32,8 @@ const icons: Record<string, React.ElementType> = {
   video: Video, audio: Headphones, download: Download,
 };
 
-const steps = ["Template", "Details", "Curriculum", "Lesson Builder", "Settings", "Publish"];
+const skillLevels = ["Beginner", "Intermediate", "Advanced", "All Levels"];
+const durations = ["2 Weeks", "4 Weeks", "6 Weeks", "8 Weeks", "12 Weeks"];
 
 function buildModulesFromTemplate(template: CourseTemplate): CourseDraftModule[] {
   return template.modules.map((m, mi) => ({
@@ -81,6 +84,21 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
 
   const [publishAction, setPublishAction] = useState<"draft" | "published" | "scheduled" | "archived">("draft");
   const [scheduledDate, setScheduledDate] = useState("");
+
+  // AI generation state
+  const [creationMode, setCreationMode] = useState<"manual" | "ai" | null>(null);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiAudience, setAiAudience] = useState("");
+  const [aiLevel, setAiLevel] = useState("Beginner");
+  const [aiDuration, setAiDuration] = useState("4 Weeks");
+  const [aiGoal, setAiGoal] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiCurriculum, setAiCurriculum] = useState<any>(null);
+  const [aiCredits, setAiCredits] = useState<number>(0);
+  const [aiApproving, setAiApproving] = useState(false);
+  const [aiEditMode, setAiEditMode] = useState(false);
+  const [aiEditableTitle, setAiEditableTitle] = useState("");
+  const [aiEditableDescription, setAiEditableDescription] = useState("");
 
   const handleSelectTemplate = (t: CourseTemplate) => {
     setSelectedTemplate(t);
@@ -204,6 +222,110 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
 
   const getLessonModule = (lessonId: string) => modules.find((m) => m.lessons.some((l) => l.id === lessonId));
 
+  const handleGenerateAI = useCallback(async () => {
+    if (!aiTopic.trim() || !aiAudience.trim() || !aiGoal.trim()) {
+      setError("Topic, audience, and goal are required.");
+      return;
+    }
+    setError("");
+    setAiGenerating(true);
+    setAiCurriculum(null);
+    try {
+      const response = await fetch("/api/courses/generate-ai-structure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: aiTopic.trim(),
+          audience: aiAudience.trim(),
+          level: aiLevel,
+          duration: aiDuration,
+          goal: aiGoal.trim(),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.code === "NO_CREDITS") {
+          setError("No AI credits remaining. Please contact support.");
+        } else {
+          setError(data.error || "Failed to generate course.");
+        }
+        return;
+      }
+      setAiCurriculum(data.curriculum);
+      setAiCredits(data.creditsRemaining);
+      setAiEditableTitle(data.curriculum.title);
+      setAiEditableDescription(data.curriculum.description);
+      setAiEditMode(false);
+    } catch (e) {
+      setError("Network error. Please try again.");
+    } finally {
+      setAiGenerating(false);
+    }
+  }, [aiTopic, aiAudience, aiLevel, aiDuration, aiGoal]);
+
+  const handleRegenerateAI = useCallback(() => {
+    setAiCurriculum(null);
+    handleGenerateAI();
+  }, [handleGenerateAI]);
+
+  const handleApproveAI = useCallback(async () => {
+    if (!aiCurriculum) return;
+    setAiApproving(true);
+    try {
+      const curriculum = { ...aiCurriculum, title: aiEditableTitle, description: aiEditableDescription };
+      const response = await fetch("/api/courses/generate-ai-approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ curriculum, communityId }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Failed to create course.");
+        return;
+      }
+      setAiCredits(data.creditsRemaining);
+      // Build draft and hand off to CourseBuilderStudio
+      const draft: CourseDraft = {
+        id: data.course.id,
+        communityId,
+        name: curriculum.title,
+        slug: curriculum.title.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
+        description: curriculum.description,
+        coverUrl: "",
+        category: "AI Generated",
+        modules: curriculum.modules.map((m: any, mi: number) => ({
+          id: `mod-${Date.now()}-${mi}`,
+          title: m.title,
+          index: mi,
+          lessons: (m.lessons || []).map((l: any, li: number) => ({
+            id: `lesson-${Date.now()}-${mi}-${li}`,
+            title: l.title,
+            durationMinutes: l.durationMinutes || 15,
+            contentType: "text" as const,
+            blocks: [{ id: `block-${Date.now()}-${mi}-${li}`, type: "paragraph" as const, content: "Start writing lesson content here..." }],
+            isLocked: false,
+            status: "draft" as const,
+          })),
+        })),
+        status: "draft" as const,
+        price: 0,
+        isFree: true,
+        instructorName: "",
+        instructorAvatar: "",
+        enrolledCount: 0,
+        completionRate: 0,
+        revenue: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      onComplete(draft);
+    } catch (e) {
+      setError("Network error. Please try again.");
+    } finally {
+      setAiApproving(false);
+    }
+  }, [aiCurriculum, aiEditableTitle, aiEditableDescription, communityId, onComplete]);
+
   const handleCreate = () => {
     if (!name.trim()) { setError("Course name is required"); return; }
     const draft: CourseDraft = {
@@ -258,7 +380,7 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
             </div>
             <div>
               <h2 className="font-semibold text-gray-900">Create New Course</h2>
-              <p className="text-xs text-gray-500">Step {step + 1} of 6 &mdash; {steps[step]}</p>
+              <p className="text-xs text-gray-500">Step {step + 1} of {(creationMode === "ai" ? 4 : 6)} &mdash; {(creationMode === "ai" ? getSteps("ai") : getSteps(null))[step]}</p>
             </div>
           </div>
           <button onClick={onCancel} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
@@ -268,30 +390,130 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
 
         {/* Steps indicator */}
         <div className="flex items-center gap-0 px-6 py-3 bg-gray-50 border-b border-gray-200 shrink-0 overflow-x-auto">
-          {steps.map((s, i) => (
-            <React.Fragment key={s}>
-              <div className={`flex items-center gap-1.5 shrink-0 ${i <= step ? "text-gray-900" : "text-gray-400"}`}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  i < step ? "bg-gray-900 text-white" : i === step ? "bg-gray-900 text-white" : "bg-gray-200 text-gray-500"
-                }`}>
-                  {i < step ? <Check className="w-3 h-3" /> : i + 1}
+          {(creationMode === "ai" ? getSteps("ai") : getSteps(null)).map((s, i) => {
+            const totalSteps = creationMode === "ai" ? 4 : 6;
+            return (
+              <React.Fragment key={s}>
+                <div className={`flex items-center gap-1.5 shrink-0 ${i <= step ? "text-gray-900" : "text-gray-400"}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    i < step ? "bg-gray-900 text-white" : i === step ? "bg-gray-900 text-white" : "bg-gray-200 text-gray-500"
+                  }`}>
+                    {i < step ? <Check className="w-3 h-3" /> : i + 1}
+                  </div>
+                  <span className="text-[11px] font-medium whitespace-nowrap">{s}</span>
                 </div>
-                <span className="text-[11px] font-medium whitespace-nowrap">{s}</span>
-              </div>
-              {i < steps.length - 1 && <div className={`flex-1 h-px mx-2 min-w-[12px] ${i < step ? "bg-gray-900" : "bg-gray-200"}`} />}
-            </React.Fragment>
-          ))}
+                {i < totalSteps - 1 && <div className={`flex-1 h-px mx-2 min-w-[12px] ${i < step ? "bg-gray-900" : "bg-gray-200"}`} />}
+              </React.Fragment>
+            );
+          })}
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Step 0: Template Selection */}
-          {step === 0 && (
+          {/* Step 0: Template Selection or AI Creation */}
+          {step === 0 && !creationMode && (
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">How would you like to start?</h3>
+              <p className="text-sm text-gray-500 mb-6">Choose a creation method to build your course</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                <button
+                  onClick={() => setCreationMode("manual")}
+                  className="relative flex flex-col items-center text-center p-8 rounded-2xl border-2 border-gray-200 hover:border-gray-900 bg-white hover:bg-gray-50 transition-all group"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                    <PenSquare className="w-8 h-8 text-gray-600" />
+                  </div>
+                  <div className="font-semibold text-gray-900 text-lg mb-2">Create Manually</div>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    Start from scratch or use a pre-built template to build your course step by step.
+                  </p>
+                  <div className="flex items-center gap-2 mt-4 text-xs text-gray-400">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Full control over every detail</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setCreationMode("ai")}
+                  className="relative flex flex-col items-center text-center p-8 rounded-2xl border-2 border-indigo-200 hover:border-indigo-500 bg-indigo-50/30 hover:bg-indigo-50 transition-all group"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-lg">
+                    <Wand2 className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="font-semibold text-gray-900 text-lg mb-2">Create With AI</div>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    Describe your course and let AI generate a complete structure with modules and lessons.
+                  </p>
+                  <div className="flex items-center gap-2 mt-4 text-xs text-amber-600">
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Uses 1 AI credit per course</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Templates section - only visible when Manual is selected */}
+              {creationMode === "manual" && (
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1 mt-6">Or start with a template</h3>
+                  <p className="text-sm text-gray-500 mb-5">Pre-built course structures to accelerate creation</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {courseTemplates.map((t) => {
+                      const sel = selectedTemplate?.id === t.id;
+                      const gradient = templateIcons[t.id] || "from-indigo-500 to-purple-500";
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => handleSelectTemplate(t)}
+                          className={`relative flex flex-col items-center text-center p-5 rounded-xl border-2 transition-all ${
+                            sel ? "border-gray-900 bg-gray-50 ring-2 ring-gray-100" : "border-gray-200 hover:border-gray-300 bg-white hover:shadow-sm"
+                          }`}
+                        >
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-3`}>
+                            <FileText className="w-6 h-6 text-white" />
+                          </div>
+                          <div className="font-semibold text-gray-900 text-sm mb-1">{t.name}</div>
+                          <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-2">{t.description}</p>
+                          <div className="flex items-center gap-2 mt-3 text-[10px] text-gray-400">
+                            <span>{t.moduleCount} {t.moduleCount === 1 ? "module" : "modules"}</span>
+                            <span>&middot;</span>
+                            <span>{t.lessonCount} {t.lessonCount === 1 ? "lesson" : "lessons"}</span>
+                            <span>&middot;</span>
+                            <span className="capitalize">{t.difficulty}</span>
+                          </div>
+                          {sel && (
+                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center">
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 0: Manual mode - template selection */}
+          {step === 0 && creationMode === "manual" && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">Choose a Template</h3>
-              <p className="text-sm text-gray-500 mb-5">Start with a pre-built structure or pick a blank canvas</p>
+              <p className="text-sm text-gray-500 mb-5">Start with a pre-built structure or a blank canvas</p>
+              <button onClick={() => { setCreationMode(null); setSelectedTemplate(null); }} className="text-xs text-indigo-600 hover:text-indigo-700 mb-4 flex items-center gap-1">
+                <ChevronLeft className="w-3 h-3" /> Back to creation mode
+              </button>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {courseTemplates.map((t) => {
+                <button
+                  onClick={() => { setCreationMode(null); handleSelectTemplate(courseTemplates[0]); }}
+                  className="relative flex flex-col items-center text-center p-5 rounded-xl border-2 border-gray-200 hover:border-gray-300 bg-white hover:shadow-sm transition-all"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center mb-3">
+                    <FileText className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="font-semibold text-gray-900 text-sm mb-1">Blank Course</div>
+                  <p className="text-[11px] text-gray-500">Start from scratch with zero structure</p>
+                </button>
+                {courseTemplates.slice(1).map((t) => {
                   const sel = selectedTemplate?.id === t.id;
                   const gradient = templateIcons[t.id] || "from-indigo-500 to-purple-500";
                   return (
@@ -308,11 +530,9 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
                       <div className="font-semibold text-gray-900 text-sm mb-1">{t.name}</div>
                       <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-2">{t.description}</p>
                       <div className="flex items-center gap-2 mt-3 text-[10px] text-gray-400">
-                        <span>{t.moduleCount} {t.moduleCount === 1 ? "module" : "modules"}</span>
+                        <span>{t.moduleCount} modules</span>
                         <span>&middot;</span>
-                        <span>{t.lessonCount} {t.lessonCount === 1 ? "lesson" : "lessons"}</span>
-                        <span>&middot;</span>
-                        <span className="capitalize">{t.difficulty}</span>
+                        <span>{t.lessonCount} lessons</span>
                       </div>
                       {sel && (
                         <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center">
@@ -322,6 +542,252 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* AI Step: Input Form */}
+          {step === 0 && creationMode === "ai" && (
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Describe Your Course</h3>
+                  <p className="text-xs text-gray-500">AI will generate a complete course structure based on your inputs</p>
+                </div>
+                <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-medium text-amber-700">
+                  <Zap className="w-3.5 h-3.5" />
+                  Costs 1 AI credit
+                </div>
+              </div>
+
+              {error && (
+                <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {error}
+                </div>
+              )}
+
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-indigo-500" />
+                    Course Topic *
+                  </label>
+                  <input
+                    type="text"
+                    value={aiTopic}
+                    onChange={(e) => setAiTopic(e.target.value)}
+                    placeholder="e.g. WordPress SEO, React for Beginners, Digital Marketing..."
+                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                    onKeyDown={(e) => e.key === "Enter" && handleGenerateAI()}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-indigo-500" />
+                    Target Audience *
+                  </label>
+                  <input
+                    type="text"
+                    value={aiAudience}
+                    onChange={(e) => setAiAudience(e.target.value)}
+                    placeholder="e.g. Beginners, Developers, Marketers..."
+                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <GraduationCap className="w-3.5 h-3.5 text-indigo-500" />
+                    Skill Level
+                  </label>
+                  <select
+                    value={aiLevel}
+                    onChange={(e) => setAiLevel(e.target.value)}
+                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                  >
+                    {skillLevels.map((l) => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <Timer className="w-3.5 h-3.5 text-indigo-500" />
+                    Duration
+                  </label>
+                  <select
+                    value={aiDuration}
+                    onChange={(e) => setAiDuration(e.target.value)}
+                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                  >
+                    {durations.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-indigo-500" />
+                    Learning Goal *
+                  </label>
+                  <textarea
+                    value={aiGoal}
+                    onChange={(e) => setAiGoal(e.target.value)}
+                    placeholder="e.g. Rank Websites on Google, Build a complete React app, Launch a successful marketing campaign..."
+                    rows={2}
+                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={handleGenerateAI}
+                  disabled={aiGenerating || !aiTopic.trim() || !aiAudience.trim() || !aiGoal.trim()}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-6 py-3 rounded-xl transition-all shadow-sm hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {aiGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating Course Structure...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Generate Course
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* AI Step: Review Generated Structure */}
+          {step === 0 && creationMode === "ai" && aiCurriculum && !aiGenerating && (
+            <div className="mt-8 border-t border-gray-100 pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Generated Course Structure</h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleRegenerateAI}
+                    disabled={aiGenerating}
+                    className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl transition-colors"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${aiGenerating ? "animate-spin" : ""}`} />
+                    Regenerate
+                  </button>
+                </div>
+              </div>
+
+              {/* Edit mode toggle */}
+              {aiEditMode ? (
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Course Title</label>
+                    <input
+                      type="text"
+                      value={aiEditableTitle}
+                      onChange={(e) => setAiEditableTitle(e.target.value)}
+                      className="w-full px-4 py-3 text-lg font-bold text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                      value={aiEditableDescription}
+                      onChange={(e) => setAiEditableDescription(e.target.value)}
+                      rows={2}
+                      className="w-full px-4 py-3 text-sm text-gray-700 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none resize-none"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">{aiCurriculum.title}</h2>
+                  <p className="text-sm text-gray-600 mb-4">{aiCurriculum.description}</p>
+                </>
+              )}
+
+              <div className="flex items-center gap-4 mb-6">
+                <button
+                  onClick={() => setAiEditMode(!aiEditMode)}
+                  className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors"
+                >
+                  {aiEditMode ? <Check className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                  {aiEditMode ? "Done Editing" : "Edit"}
+                </button>
+              </div>
+
+              {/* Learning Outcomes */}
+              {aiCurriculum.learningOutcomes && aiCurriculum.learningOutcomes.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Lightbulb className="w-4 h-4 text-amber-500" />
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Learning Outcomes</h4>
+                  </div>
+                  <div className="space-y-1.5">
+                    {aiCurriculum.learningOutcomes.map((o: string, i: number) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                        <span className="text-sm text-gray-700">{o}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Module Structure */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Layers className="w-4 h-4 text-indigo-500" />
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Course Structure &mdash; {aiCurriculum.modules?.length || 0} modules, {(aiCurriculum.modules || []).reduce((s: number, m: any) => s + (m.lessons?.length || 0), 0)} lessons
+                  </h4>
+                </div>
+                <div className="space-y-2">
+                  {(aiCurriculum.modules || []).map((mod: any, mi: number) => (
+                    <div key={mi} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                      <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-100">
+                        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                          {mi + 1}
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">{mod.title}</span>
+                        <span className="text-[10px] text-gray-400 ml-auto">{mod.lessons?.length || 0} lessons</span>
+                      </div>
+                      {mod.description && (
+                        <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-50">{mod.description}</div>
+                      )}
+                      {(mod.lessons || []).map((lesson: any, li: number) => (
+                        <div key={li} className="flex items-center gap-2 px-4 py-2 ml-3 border-l-2 border-gray-100">
+                          <div className="w-5 h-5 rounded bg-gray-100 flex items-center justify-center text-[9px] font-medium text-gray-500 shrink-0">
+                            {li + 1}
+                          </div>
+                          <span className="text-xs text-gray-700">{lesson.title}</span>
+                          <span className="text-[10px] text-gray-400 ml-auto">{lesson.durationMinutes}m</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Credits remaining */}
+              <div className="mt-6 flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="flex items-center gap-2 text-sm text-amber-800">
+                  <Zap className="w-4 h-4" />
+                  <span>You have <strong>{aiCredits} AI credits</strong> remaining</span>
+                </div>
+                <button
+                  onClick={handleApproveAI}
+                  disabled={aiApproving}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 px-6 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-lg disabled:opacity-50"
+                >
+                  {aiApproving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
+                  {aiApproving ? "Creating Course..." : "Approve & Create Course"}
+                </button>
               </div>
             </div>
           )}
@@ -393,8 +859,8 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
             </div>
           )}
 
-          {/* Step 2: Curriculum Builder */}
-          {step === 2 && (
+          {/* Step 2: Curriculum Builder (Manual) / Settings (AI) */}
+          {step === 2 && creationMode !== "ai" && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">Curriculum Builder</h3>
               <p className="text-sm text-gray-500 mb-5">Organize your course into modules and lessons</p>
@@ -471,8 +937,8 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
             </div>
           )}
 
-          {/* Step 3: Lesson Builder */}
-          {step === 3 && (
+          {/* Step 3: Lesson Builder (Manual) / Publish (AI) */}
+          {step === 3 && creationMode !== "ai" && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">Lesson Builder</h3>
               <p className="text-sm text-gray-500 mb-5">Create rich content with blocks</p>
@@ -507,8 +973,8 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
             </div>
           )}
 
-          {/* Step 4: Course Settings */}
-          {step === 4 && (
+          {/* Step 4: Course Settings (Manual) / or AI Step 2 */}
+          {(step === 4 && creationMode !== "ai") || (step === 2 && creationMode === "ai") && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">Course Settings</h3>
               <p className="text-sm text-gray-500 mb-5">Configure certificates, access, and content delivery</p>
@@ -570,8 +1036,8 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
             </div>
           )}
 
-          {/* Step 5: Publish */}
-          {step === 5 && (
+          {/* Step 5: Publish (Manual) / or AI Step 3 */}
+          {(step === 5 && creationMode !== "ai") || (step === 3 && creationMode === "ai") && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">Publish</h3>
               <p className="text-sm text-gray-500 mb-5">Choose how to launch your course</p>
@@ -621,34 +1087,80 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 shrink-0">
           <button
-            onClick={() => step > 0 ? setStep(step - 1) : onCancel()}
+            onClick={() => {
+              if (creationMode === "ai" && step === 0 && (aiCurriculum || !aiGenerating)) {
+                setCreationMode(null);
+                setAiCurriculum(null);
+                setError("");
+              } else if (step > 0) {
+                setStep(step - 1);
+              } else {
+                onCancel();
+              }
+            }}
             className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
-            {step === 0 ? "Cancel" : "Back"}
+            {step === 0 ? (creationMode ? "Back to options" : "Cancel") : "Back"}
           </button>
           <div className="flex items-center gap-2">
-            {step < 5 && (
-              <button
-                onClick={() => {
-                  if (step === 1 && !name.trim()) { setError("Course name is required"); return; }
-                  setError("");
-                  setStep(step + 1);
-                }}
-                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors"
-              >
-                Next: {steps[step + 1]}
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
-            {step === 5 && (
-              <button
-                onClick={handleCreate}
-                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
-              >
-                <Sparkles className="w-4 h-4" />
-                {publishAction === "draft" ? "Save Draft" : publishAction === "published" ? "Publish Course" : publishAction === "scheduled" ? "Schedule Course" : "Archive Course"}
-              </button>
+            {/* AI mode step navigation */}
+            {creationMode === "ai" ? (
+              <>
+                {step < 3 && (
+                  <button
+                    onClick={() => {
+                      if (step === 0) {
+                        // From AI step, need to have approved first
+                        if (!aiCurriculum) return;
+                        // Auto-pass through to Details
+                      }
+                      if (step === 1 && !name.trim()) { setError("Course name is required"); return; }
+                      setError("");
+                      setStep(step + 1);
+                    }}
+                    disabled={step === 0 && !aiCurriculum}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next: {(creationMode === "ai" ? getSteps("ai") : getSteps(null))[step + 1]}
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+                {step === 3 && (
+                  <button
+                    onClick={step === 0 && aiCurriculum ? () => setStep(1) : handleCreate}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {publishAction === "draft" ? "Save Draft" : publishAction === "published" ? "Publish Course" : publishAction === "scheduled" ? "Schedule Course" : "Archive Course"}
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                {step < 5 && (
+                  <button
+                    onClick={() => {
+                      if (step === 1 && !name.trim()) { setError("Course name is required"); return; }
+                      setError("");
+                      setStep(step + 1);
+                    }}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors"
+                  >
+                    Next: {getSteps(null)[step + 1]}
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+                {step === 5 && (
+                  <button
+                    onClick={handleCreate}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {publishAction === "draft" ? "Save Draft" : publishAction === "published" ? "Publish Course" : publishAction === "scheduled" ? "Schedule Course" : "Archive Course"}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
