@@ -36,9 +36,9 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     case "courses":
       return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.INSTRUCTOR;
 
-    // Owner, Admin, or Instructor
+    // Owner or Instructor (NOT Admin — Admin runs community, doesn't build courses)
     case "course-studio":
-      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.INSTRUCTOR;
+      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.INSTRUCTOR;
 
     // Super Admin platform analytics (handled by super admin early return)
     case "analytics":
@@ -64,7 +64,18 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     case "community":
       return wsRole !== WorkspaceRole.MEMBER;
 
-    // Anyone can access (feed, courses, calendar, resources, profile, chat, saved, notifications_tab, home)
+    // Instructor course-related tabs
+    case "course-analytics":
+    case "assignments":
+    case "certificates":
+    case "student-progress":
+      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.INSTRUCTOR;
+
+    // Settings — Owner/Admin only (no Instructor, no Member)
+    case "settings":
+      return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN;
+
+    // Anyone can access (feed, classroom, calendar, resources, profile, chat, saved, notifications_tab, home)
     default:
       return true;
   }
@@ -97,6 +108,10 @@ import ReportsView from "./components/ReportsView";
 import NotificationsView from "./components/NotificationsView";
 import SupportView from "./components/SupportView";
 import StudentProgressView from "./components/courses/StudentProgressView";
+import CourseAnalyticsView from "./components/courses/CourseAnalyticsView";
+import AssignmentsView from "./components/courses/AssignmentsView";
+import CertificatesView from "./components/courses/CertificatesView";
+import CoursesListView from "./components/courses/CoursesListView";
 import CreatorPayoutsView from "./components/courses/CreatorPayoutsView";
 import { SocketProvider } from "./components/SocketProvider";
 
@@ -691,6 +706,16 @@ export default function App() {
             </ErrorBoundary>
           )}
 
+          {activeTab === "courses" && canAccessTab("courses", currentUser, activeCommunityId) ? (
+            <ErrorBoundary>
+              <CoursesListView workspaceId={activeCommunityId} />
+            </ErrorBoundary>
+          ) : activeTab === "courses" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Courses is restricted.
+            </div>
+          ) : null}
+
           {activeTab === "course-studio" && canAccessTab("course-studio", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <CourseBuilder
@@ -824,6 +849,46 @@ export default function App() {
             </div>
           ) : null}
 
+          {activeTab === "student-progress" && canAccessTab("student-progress", currentUser, activeCommunityId) ? (
+            <ErrorBoundary>
+              <StudentProgressView workspaceId={activeCommunityId} />
+            </ErrorBoundary>
+          ) : activeTab === "student-progress" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Student Progress is restricted.
+            </div>
+          ) : null}
+
+          {activeTab === "course-analytics" && canAccessTab("course-analytics", currentUser, activeCommunityId) ? (
+            <ErrorBoundary>
+              <CourseAnalyticsView workspaceId={activeCommunityId} />
+            </ErrorBoundary>
+          ) : activeTab === "course-analytics" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Course Analytics is restricted.
+            </div>
+          ) : null}
+
+          {activeTab === "assignments" && canAccessTab("assignments", currentUser, activeCommunityId) ? (
+            <ErrorBoundary>
+              <AssignmentsView workspaceId={activeCommunityId} />
+            </ErrorBoundary>
+          ) : activeTab === "assignments" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Assignments is restricted.
+            </div>
+          ) : null}
+
+          {activeTab === "certificates" && canAccessTab("certificates", currentUser, activeCommunityId) ? (
+            <ErrorBoundary>
+              <CertificatesView workspaceId={activeCommunityId} />
+            </ErrorBoundary>
+          ) : activeTab === "certificates" ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Certificates is restricted.
+            </div>
+          ) : null}
+
           {activeTab === "chat" && (
             <ErrorBoundary>
               <ChatView
@@ -859,7 +924,7 @@ export default function App() {
                 workspaceName={activeCommunity?.name}
               />
             </ErrorBoundary>
-          ) : activeTab === "payouts" ? (
+          ) : activeTab === "payouts" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN ? (
             <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
               403 Forbidden
             </div>
@@ -891,7 +956,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "settings" && canAccessTab("settings", currentUser, activeCommunityId) ? (
+          {activeTab === "settings" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN && canAccessTab("settings", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <SettingsView
                 currentUser={currentUser}
@@ -903,6 +968,10 @@ export default function App() {
                 initialSubTab={settingsSubTab}
               />
             </ErrorBoundary>
+          ) : activeTab === "settings" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN ? (
+            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
+              403 Forbidden - Settings is restricted to Owner or Admin.
+            </div>
           ) : null}
 
           {activeTab === "audit_logs_tab" && canAccessTab("audit_logs_tab", currentUser, activeCommunityId) ? (

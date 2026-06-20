@@ -4,7 +4,7 @@ import {
   MessageSquare, BookOpen, Calendar, Trophy, BarChart3, Star, Layers, Sparkles, X, ChevronDown, 
   Menu, Info, Users, ShieldAlert, LogOut, FileText, Settings, Bookmark, Bell, ShoppingCart, UserCheck, ChevronLeft, ChevronRight, HelpCircle, Shield, Database,
   LayoutDashboard, Receipt, Repeat, Ticket, HeartHandshake, ShieldCheck, ScrollText, Flag,
-  Globe, DollarSign, CreditCard, Edit
+  Globe, DollarSign, CreditCard, Edit, ClipboardList, Award
 } from "lucide-react";
 
 interface SidebarProps {
@@ -69,20 +69,14 @@ export default function Sidebar({
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
         { id: "classroom", name: "Classroom", icon: BookOpen },
+        { id: "courses", name: "Courses", icon: Layers },
         { id: "course-studio", name: "Course Studio", icon: Edit },
         { id: "students", name: "Students", icon: Users },
-        { id: "calendar", name: "Calendar", icon: Calendar },
         { id: "members", name: "Members", icon: Users },
-        { id: "resources", name: "Resources", icon: FileText },
-        { id: "audit_logs_tab", name: "Audit Logs", icon: ScrollText },
-        { id: "monetization", name: "Monetization", icon: DollarSign },
-        { id: "sales", name: "Sales", icon: Receipt },
-        { id: "subscriptions", name: "Subscriptions", icon: Repeat },
-        { id: "coupons", name: "Coupons", icon: Ticket },
-        { id: "payouts", name: "Payouts", icon: CreditCard },
-        { id: "settings", name: "Settings", icon: Settings },
+        { id: "calendar", name: "Calendar", icon: Calendar },
         { id: "chat", name: "Chat", icon: MessageSquare },
-        { id: "support", name: "Support", icon: HelpCircle },
+        { id: "monetization", name: "Monetization", icon: DollarSign },
+        { id: "settings", name: "Workspace Settings", icon: Settings },
       ]
     : [];
 
@@ -92,58 +86,49 @@ export default function Sidebar({
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
         { id: "classroom", name: "Classroom", icon: BookOpen },
-        { id: "course-studio", name: "Course Studio", icon: Edit },
+        { id: "courses", name: "Courses", icon: Layers },
         { id: "students", name: "Students", icon: Users },
         { id: "members", name: "Members", icon: Users },
-        { id: "calendar", name: "Calendar", icon: Calendar },
-        { id: "resources", name: "Resources", icon: FileText },
-        { id: "audit_logs_tab", name: "Audit Logs", icon: ScrollText },
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
+        { id: "settings", name: "Workspace Settings", icon: Settings },
         { id: "chat", name: "Chat", icon: MessageSquare },
-        { id: "support", name: "Support", icon: HelpCircle },
       ]
     : [];
 
-  // Instructor: Teacher only
+  // Instructor: Teacher-focused (courses, not management)
   const instructorNavigation = isWsInstructor
     ? [
-        { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
-        { id: "community", name: "Feed", icon: MessageSquare },
         { id: "classroom", name: "Classroom", icon: BookOpen },
+        { id: "courses", name: "Courses", icon: Layers },
         { id: "course-studio", name: "Course Studio", icon: Edit },
+        { id: "course-analytics", name: "Course Analytics", icon: BarChart3 },
+        { id: "student-progress", name: "Student Progress", icon: BarChart3 },
+        { id: "assignments", name: "Assignments", icon: ClipboardList },
+        { id: "certificates", name: "Certificates", icon: Award },
         { id: "students", name: "Students", icon: Users },
         { id: "calendar", name: "Calendar", icon: Calendar },
-        { id: "resources", name: "Resources", icon: FileText },
         { id: "chat", name: "Chat", icon: MessageSquare },
-        { id: "support", name: "Support", icon: HelpCircle },
       ]
     : [];
 
-  // Moderator: Moderation center
+  // Moderator: Community health only
   const moderatorNavigation = isWsModerator
     ? [
-        { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
-        { id: "members", name: "Members", icon: Users },
+        { id: "chat", name: "Chat", icon: MessageSquare },
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
         { id: "reports", name: "Reports", icon: Flag },
-        { id: "chat", name: "Chat", icon: MessageSquare },
-        { id: "support", name: "Support", icon: HelpCircle },
-        { id: "calendar", name: "Calendar", icon: Calendar },
-        { id: "resources", name: "Resources", icon: FileText },
       ]
     : [];
 
   // Student (Member): Learning focused
   const studentNavigation = isStudent
     ? [
-        { id: "feed", name: "Feed", icon: LayoutDashboard },
+        { id: "feed", name: "Community", icon: MessageSquare },
         { id: "classroom", name: "Classroom", icon: BookOpen },
         { id: "calendar", name: "Calendar", icon: Calendar },
-        { id: "resources", name: "Resources", icon: FileText },
-        { id: "profile", name: "Profile", icon: UserCheck },
         { id: "chat", name: "Chat", icon: MessageSquare },
-        { id: "support", name: "Support", icon: HelpCircle },
+        { id: "profile", name: "Profile", icon: UserCheck },
       ]
     : [];
 

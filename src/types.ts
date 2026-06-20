@@ -59,11 +59,28 @@ export enum PlatformPermission {
   VIEW_OWNER_MRR = "view_owner_mrr",
   ENTERPRISE_SECURITY = "enterprise_security",
   MANAGE_USERS = "manage_users",
-  BILLING_INFRASTRUCTURE = "billing_infrastructure"
+  BILLING_INFRASTRUCTURE = "billing_infrastructure",
+  MANAGE_WORKSPACES = "manage_workspaces",
+  MANAGE_PLANS = "manage_plans",
+  VIEW_REVENUE = "view_revenue",
+  MANAGE_PAYOUTS = "manage_payouts",
+  MANAGE_AI_PROVIDERS = "manage_ai_providers",
+  MANAGE_PLATFORM_SETTINGS = "manage_platform_settings",
+  MANAGE_BRANDING = "manage_branding",
+  MANAGE_EMAIL = "manage_email",
+  MANAGE_SMTP = "manage_smtp",
+  MANAGE_PAYMENT_GATEWAYS = "manage_payment_gateways",
+  MANAGE_STORAGE = "manage_storage",
+  MANAGE_SECURITY = "manage_security",
+  MANAGE_FEATURE_FLAGS = "manage_feature_flags",
+  MANAGE_ROLES = "manage_roles",
+  VIEW_AUDIT_LOGS = "view_audit_logs",
+  ACCESS_SYSTEM_MONITORING = "access_system_monitoring"
 }
 
 export enum WorkspacePermission {
   MANAGE_WORKSPACE = "manage_workspace",
+  MANAGE_WORKSPACE_SETTINGS = "manage_workspace_settings",
   MANAGE_COURSES = "manage_courses",
   MANAGE_LESSONS = "manage_lessons",
   MANAGE_MEMBERS = "manage_members",
@@ -93,7 +110,23 @@ export const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[
     PlatformPermission.VIEW_OWNER_MRR,
     PlatformPermission.ENTERPRISE_SECURITY,
     PlatformPermission.MANAGE_USERS,
-    PlatformPermission.BILLING_INFRASTRUCTURE
+    PlatformPermission.BILLING_INFRASTRUCTURE,
+    PlatformPermission.MANAGE_WORKSPACES,
+    PlatformPermission.MANAGE_PLANS,
+    PlatformPermission.VIEW_REVENUE,
+    PlatformPermission.MANAGE_PAYOUTS,
+    PlatformPermission.MANAGE_AI_PROVIDERS,
+    PlatformPermission.MANAGE_PLATFORM_SETTINGS,
+    PlatformPermission.MANAGE_BRANDING,
+    PlatformPermission.MANAGE_EMAIL,
+    PlatformPermission.MANAGE_SMTP,
+    PlatformPermission.MANAGE_PAYMENT_GATEWAYS,
+    PlatformPermission.MANAGE_STORAGE,
+    PlatformPermission.MANAGE_SECURITY,
+    PlatformPermission.MANAGE_FEATURE_FLAGS,
+    PlatformPermission.MANAGE_ROLES,
+    PlatformPermission.VIEW_AUDIT_LOGS,
+    PlatformPermission.ACCESS_SYSTEM_MONITORING
   ],
   [PlatformRole.USER]: []
 };
@@ -123,6 +156,7 @@ export const WORKSPACE_ROLE_PERMISSIONS: Record<WorkspaceRole, WorkspacePermissi
     WorkspacePermission.VIEW_PROFILE
   ],
   [WorkspaceRole.ADMIN]: [
+    WorkspacePermission.MANAGE_WORKSPACE_SETTINGS,
     WorkspacePermission.MANAGE_COURSES,
     WorkspacePermission.MANAGE_LESSONS,
     WorkspacePermission.MANAGE_MEMBERS,
@@ -146,7 +180,6 @@ export const WORKSPACE_ROLE_PERMISSIONS: Record<WorkspaceRole, WorkspacePermissi
     WorkspacePermission.MANAGE_COURSES,
     WorkspacePermission.MANAGE_LESSONS,
     WorkspacePermission.GRADE_ASSIGNMENTS,
-    WorkspacePermission.VIEW_ANALYTICS,
     WorkspacePermission.VIEW_FEED,
     WorkspacePermission.JOIN_CLASSROOM,
     WorkspacePermission.VIEW_CALENDAR,

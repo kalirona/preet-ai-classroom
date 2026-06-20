@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   X, BookOpen, Sparkles, FileText, ChevronRight, ChevronLeft, Check,
   Plus, GripVertical, Trash2, Edit3, Video, Headphones, Download,
@@ -71,6 +71,7 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [editingModule, setEditingModule] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [aiDropdownModule, setAiDropdownModule] = useState<string | null>(null);
 
   const [certificate, setCertificate] = useState(false);
   const [dripContent, setDripContent] = useState(false);
@@ -99,6 +100,17 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
   const [aiEditMode, setAiEditMode] = useState(false);
   const [aiEditableTitle, setAiEditableTitle] = useState("");
   const [aiEditableDescription, setAiEditableDescription] = useState("");
+
+  // AI Curriculum Expansion state
+  const [aiActionLoading, setAiActionLoading] = useState<string | null>(null);
+  const [aiGeneratedLessons, setAiGeneratedLessons] = useState<any[] | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<any[] | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [aiMissingTopics, setAiMissingTopics] = useState<any[] | null>(null);
+  const [aiActionTarget, setAiActionTarget] = useState<string | null>(null);
+  const [selectedGeneratedLessons, setSelectedGeneratedLessons] = useState<Set<number>>(new Set());
+  const [aiShowResults, setAiShowResults] = useState(false);
+  const [aiResultsTitle, setAiResultsTitle] = useState("");
 
   const handleSelectTemplate = (t: CourseTemplate) => {
     setSelectedTemplate(t);
@@ -325,6 +337,173 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
       setAiApproving(false);
     }
   }, [aiCurriculum, aiEditableTitle, aiEditableDescription, communityId, onComplete]);
+
+  // --- AI Curriculum Expansion handlers ---
+  const handleAIAction = useCallback(async (action: string, moduleId?: string) => {
+    setAiActionLoading(action);
+    setAiGeneratedLessons(null);
+    setAiSuggestions(null);
+    setAiAnalysis(null);
+    setAiMissingTopics(null);
+    setAiShowResults(false);
+    setError("");
+
+    const courseName = name.trim() || "Untitled Course";
+    const targetModule = moduleId ? modules.find(m => m.id === moduleId) : null;
+    setAiActionTarget(targetModule?.title || courseName);
+
+    try {
+      let endpoint = "";
+      let body: any = { courseTopic: courseName };
+
+      if (action === "generate_lessons") {
+        endpoint = "/api/courses/generate-lessons";
+        body = { ...body, moduleTitle: targetModule?.title || "General", count: 5 };
+      } else if (action === "expand_module") {
+        endpoint = "/api/courses/expand-module";
+        body = { ...body, moduleTitle: targetModule?.title || "General", existingLessons: targetModule?.lessons || [] };
+      } else if (action === "improve") {
+        endpoint = "/api/courses/improve-curriculum";
+        body = { ...body, modules };
+      } else if (action === "missing_topics") {
+        endpoint = "/api/courses/add-missing-topics";
+        body = { ...body, moduleTitles: modules.map(m => m.title) };
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "AI action failed.");
+        return;
+      }
+
+      if (action === "generate_lessons") {
+        setAiGeneratedLessons(data.lessons || []);
+        setSelectedGeneratedLessons(new Set((data.lessons || []).map((_: any, i: number) => i)));
+        setAiResultsTitle(`Generated Lessons for "${targetModule?.title || courseName}"`);
+        setAiShowResults(true);
+      } else if (action === "expand_module") {
+        setAiSuggestions(data.suggestions || []);
+        setSelectedGeneratedLessons(new Set((data.suggestions || []).map((_: any, i: number) => i)));
+        setAiResultsTitle(`Expansion Suggestions for "${targetModule?.title || courseName}"`);
+        setAiShowResults(true);
+      } else if (action === "improve") {
+        setAiAnalysis(data);
+        setAiResultsTitle("Curriculum Analysis");
+        setAiShowResults(true);
+      } else if (action === "missing_topics") {
+        setAiMissingTopics(data.topics || []);
+        setSelectedGeneratedLessons(new Set((data.topics || []).map((_: any, i: number) => i)));
+        setAiResultsTitle("Suggested Missing Topics");
+        setAiShowResults(true);
+      }
+    } catch (e) {
+      setError("Network error. Please try again.");
+    } finally {
+      setAiActionLoading(null);
+    }
+  }, [name, modules]);
+
+  const handleAcceptGenerated = useCallback(async (action: string, moduleId?: string) => {
+    setAiApproving(true);
+    try {
+      if (action === "generate_lessons" && aiGeneratedLessons && moduleId) {
+        const checkedLessons = aiGeneratedLessons.filter((_, i) => selectedGeneratedLessons.has(i));
+        if (checkedLessons.length === 0) { setError("Select at least one lesson."); setAiApproving(false); return; }
+        await fetch("/api/courses/accept-ai-lessons", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId: "draft", moduleId, lessons: checkedLessons, action }),
+        });
+        const mod = modules.find(m => m.id === moduleId);
+        if (mod) {
+          const newLessons = checkedLessons.map((l: any, i: number) => ({
+            id: `draft-lesson-${Date.now()}-${i}`,
+            title: l.title,
+            durationMinutes: l.durationMinutes || 10,
+            contentType: "text" as const,
+            blocks: [{ id: `block-${Date.now()}-${i}`, type: "paragraph" as const, content: "Start writing..." }],
+            isLocked: false,
+            status: "draft" as const,
+          }));
+          setModules(modules.map(m => m.id === moduleId ? { ...m, lessons: [...m.lessons, ...newLessons] } : m));
+        }
+      } else if (action === "missing_topics" && aiMissingTopics) {
+        const checkedTopics = aiMissingTopics.filter((_, i) => selectedGeneratedLessons.has(i));
+        if (checkedTopics.length === 0) { setError("Select at least one topic."); setAiApproving(false); return; }
+        await fetch("/api/courses/accept-ai-lessons", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId: "draft", moduleId: "new", lessons: checkedTopics, action }),
+        });
+        const newModules = checkedTopics.map((t: any, i: number) => ({
+          id: `draft-mod-${Date.now()}-${i}`,
+          title: t.title,
+          index: modules.length + i,
+          lessons: (t.lessons || []).map((l: any, li: number) => ({
+            id: `draft-lesson-${Date.now()}-${i}-${li}`,
+            title: l.title,
+            durationMinutes: l.durationMinutes || 10,
+            contentType: "text" as const,
+            blocks: [{ id: `block-${Date.now()}-${i}-${li}`, type: "paragraph" as const, content: "Start writing..." }],
+            isLocked: false,
+            status: "draft" as const,
+          })),
+        }));
+        setModules([...modules, ...newModules]);
+      } else if (action === "expand_module" && aiSuggestions && moduleId) {
+        const checked = aiSuggestions.filter((_, i) => selectedGeneratedLessons.has(i));
+        if (checked.length === 0) { setError("Select at least one suggestion."); setAiApproving(false); return; }
+        await fetch("/api/courses/accept-ai-lessons", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId: "draft", moduleId, lessons: checked, action }),
+        });
+        const mod = modules.find(m => m.id === moduleId);
+        if (mod) {
+          const newLessons = checked.map((s: any, i: number) => ({
+            id: `draft-lesson-${Date.now()}-${i}`,
+            title: s.title,
+            durationMinutes: s.durationMinutes || 15,
+            contentType: "text" as const,
+            blocks: [{ id: `block-${Date.now()}-${i}`, type: "paragraph" as const, content: "Start writing..." }],
+            isLocked: false,
+            status: "draft" as const,
+          }));
+          setModules(modules.map(m => m.id === moduleId ? { ...m, lessons: [...m.lessons, ...newLessons] } : m));
+        }
+      }
+      setAiShowResults(false);
+      setAiGeneratedLessons(null);
+      setAiSuggestions(null);
+      setAiMissingTopics(null);
+      setAiAnalysis(null);
+    } catch (e) {
+      setError("Failed to accept. Please try again.");
+    } finally {
+      setAiApproving(false);
+    }
+  }, [aiGeneratedLessons, aiSuggestions, aiAnalysis, aiMissingTopics, selectedGeneratedLessons, modules]);
+
+  const toggleGeneratedLesson = (index: number) => {
+    setSelectedGeneratedLessons(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  };
+
+  // Close AI dropdown on outside click
+  useEffect(() => {
+    if (!aiDropdownModule) return;
+    const handler = () => setAiDropdownModule(null);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [aiDropdownModule]);
 
   const handleCreate = () => {
     if (!name.trim()) { setError("Course name is required"); return; }
@@ -792,6 +971,124 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
             </div>
           )}
 
+          {/* AI Curriculum Expansion Results Panel */}
+          {aiShowResults && (
+            <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-8 bg-black/40 backdrop-blur-sm" onClick={() => setAiShowResults(false)}>
+              <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-200 max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-indigo-500" />
+                    {aiResultsTitle}
+                  </h3>
+                  <button onClick={() => setAiShowResults(false)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+                  {/* Analysis view (improve curriculum) */}
+                  {aiAnalysis && !aiAnalysis.suggestions && (
+                    <div className="space-y-4">
+                      {aiAnalysis.strengths && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-2">Strengths</h4>
+                          <ul className="space-y-1">
+                            {aiAnalysis.strengths.map((s: string, i: number) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> {s}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {aiAnalysis.weaknesses && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2">Areas to Improve</h4>
+                          <ul className="space-y-1">
+                            {aiAnalysis.weaknesses.map((w: string, i: number) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                <PenSquare className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" /> {w}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {aiAnalysis.gaps && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-red-700 uppercase tracking-wider mb-2">Gaps</h4>
+                          <ul className="space-y-1">
+                            {aiAnalysis.gaps.map((g: string, i: number) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /> {g}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Checklist items (lessons, suggestions, topics) */}
+                  {(aiGeneratedLessons || aiSuggestions || aiMissingTopics) && (
+                    <div className="space-y-2">
+                      {(aiGeneratedLessons || aiSuggestions || aiMissingTopics || []).map((item: any, i: number) => (
+                        <label key={i} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                          selectedGeneratedLessons.has(i) ? "border-indigo-300 bg-indigo-50" : "border-gray-200 hover:border-gray-300"
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedGeneratedLessons.has(i)}
+                            onChange={() => toggleGeneratedLesson(i)}
+                            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900">{item.title}</div>
+                            {item.description && <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>}
+                            {item.durationMinutes && <div className="text-[10px] text-gray-400 mt-1">{item.durationMinutes} min</div>}
+                            {item.lessons && item.lessons.length > 0 && (
+                              <div className="mt-1.5 space-y-0.5">
+                                {item.lessons.map((l: any, li: number) => (
+                                  <div key={li} className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                                    <div className="w-1 h-1 rounded-full bg-gray-300" />
+                                    {l.title} <span className="text-gray-300">·</span> {l.durationMinutes || 10}m
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {(aiGeneratedLessons || aiSuggestions || aiMissingTopics) && (
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl shrink-0">
+                    <span className="text-xs text-gray-500">
+                      {Array.from(selectedGeneratedLessons).length} of {(aiGeneratedLessons || aiSuggestions || aiMissingTopics || []).length} selected
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setAiShowResults(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          const modId = selectedModuleId || (modules[0]?.id);
+                          if (!modId) return;
+                          if (aiGeneratedLessons) handleAcceptGenerated("generate_lessons", modId);
+                          else if (aiSuggestions) handleAcceptGenerated("expand_module", modId);
+                          else if (aiMissingTopics) handleAcceptGenerated("missing_topics");
+                        }}
+                        disabled={aiApproving || selectedGeneratedLessons.size === 0}
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {aiApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        {aiApproving ? "Applying..." : `Accept (${Array.from(selectedGeneratedLessons).length})`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Step 1: Course Details */}
           {step === 1 && (
             <div>
@@ -879,6 +1176,21 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
                           <span className="text-[10px] text-gray-400 ml-2">{mod.lessons.length} lessons</span>
                         </div>
                         <div className="flex items-center gap-1">
+                          <div className="relative">
+                            <button onClick={() => setAiDropdownModule(aiDropdownModule === mod.id ? null : mod.id)} className="p-1 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="AI actions">
+                              <Sparkles className="w-3.5 h-3.5" />
+                            </button>
+                            {aiDropdownModule === mod.id && (
+                              <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-white border border-gray-200 rounded-xl shadow-xl py-1 text-xs" onMouseDown={(e) => e.preventDefault()}>
+                                <button onClick={() => { setAiDropdownModule(null); handleAIAction("generate_lessons", mod.id); }} className="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-indigo-50">
+                                  <Wand2 className="w-3.5 h-3.5 text-indigo-500" /> Generate Lessons
+                                </button>
+                                <button onClick={() => { setAiDropdownModule(null); handleAIAction("expand_module", mod.id); }} className="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-indigo-50">
+                                  <Lightbulb className="w-3.5 h-3.5 text-indigo-500" /> Expand Module
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           <button onClick={() => moveModule(mod.id, "up")} disabled={mod.index === 0} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded disabled:opacity-30"><ChevronLeft className="w-3.5 h-3.5 rotate-90" /></button>
                           <button onClick={() => moveModule(mod.id, "down")} disabled={mod.index === modules.length - 1} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded disabled:opacity-30"><ChevronRight className="w-3.5 h-3.5 rotate-90" /></button>
                           <button onClick={() => addLesson(mod.id)} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"><Plus className="w-3.5 h-3.5" /></button>
@@ -923,13 +1235,53 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
                     Add Module
                   </button>
                 </div>
-                <div className="w-56 shrink-0">
+                <div className="w-64 shrink-0 space-y-3">
                   <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                     <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between"><span className="text-gray-500">Modules</span><span className="font-medium">{modules.length}</span></div>
                       <div className="flex justify-between"><span className="text-gray-500">Lessons</span><span className="font-medium">{totalLessons}</span></div>
                       <div className="flex justify-between"><span className="text-gray-500">Duration</span><span className="font-medium">{totalDuration} min</span></div>
+                    </div>
+                  </div>
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-2">
+                    <h4 className="text-xs font-semibold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5" /> AI Tools
+                    </h4>
+                    <p className="text-[11px] text-indigo-600/70 leading-relaxed">Use AI to expand and improve your curriculum</p>
+                    <div className="space-y-1.5">
+                      <button
+                        onClick={() => { const m = modules.find(mod => mod.id === selectedModuleId) || modules[0]; if (m) handleAIAction("generate_lessons", m.id); }}
+                        disabled={aiActionLoading !== null || modules.length === 0}
+                        className="w-full flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {aiActionLoading === "generate_lessons" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                        Generate Lessons
+                      </button>
+                      <button
+                        onClick={() => { const m = modules.find(mod => mod.id === selectedModuleId) || modules[0]; if (m) handleAIAction("expand_module", m.id); }}
+                        disabled={aiActionLoading !== null || modules.length === 0}
+                        className="w-full flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {aiActionLoading === "expand_module" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lightbulb className="w-3.5 h-3.5" />}
+                        Expand Module
+                      </button>
+                      <button
+                        onClick={() => handleAIAction("improve")}
+                        disabled={aiActionLoading !== null}
+                        className="w-full flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {aiActionLoading === "improve" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PenSquare className="w-3.5 h-3.5" />}
+                        Improve Curriculum
+                      </button>
+                      <button
+                        onClick={() => handleAIAction("missing_topics")}
+                        disabled={aiActionLoading !== null}
+                        className="w-full flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {aiActionLoading === "missing_topics" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                        Add Missing Topics
+                      </button>
                     </div>
                   </div>
                 </div>

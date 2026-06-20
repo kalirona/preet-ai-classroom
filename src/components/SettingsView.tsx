@@ -18,6 +18,7 @@ interface SettingsViewProps {
 
 export default function SettingsView({ currentUser, activeCommunity, onUpdateCommunity, wsRole, onUpdateUser, onTabChange, initialSubTab }: SettingsViewProps) {
   const isOwner = wsRole === WorkspaceRole.OWNER;
+  const isAdmin = wsRole === WorkspaceRole.ADMIN;
 
   const ownerTabs = [
     { id: "general", name: "Community branding", icon: Palette },
@@ -31,6 +32,16 @@ export default function SettingsView({ currentUser, activeCommunity, onUpdateCom
     { id: "team", name: "Team roles", icon: Users },
   ];
 
+  // Admin gets limited workspace settings (no billing, payments, courses policy)
+  const adminTabs = [
+    { id: "general", name: "Community branding", icon: Palette },
+    { id: "community", name: "Feed channels", icon: Sliders },
+    { id: "gamification", name: "XP settings", icon: Award },
+    { id: "email", name: "Email settings", icon: Mail },
+    { id: "security", name: "Security & privacy", icon: ShieldCheck },
+    { id: "team", name: "Team roles", icon: Users },
+  ];
+
   const userTabs = [
     { id: "profile", name: "Profile", icon: UserIcon },
     { id: "notifications", name: "Notifications", icon: Bell },
@@ -38,8 +49,8 @@ export default function SettingsView({ currentUser, activeCommunity, onUpdateCom
     { id: "account", name: "Account", icon: Shield },
   ];
 
-  const tabs = isOwner ? ownerTabs : userTabs;
-  const defaultTab = isOwner ? "general" : "profile";
+  const tabs = isOwner ? ownerTabs : isAdmin ? adminTabs : userTabs;
+  const defaultTab = isOwner ? "general" : isAdmin ? "general" : "profile";
   const [activeSubTab, setActiveSubTab] = useState(initialSubTab && userTabs.some(t => t.id === initialSubTab) ? initialSubTab : defaultTab);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);

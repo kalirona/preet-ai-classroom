@@ -569,6 +569,16 @@ export async function createSchema() {
     `CREATE INDEX IF NOT EXISTS idx_member_activity_workspace ON member_activity(workspace_id, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_member_activity_user ON member_activity(user_id, created_at DESC)`,
 
+    `CREATE TABLE IF NOT EXISTS ai_generation_history (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE CASCADE,
+      action TEXT NOT NULL,
+      result_summary TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_ai_gen_history_user ON ai_generation_history(user_id, created_at DESC)`,
+
     // Migration: Add missing columns to existing tables
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_credits INTEGER DEFAULT 10`,

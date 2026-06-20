@@ -114,9 +114,6 @@ export default function Header({
             <option value={WorkspaceRole.INSTRUCTOR}>Instructor</option>
             <option value={WorkspaceRole.MODERATOR}>Moderator</option>
             <option value={WorkspaceRole.MEMBER}>Member</option>
-            {user?.platformRole === PlatformRole.SUPER_ADMIN && (
-              <option value="super_admin">Super Admin</option>
-            )}
           </select>
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
             Switch roles to see different views

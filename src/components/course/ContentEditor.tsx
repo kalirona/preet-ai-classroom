@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from "react";
-import { Plus, Heading1, Heading2, Type, Video, Image, FileQuestion, ClipboardList, Paperclip, Quote, Minus, Code, Headphones, FileText, BarChart3, Lightbulb, Sparkles, Bot, PenSquare, MessageSquare, Users, MousePointerClick, ArrowUpRight, Calendar, GripVertical, Trash2, ChevronDown, ChevronRight, Copy, Download, Pointer, ExternalLink, Search, X, Loader2, Zap, Layers, HelpCircle, Command } from "lucide-react";
+import { Plus, Heading1, Heading2, Type, Video, Image, FileQuestion, ClipboardList, Paperclip, Quote, Minus, Code, Headphones, FileText, BarChart3, Lightbulb, Sparkles, Bot, PenSquare, MessageSquare, Users, MousePointerClick, ArrowUpRight, Calendar, GripVertical, Trash2, ChevronDown, ChevronRight, Copy, Download, Pointer, ExternalLink, Search, X, Loader2, Zap, Layers, HelpCircle, Command, RefreshCw, Maximize2, Minimize2, Globe, CheckCircle, BookOpen } from "lucide-react";
 import { ContentBlock, BlockType } from "./CourseTypes";
 
 interface ContentEditorProps {
@@ -462,6 +462,36 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
   const [dragBlockId, setDragBlockId] = useState<string | null>(null);
   const [dragOverBlockIdx, setDragOverBlockIdx] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [aiLoadingBlockId, setAiLoadingBlockId] = useState<string | null>(null);
+  const [aiMenuBlockId, setAiMenuBlockId] = useState<string | null>(null);
+  const [aiShowPrompt, setAiShowPrompt] = useState(false);
+  const [aiPromptValue, setAiPromptValue] = useState("");
+  const [aiPendingAction, setAiPendingAction] = useState<string | null>(null);
+  const [aiPendingBlockId, setAiPendingBlockId] = useState<string | null>(null);
+
+  // AI Assistant panel state
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiAudience, setAiAudience] = useState("Beginners");
+  const [aiLessonLength, setAiLessonLength] = useState("15");
+  const [aiGeneratingLesson, setAiGeneratingLesson] = useState(false);
+  const [aiGeneratedLesson, setAiGeneratedLesson] = useState<any>(null);
+  const [aiGeneratingQuiz, setAiGeneratingQuiz] = useState(false);
+  const [aiGeneratedQuiz, setAiGeneratedQuiz] = useState<any[] | null>(null);
+
+  // Assignment generator
+  const [aiAssignmentPrompt, setAiAssignmentPrompt] = useState("");
+  const [aiGeneratingAssignment, setAiGeneratingAssignment] = useState(false);
+  const [aiGeneratedAssignment, setAiGeneratedAssignment] = useState<string | null>(null);
+  const [aiRewritingAssignment, setAiRewritingAssignment] = useState(false);
+
+  // Outline generator
+  const [aiOutlineTopic, setAiOutlineTopic] = useState("");
+  const [aiOutlineAudience, setAiOutlineAudience] = useState("Beginners");
+  const [aiOutlineLevel, setAiOutlineLevel] = useState("All Levels");
+  const [aiGeneratingOutline, setAiGeneratingOutline] = useState(false);
+  const [aiGeneratedOutline, setAiGeneratedOutline] = useState<any[] | null>(null);
+
   const editorRef = useRef<HTMLDivElement>(null);
   const blocksContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -562,6 +592,53 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
     onSelectBlock(clone.id);
   }, [blocks, onChange, onSelectBlock]);
 
+  const textBlockTypes = new Set(["heading", "paragraph", "callout", "code", "reflection", "discussion_prompt"]);
+
+  const triggerAIAction = useCallback(async (blockId: string, action: string, customInstruction?: string) => {
+    const block = blocks.find(b => b.id === blockId);
+    if (!block) return;
+    setAiLoadingBlockId(blockId);
+    setAiMenuBlockId(null);
+    setAiShowPrompt(false);
+    try {
+      const response = await fetch("/api/courses/ai-text-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          currentContent: block.content,
+          customInstruction: customInstruction || "",
+          courseTopic: "",   // will be set by parent context if available
+          moduleTitle: moduleTitle || "",
+          lessonTitle: lessonTitle || "",
+          blockType: block.type,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.content) {
+        updateBlockContent(blockId, data.content);
+      }
+    } catch (e) {
+      console.error("AI action failed:", e);
+    } finally {
+      setAiLoadingBlockId(null);
+    }
+  }, [blocks, updateBlockContent, moduleTitle, lessonTitle]);
+
+  const openAIPrompt = useCallback((blockId: string, action: string) => {
+    setAiPendingBlockId(blockId);
+    setAiPendingAction(action);
+    setAiPromptValue("");
+    setAiShowPrompt(true);
+    setAiMenuBlockId(null);
+  }, []);
+
+  const handleAIPromptSubmit = useCallback(() => {
+    if (aiPendingBlockId && aiPendingAction) {
+      triggerAIAction(aiPendingBlockId, aiPendingAction, aiPromptValue);
+    }
+  }, [aiPendingBlockId, aiPendingAction, aiPromptValue, triggerAIAction]);
+
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const text = e.clipboardData.getData("text");
     if (text.startsWith("http") && selectedBlockId) {
@@ -631,17 +708,221 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
     setInlinePickerIdx(null);
   }, [addBlock, inlinePickerIdx]);
 
+  // ─── AI Assistant Handlers ────────────────────────────────
+  const handleGenerateLesson = useCallback(async () => {
+    if (!aiTopic.trim()) return;
+    setAiGeneratingLesson(true);
+    setAiGeneratedLesson(null);
+    try {
+      const response = await fetch("/api/courses/ai-generate-lesson-content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: aiTopic.trim(),
+          audience: aiAudience,
+          lessonLength: aiLessonLength,
+          courseTopic: "", // set by parent context
+          moduleTitle: moduleTitle || "",
+          lessonTitle: lessonTitle || "",
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.lesson) {
+        setAiGeneratedLesson(data.lesson);
+      }
+    } catch (e) {
+      console.error("AI lesson generation failed:", e);
+    } finally {
+      setAiGeneratingLesson(false);
+    }
+  }, [aiTopic, aiAudience, aiLessonLength, moduleTitle, lessonTitle]);
+
+  const insertGeneratedLesson = useCallback(() => {
+    if (!aiGeneratedLesson) return;
+    const newBlocks: ContentBlock[] = [
+      { id: `block-${Date.now()}-0`, type: "heading", content: aiGeneratedLesson.title || "" },
+      { id: `block-${Date.now()}-1`, type: "paragraph", content: aiGeneratedLesson.introduction || "" },
+      { id: `block-${Date.now()}-2`, type: "paragraph", content: aiGeneratedLesson.mainContent || "" },
+    ];
+    if (aiGeneratedLesson.keyTakeaways?.length) {
+      newBlocks.push({ id: `block-${Date.now()}-3`, type: "heading", content: "Key Takeaways" });
+      aiGeneratedLesson.keyTakeaways.forEach((t: string, i: number) => {
+        newBlocks.push({ id: `block-${Date.now()}-4-${i}`, type: "paragraph", content: `• ${t}` });
+      });
+    }
+    if (aiGeneratedLesson.actionSteps?.length) {
+      newBlocks.push({ id: `block-${Date.now()}-5`, type: "heading", content: "Action Steps" });
+      aiGeneratedLesson.actionSteps.forEach((s: string, i: number) => {
+        newBlocks.push({ id: `block-${Date.now()}-6-${i}`, type: "paragraph", content: `☐ ${s}` });
+      });
+    }
+    onChange([...blocks, ...newBlocks]);
+    setAiGeneratedLesson(null);
+    setAiTopic("");
+  }, [aiGeneratedLesson, blocks, onChange]);
+
+  const handleGenerateQuiz = useCallback(async () => {
+    setAiGeneratingQuiz(true);
+    setAiGeneratedQuiz(null);
+    try {
+      const response = await fetch("/api/courses/ai-generate-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: aiTopic.trim() || lessonTitle || moduleTitle || "course content",
+          count: 10,
+          courseTopic: "",
+          lessonTitle: lessonTitle || "",
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.questions) {
+        setAiGeneratedQuiz(data.questions);
+      }
+    } catch (e) {
+      console.error("AI quiz generation failed:", e);
+    } finally {
+      setAiGeneratingQuiz(false);
+    }
+  }, [aiTopic, lessonTitle, moduleTitle]);
+
+  const insertGeneratedQuiz = useCallback(() => {
+    if (!aiGeneratedQuiz?.length) return;
+    const quizBlock: ContentBlock = {
+      id: `block-quiz-${Date.now()}`,
+      type: "quiz",
+      content: "",
+      meta: { questions: aiGeneratedQuiz },
+    };
+    onChange([...blocks, quizBlock]);
+    setAiGeneratedQuiz(null);
+  }, [aiGeneratedQuiz, blocks, onChange]);
+
+  // ─── Assignment Generator ──────────────────────────────────
+  const handleGenerateAssignment = useCallback(async () => {
+    if (!aiAssignmentPrompt.trim()) return;
+    setAiGeneratingAssignment(true);
+    setAiGeneratedAssignment(null);
+    try {
+      const response = await fetch("/api/courses/ai-generate-assignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: aiAssignmentPrompt.trim(),
+          courseTopic: "",
+          moduleTitle: moduleTitle || "",
+          lessonTitle: lessonTitle || "",
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.content) {
+        setAiGeneratedAssignment(data.content);
+      }
+    } catch (e) {
+      console.error("AI assignment generation failed:", e);
+    } finally {
+      setAiGeneratingAssignment(false);
+    }
+  }, [aiAssignmentPrompt, moduleTitle, lessonTitle]);
+
+  const handleRewriteAssignment = useCallback(async (style: string, language?: string) => {
+    if (!aiGeneratedAssignment) return;
+    setAiRewritingAssignment(true);
+    try {
+      const instruction = language
+        ? `Rewrite in ${language}. ${style === "shorter" ? "Make it shorter and more concise." : style === "longer" ? "Expand with more details." : style === "professional" ? "Make it more professional and formal." : "Make it beginner-friendly and easy to understand."}`
+        : style === "shorter" ? "Make it shorter and more concise." : style === "longer" ? "Expand with more details." : style === "professional" ? "Make it more professional and formal." : "Make it beginner-friendly and easy to understand.";
+      const response = await fetch("/api/courses/ai-text-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rewrite",
+          currentContent: aiGeneratedAssignment,
+          customInstruction: instruction,
+          courseTopic: "",
+          moduleTitle: moduleTitle || "",
+          lessonTitle: lessonTitle || "",
+          blockType: "paragraph",
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.content) {
+        setAiGeneratedAssignment(data.content);
+      }
+    } catch (e) {
+      console.error("AI rewrite failed:", e);
+    } finally {
+      setAiRewritingAssignment(false);
+    }
+  }, [aiGeneratedAssignment, moduleTitle, lessonTitle]);
+
+  const insertGeneratedAssignment = useCallback(() => {
+    if (!aiGeneratedAssignment) return;
+    const assignmentBlock: ContentBlock = {
+      id: `block-assignment-${Date.now()}`,
+      type: "assignment",
+      content: aiGeneratedAssignment,
+    };
+    onChange([...blocks, assignmentBlock]);
+    setAiGeneratedAssignment(null);
+    setAiAssignmentPrompt("");
+  }, [aiGeneratedAssignment, blocks, onChange]);
+
+  // ─── Outline Generator ─────────────────────────────────────
+  const handleGenerateOutline = useCallback(async () => {
+    if (!aiOutlineTopic.trim()) return;
+    setAiGeneratingOutline(true);
+    setAiGeneratedOutline(null);
+    try {
+      const response = await fetch("/api/courses/ai-generate-outline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: aiOutlineTopic.trim(),
+          audience: aiOutlineAudience,
+          level: aiOutlineLevel,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.modules) {
+        setAiGeneratedOutline(data.modules);
+      }
+    } catch (e) {
+      console.error("AI outline generation failed:", e);
+    } finally {
+      setAiGeneratingOutline(false);
+    }
+  }, [aiOutlineTopic, aiOutlineAudience, aiOutlineLevel]);
+
+  const insertGeneratedOutline = useCallback(() => {
+    if (!aiGeneratedOutline?.length) return;
+    const newBlocks: ContentBlock[] = [];
+    aiGeneratedOutline.forEach((mod: any, mi: number) => {
+      newBlocks.push({ id: `block-outline-h-${Date.now()}-${mi}`, type: "heading", content: mod.title });
+      if (mod.description) {
+        newBlocks.push({ id: `block-outline-d-${Date.now()}-${mi}`, type: "paragraph", content: mod.description });
+      }
+      (mod.lessons || []).forEach((l: string, li: number) => {
+        newBlocks.push({ id: `block-outline-l-${Date.now()}-${mi}-${li}`, type: "paragraph", content: `• ${l}` });
+      });
+    });
+    onChange([...blocks, ...newBlocks]);
+    setAiGeneratedOutline(null);
+    setAiOutlineTopic("");
+  }, [aiGeneratedOutline, blocks, onChange]);
+
   return (
-    <div
-      ref={editorRef}
-      className="h-full flex flex-col bg-white"
-      onClick={(e) => {
-        if (!blockPickerRef.current?.contains(e.target as Node)) {
-          setShowBlockPicker(false);
-          setInlinePickerIdx(null);
-        }
-      }}
-    >
+    <div className="h-full flex flex-row bg-white">
+      <div
+        ref={editorRef}
+        className="flex-1 flex flex-col min-w-0"
+        onClick={(e) => {
+          if (!blockPickerRef.current?.contains(e.target as Node)) {
+            setShowBlockPicker(false);
+            setInlinePickerIdx(null);
+          }
+        }}
+      >
       {/* Lesson breadcrumb */}
       {lessonTitle && (
         <div className="px-6 py-2 bg-gradient-to-r from-gray-50/80 to-white border-b border-gray-100 shrink-0 sticky top-0 z-10">
@@ -649,7 +930,16 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
             <span className="font-medium text-gray-500">{moduleTitle || "Course"}</span>
             <ChevronRight className="w-3 h-3" />
             <span className="font-semibold text-gray-700">{lessonTitle}</span>
-            <span className="ml-auto font-medium text-gray-500">{blocks.length} {blocks.length === 1 ? "block" : "blocks"}</span>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="font-medium text-gray-500">{blocks.length} {blocks.length === 1 ? "block" : "blocks"}</span>
+              <button
+                onClick={() => setShowAIAssistant(!showAIAssistant)}
+                className={`p-1.5 rounded-lg transition-colors ${showAIAssistant ? "bg-indigo-100 text-indigo-600" : "text-gray-400 hover:text-indigo-500 hover:bg-indigo-50"}`}
+                title="AI Assistant"
+              >
+                <Bot className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -892,6 +1182,44 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
                         </>
                       )}
                     </div>
+                    {textBlockTypes.has(block.type) && (
+                      <div className="relative">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setAiMenuBlockId(aiMenuBlockId === block.id ? null : block.id); }}
+                          className={`p-1.5 rounded-lg transition-colors ${aiLoadingBlockId === block.id ? "text-indigo-400 animate-pulse" : "text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50"}`}
+                          title="AI writing tools"
+                          disabled={aiLoadingBlockId !== null}
+                        >
+                          {aiLoadingBlockId === block.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                        </button>
+                        {aiMenuBlockId === block.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setAiMenuBlockId(null)} />
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl border border-gray-200 shadow-xl z-20 py-1">
+                              <p className="px-3 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">AI Writing</p>
+                              <button onClick={(e) => { e.stopPropagation(); openAIPrompt(block.id, "write"); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-indigo-50">
+                                <PenSquare className="w-3.5 h-3.5 text-indigo-500" /> Write
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); openAIPrompt(block.id, "rewrite"); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-indigo-50">
+                                <RefreshCw className="w-3.5 h-3.5 text-indigo-500" /> Rewrite
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); openAIPrompt(block.id, "expand"); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-indigo-50">
+                                <Maximize2 className="w-3.5 h-3.5 text-indigo-500" /> Expand
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); openAIPrompt(block.id, "simplify"); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-indigo-50">
+                                <Minimize2 className="w-3.5 h-3.5 text-indigo-500" /> Simplify
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); openAIPrompt(block.id, "summarize"); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-indigo-50">
+                                <FileText className="w-3.5 h-3.5 text-indigo-500" /> Summarize
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); openAIPrompt(block.id, "translate"); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-indigo-50">
+                                <Globe className="w-3.5 h-3.5 text-indigo-500" /> Translate
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                     <button onClick={(e) => { e.stopPropagation(); duplicateBlock(block.id); }} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors" title="Duplicate block">
                       <Copy className="w-3.5 h-3.5" />
                     </button>
@@ -926,6 +1254,419 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
           </div>
         )}
       </div>
+
+      {/* AI Prompt Input Modal */}
+      {aiShowPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setAiShowPrompt(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-500" />
+                {aiPendingAction === "write" && "Write with AI"}
+                {aiPendingAction === "rewrite" && "Rewrite with AI"}
+                {aiPendingAction === "expand" && "Expand with AI"}
+                {aiPendingAction === "simplify" && "Simplify with AI"}
+                {aiPendingAction === "summarize" && "Summarize with AI"}
+                {aiPendingAction === "translate" && "Translate with AI"}
+              </h3>
+              <button onClick={() => setAiShowPrompt(false)} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              {aiPendingAction === "write" && "Describe what you want to write about."}
+              {aiPendingAction === "rewrite" && "Tell the AI how to rewrite the content (e.g., professionally, conversationally, for beginners)."}
+              {aiPendingAction === "expand" && "Describe how you want to expand the content."}
+              {aiPendingAction === "simplify" && "How would you like it simplified?"}
+              {aiPendingAction === "summarize" && "How long should the summary be?"}
+              {aiPendingAction === "translate" && "Which language do you want to translate to?"}
+            </p>
+            <textarea
+              value={aiPromptValue}
+              onChange={(e) => setAiPromptValue(e.target.value)}
+              placeholder={
+                aiPendingAction === "write" ? "e.g., Write a detailed introduction to neural networks..."
+                : aiPendingAction === "rewrite" ? "e.g., Rewrite professionally / Rewrite for beginners / Rewrite conversationally"
+                : aiPendingAction === "expand" ? "e.g., Add more examples and practical applications"
+                : aiPendingAction === "simplify" ? "e.g., Simplify for high school students"
+                : aiPendingAction === "summarize" ? "e.g., Summarize in 3 bullet points"
+                : "e.g., Spanish, French, Japanese"
+              }
+              rows={2}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none transition-all"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAIPromptSubmit(); } }}
+            />
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button
+                onClick={() => setAiShowPrompt(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAIPromptSubmit}
+                disabled={aiLoadingBlockId !== null}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50"
+              >
+                {aiLoadingBlockId !== null ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {aiLoadingBlockId !== null ? "Generating..." : "Generate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
+
+    {/* AI Assistant Panel */}
+    {showAIAssistant && (
+      <div className="w-80 shrink-0 border-l border-gray-100 bg-white overflow-y-auto">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-indigo-50/50 to-white">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+            <Bot className="w-3.5 h-3.5 text-indigo-500" /> AI Assistant
+          </h3>
+          <button onClick={() => setShowAIAssistant(false)} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-6">
+          {/* Generate Lesson Section */}
+          <div>
+            <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+              <PenSquare className="w-4 h-4 text-indigo-500" /> Generate Lesson
+            </h4>
+            <div className="space-y-2.5">
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Topic</label>
+                <input
+                  type="text"
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  placeholder="e.g. WordPress SEO"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                  onKeyDown={(e) => e.key === "Enter" && handleGenerateLesson()}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Audience</label>
+                <select
+                  value={aiAudience}
+                  onChange={(e) => setAiAudience(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                >
+                  <option value="Beginners">Beginners</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                  <option value="All Levels">All Levels</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Lesson Length</label>
+                <select
+                  value={aiLessonLength}
+                  onChange={(e) => setAiLessonLength(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                >
+                  <option value="5">5 minutes</option>
+                  <option value="10">10 minutes</option>
+                  <option value="15">15 minutes</option>
+                  <option value="20">20 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60">60 minutes</option>
+                </select>
+              </div>
+              <button
+                onClick={handleGenerateLesson}
+                disabled={aiGeneratingLesson || !aiTopic.trim()}
+                className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {aiGeneratingLesson ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {aiGeneratingLesson ? "Generating..." : "Generate Lesson"}
+              </button>
+            </div>
+
+            {/* Generated Lesson Preview */}
+            {aiGeneratedLesson && (
+              <div className="mt-4 p-3 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider">Preview</span>
+                  <button
+                    onClick={insertGeneratedLesson}
+                    className="text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Insert into Lesson
+                  </button>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-500 font-medium">Title</span>
+                  <p className="text-sm font-semibold text-gray-900">{aiGeneratedLesson.title}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-500 font-medium">Introduction</span>
+                  <p className="text-xs text-gray-700 leading-relaxed mt-0.5">{aiGeneratedLesson.introduction}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-500 font-medium">Main Content</span>
+                  <p className="text-xs text-gray-700 leading-relaxed mt-0.5 line-clamp-3">{aiGeneratedLesson.mainContent}</p>
+                </div>
+                {aiGeneratedLesson.keyTakeaways?.length > 0 && (
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-medium">Key Takeaways</span>
+                    <ul className="mt-1 space-y-0.5">
+                      {aiGeneratedLesson.keyTakeaways.map((t: string, i: number) => (
+                        <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                          <CheckCircle className="w-3 h-3 text-emerald-500 mt-0.5 shrink-0" /> {t}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {aiGeneratedLesson.actionSteps?.length > 0 && (
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-medium">Action Steps</span>
+                    <ul className="mt-1 space-y-0.5">
+                      {aiGeneratedLesson.actionSteps.map((s: string, i: number) => (
+                        <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                          <Zap className="w-3 h-3 text-amber-500 mt-0.5 shrink-0" /> {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-100" />
+
+          {/* Generate Quiz Section */}
+          <div>
+            <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+              <HelpCircle className="w-4 h-4 text-indigo-500" /> Generate Quiz
+            </h4>
+            <p className="text-[11px] text-gray-500 mb-3">Create 10 multiple-choice questions based on this lesson's content.</p>
+            <button
+              onClick={handleGenerateQuiz}
+              disabled={aiGeneratingQuiz}
+              className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {aiGeneratingQuiz ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileQuestion className="w-4 h-4" />}
+              {aiGeneratingQuiz ? "Generating..." : "Generate Quiz"}
+            </button>
+
+            {/* Generated Quiz Preview */}
+            {aiGeneratedQuiz && aiGeneratedQuiz.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">
+                    {aiGeneratedQuiz.length} Questions
+                  </span>
+                  <button
+                    onClick={insertGeneratedQuiz}
+                    className="text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Add Quiz to Lesson
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {aiGeneratedQuiz.map((q: any, i: number) => (
+                    <div key={i} className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                      <p className="text-xs font-medium text-gray-900 mb-1.5">
+                        {i + 1}. {q.question}
+                      </p>
+                      <div className="space-y-0.5 mb-1.5">
+                        {(q.options || []).map((opt: string, oi: number) => (
+                          <div key={oi} className={`text-[11px] px-2 py-0.5 rounded ${oi === q.correctAnswer ? "bg-emerald-100 text-emerald-800 font-medium" : "text-gray-600"}`}>
+                            {opt}
+                          </div>
+                        ))}
+                      </div>
+                      {q.explanation && (
+                        <p className="text-[10px] text-gray-400 italic">💡 {q.explanation}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-100" />
+
+          {/* Generate Assignment Section */}
+          <div>
+            <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+              <ClipboardList className="w-4 h-4 text-indigo-500" /> Generate Assignment
+            </h4>
+            <textarea
+              value={aiAssignmentPrompt}
+              onChange={(e) => setAiAssignmentPrompt(e.target.value)}
+              placeholder="Describe the assignment... e.g. Optimize a blog post using Rank Math SEO."
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none transition-all"
+            />
+            <button
+              onClick={handleGenerateAssignment}
+              disabled={aiGeneratingAssignment || !aiAssignmentPrompt.trim()}
+              className="mt-2.5 w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {aiGeneratingAssignment ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
+              {aiGeneratingAssignment ? "Generating..." : "Create Assignment"}
+            </button>
+
+            {aiGeneratedAssignment && (
+              <div className="mt-4 space-y-3">
+                {/* Rewrite Actions */}
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Rewrite Content</p>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { label: "Shorter", action: "shorter" },
+                      { label: "Longer", action: "longer" },
+                      { label: "Professional", action: "professional" },
+                      { label: "Beginner Friendly", action: "beginner" },
+                    ].map((btn) => (
+                      <button
+                        key={btn.action}
+                        onClick={() => handleRewriteAssignment(btn.action)}
+                        disabled={aiRewritingAssignment}
+                        className="text-[10px] font-medium px-2 py-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 transition-colors disabled:opacity-40"
+                      >
+                        {aiRewritingAssignment ? "..." : btn.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Language</p>
+                  <div className="flex flex-wrap gap-1">
+                    {["Hindi", "Punjabi", "English"].map((lang) => (
+                      <button
+                        key={lang}
+                        onClick={() => handleRewriteAssignment("professional", lang)}
+                        disabled={aiRewritingAssignment}
+                        className="text-[10px] font-medium px-2 py-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 transition-colors disabled:opacity-40"
+                      >
+                        {aiRewritingAssignment ? "..." : lang}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Preview */}
+                <div className="p-3 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider">Preview</span>
+                    <button
+                      onClick={insertGeneratedAssignment}
+                      className="text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Insert into Lesson
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">{aiGeneratedAssignment}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-100" />
+
+          {/* Generate Course Outline Section */}
+          <div>
+            <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-indigo-500" /> Generate Course Outline
+            </h4>
+            <p className="text-[11px] text-gray-500 mb-3">Create a full course outline with modules and lessons.</p>
+            <div className="space-y-2.5">
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Course Topic</label>
+                <input
+                  type="text"
+                  value={aiOutlineTopic}
+                  onChange={(e) => setAiOutlineTopic(e.target.value)}
+                  placeholder="e.g. WordPress SEO Mastery"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                  onKeyDown={(e) => e.key === "Enter" && handleGenerateOutline()}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Audience</label>
+                <select
+                  value={aiOutlineAudience}
+                  onChange={(e) => setAiOutlineAudience(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                >
+                  <option value="Beginners">Beginners</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                  <option value="All Levels">All Levels</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Skill Level</label>
+                <select
+                  value={aiOutlineLevel}
+                  onChange={(e) => setAiOutlineLevel(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
+                >
+                  <option value="All Levels">All Levels</option>
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+              </div>
+              <button
+                onClick={handleGenerateOutline}
+                disabled={aiGeneratingOutline || !aiOutlineTopic.trim()}
+                className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {aiGeneratingOutline ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookOpen className="w-4 h-4" />}
+                {aiGeneratingOutline ? "Generating..." : "Generate Course Outline"}
+              </button>
+            </div>
+
+            {aiGeneratedOutline && aiGeneratedOutline.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider">
+                    {aiGeneratedOutline.length} Modules
+                  </span>
+                  <button
+                    onClick={insertGeneratedOutline}
+                    className="text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Insert into Lesson
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {aiGeneratedOutline.map((mod: any, i: number) => (
+                    <div key={i} className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                      <p className="text-xs font-semibold text-gray-900">{mod.title}</p>
+                      {mod.description && <p className="text-[10px] text-gray-500 mt-0.5">{mod.description}</p>}
+                      {mod.lessons && mod.lessons.length > 0 && (
+                        <div className="mt-1.5 space-y-0.5">
+                          {mod.lessons.map((l: string, li: number) => (
+                            <div key={li} className="text-[10px] text-gray-600 flex items-center gap-1">
+                              <div className="w-1 h-1 rounded-full bg-gray-300 shrink-0" />
+                              {l}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
 }

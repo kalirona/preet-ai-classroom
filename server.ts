@@ -688,6 +688,40 @@ app.post("/api/auth/logout", async (req, res) => {
   res.json({ success: true });
 });
 
+app.post("/api/auth/switch-role", authenticateUser, async (req: any, res: any) => {
+  try {
+    const { role } = req.body;
+    const workspaceId = req.headers["x-workspace-id"] as string;
+    if (!role || !workspaceId) {
+      return res.status(400).json({ error: "Role and workspace ID are required." });
+    }
+    const validRoles = ["owner", "admin", "instructor", "moderator", "member"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: "Invalid role." });
+    }
+    await query(
+      `UPDATE workspace_members SET role = $1 WHERE user_id = $2 AND workspace_id = $3`,
+      [role, req.user.id, workspaceId]
+    );
+    const userResult = await query("SELECT * FROM users WHERE id = $1", [req.user.id]);
+    const user = userResult.rows[0];
+    if (user) {
+      const userObj = {
+        ...user,
+        platformRole: user.platform_role,
+        workspaceRoles: { ...req.user.workspaceRoles, [workspaceId]: role },
+      };
+      delete userObj.password_hash;
+      delete userObj.platform_role;
+      return res.json({ success: true, user: userObj });
+    }
+    res.json({ success: true, role });
+  } catch (err) {
+    console.error("Role switch error:", err);
+    res.status(500).json({ error: "Failed to switch role." });
+  }
+});
+
 app.post("/api/auth/reset-password-request", async (req, res) => {
   try {
     const { email } = req.body;
@@ -1950,6 +1984,578 @@ app.post("/api/courses/generate-ai-approve", authenticateUser, requireWorkspaceP
   } catch (err) {
     console.error("AI approve error:", err);
     res.status(500).json({ error: "Failed to create course from AI generation." });
+  }
+});
+
+// ─── AI Curriculum Expansion Endpoints ───────────────────────
+async function deductCreditIfAvailable(userId: string): Promise<number> {
+  const user = await findUserById(userId);
+  const credits = parseInt(user?.ai_credits || "0", 10);
+  if (credits <= 0) return -1;
+  await updateUser(userId, { ai_credits: credits - 1 });
+  return credits - 1;
+}
+
+app.post("/api/courses/generate-lessons", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { moduleTitle, courseTopic, count } = req.body;
+    if (!moduleTitle || !courseTopic) return res.status(400).json({ error: "moduleTitle and courseTopic required." });
+
+    const ai = getAIClient();
+    let lessons: any[] = [];
+
+    if (ai) {
+      try {
+        const prompt = `Generate ${count || 5} lesson titles for the module "${moduleTitle}" in a course about "${courseTopic}".
+Each lesson should be a logical step in this module. Output valid JSON (no markdown):
+{"lessons":[{"title":"Lesson title","durationMinutes":10,"description":"What this lesson covers"}]}`;
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json", systemInstruction: "Output valid JSON only, no markdown, no code fences." },
+        });
+        const cleaned = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        lessons = parsed.lessons || [];
+      } catch { /* fallback */ }
+    }
+
+    if (lessons.length === 0) {
+      lessons = Array.from({ length: count || 5 }, (_, i) => ({
+        title: `${moduleTitle} - Lesson ${i + 1}`,
+        durationMinutes: 10,
+        description: `Explore key concepts in ${moduleTitle}`,
+      }));
+    }
+
+    res.json({ lessons });
+  } catch (err) {
+    console.error("Generate lessons error:", err);
+    res.status(500).json({ error: "Failed to generate lessons." });
+  }
+});
+
+app.post("/api/courses/expand-module", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { moduleTitle, courseTopic, existingLessons } = req.body;
+    if (!moduleTitle || !courseTopic) return res.status(400).json({ error: "moduleTitle and courseTopic required." });
+
+    const ai = getAIClient();
+    let suggestions: any[] = [];
+
+    if (ai) {
+      try {
+        const existing = (existingLessons || []).map((l: any) => l.title).join(", ");
+        const prompt = `The module "${moduleTitle}" in a course about "${courseTopic}" already has these lessons: ${existing || "none"}.
+Suggest 3-5 additional lesson titles that would expand this module and cover missing aspects.
+Output valid JSON (no markdown): {"suggestions":[{"title":"Lesson title","durationMinutes":10,"description":"What this covers","reason":"Why this is needed"}]}`;
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json", systemInstruction: "Output valid JSON only." },
+        });
+        const cleaned = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        suggestions = parsed.suggestions || [];
+      } catch { /* fallback */ }
+    }
+
+    if (suggestions.length === 0) {
+      suggestions = [
+        { title: `${moduleTitle} - Advanced Concepts`, durationMinutes: 15, description: "Deep dive into advanced topics", reason: "Covers advanced material" },
+        { title: `${moduleTitle} - Practical Workshop`, durationMinutes: 20, description: "Hands-on exercise", reason: "Reinforces learning through practice" },
+      ];
+    }
+
+    res.json({ suggestions });
+  } catch (err) {
+    console.error("Expand module error:", err);
+    res.status(500).json({ error: "Failed to expand module." });
+  }
+});
+
+app.post("/api/courses/improve-curriculum", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { courseTopic, modules } = req.body;
+    if (!courseTopic || !modules) return res.status(400).json({ error: "courseTopic and modules required." });
+
+    const ai = getAIClient();
+    let analysis: any = { suggestions: [], strengths: [] };
+
+    if (ai) {
+      try {
+        const moduleList = modules.map((m: any) => `"${m.title}" (${m.lessons?.length || 0} lessons): ${(m.lessons || []).map((l: any) => l.title).join(", ")}`).join("\n");
+        const prompt = `Analyze this curriculum for a course about "${courseTopic}":\n${moduleList}\n
+Provide analysis as valid JSON (no markdown):
+{"strengths":["Strength 1","Strength 2"],"suggestions":[{"type":"add_module","description":"Suggest a missing module"},{"type":"add_lesson","moduleTitle":"Existing module","description":"Suggested lesson"},{"type":"reorder","description":"Suggested reorder reason"}]}`;
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json", systemInstruction: "Output valid JSON only." },
+        });
+        const cleaned = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
+        analysis = JSON.parse(cleaned);
+      } catch { /* fallback */ }
+    }
+
+    if (!analysis.suggestions || analysis.suggestions.length === 0) {
+      analysis = {
+        strengths: ["Good foundational coverage"],
+        suggestions: [{ type: "add_module", description: "Consider adding a final project module", moduleTitle: "Capstone Project", lessons: [{ title: "Project Planning", durationMinutes: 15 }, { title: "Project Implementation", durationMinutes: 30 }] }],
+      };
+    }
+
+    res.json(analysis);
+  } catch (err) {
+    console.error("Improve curriculum error:", err);
+    res.status(500).json({ error: "Failed to analyze curriculum." });
+  }
+});
+
+app.post("/api/courses/add-missing-topics", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { courseTopic, moduleTitles } = req.body;
+    if (!courseTopic || !moduleTitles) return res.status(400).json({ error: "courseTopic and moduleTitles required." });
+
+    const ai = getAIClient();
+    let topics: any[] = [];
+
+    if (ai) {
+      try {
+        const existingModules = moduleTitles.join(", ");
+        const prompt = `A course about "${courseTopic}" already covers: ${existingModules}.
+Suggest 3-5 missing or important topics that should be added as new modules.
+Output valid JSON (no markdown):
+{"topics":[{"title":"Module Title","description":"Why this is important","lessons":[{"title":"Lesson title","durationMinutes":10}]}]}`;
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json", systemInstruction: "Output valid JSON only." },
+        });
+        const cleaned = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        topics = parsed.topics || [];
+      } catch { /* fallback */ }
+    }
+
+    if (topics.length === 0) {
+      topics = [
+        { title: `${courseTopic} - Case Studies`, description: "Real-world applications", lessons: [{ title: "Industry Examples", durationMinutes: 15 }, { title: "Best Practices", durationMinutes: 15 }] },
+        { title: `${courseTopic} - Future Trends`, description: "What's next in the field", lessons: [{ title: "Emerging Technologies", durationMinutes: 10 }, { title: "Career Opportunities", durationMinutes: 10 }] },
+      ];
+    }
+
+    res.json({ topics });
+  } catch (err) {
+    console.error("Missing topics error:", err);
+    res.status(500).json({ error: "Failed to find missing topics." });
+  }
+});
+
+// Accept generated lessons (deducts credit, stores to db)
+app.post("/api/courses/accept-ai-lessons", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { courseId, moduleId, lessons, action } = req.body;
+    if (!courseId || !moduleId || !lessons) return res.status(400).json({ error: "courseId, moduleId, and lessons required." });
+
+    const remaining = await deductCreditIfAvailable(req.user.id);
+    if (remaining === -1) return res.status(403).json({ error: "No AI credits remaining.", code: "NO_CREDITS" });
+
+    // Store generation history
+    const historyId = `ai-gen-${Date.now()}`;
+    await query(
+      `INSERT INTO ai_generation_history (id, user_id, course_id, action, result_summary, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [historyId, req.user.id, courseId, action || "generate_lessons", JSON.stringify(lessons.slice(0, 20))]
+    );
+
+    res.json({ success: true, creditsRemaining: remaining });
+  } catch (err) {
+    console.error("Accept AI lessons error:", err);
+    res.status(500).json({ error: "Failed to record acceptance." });
+  }
+});
+
+// ─── AI Text Action (Lesson Writer) ──────────────────────────
+app.post("/api/courses/ai-text-action", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { action, currentContent, customInstruction, courseTopic, moduleTitle, lessonTitle, blockType } = req.body;
+    if (!action) return res.status(400).json({ error: "action is required." });
+
+    const remaining = await deductCreditIfAvailable(req.user.id);
+    if (remaining === -1) return res.status(403).json({ error: "No AI credits remaining.", code: "NO_CREDITS" });
+
+    const ai = getAIClient();
+    let generatedText = "";
+
+    if (ai) {
+      try {
+        const systemContext = `You are an expert educational content writer creating lesson content for an online course.
+Course: ${courseTopic || "Untitled Course"}
+Module: ${moduleTitle || "General"}
+Lesson: ${lessonTitle || "Untitled Lesson"}
+Block type: ${blockType || "paragraph"}`;
+
+        let prompt = "";
+        switch (action) {
+          case "write":
+            prompt = `Write educational content for this lesson.
+Context: ${systemContext}
+Custom instructions: ${customInstruction || "Write clear, engaging educational content suitable for the target audience."}
+Generate well-structured, lesson-appropriate content.`;
+            break;
+          case "rewrite":
+            prompt = `Rewrite the following content to improve it.
+Context: ${systemContext}
+Custom instructions: ${customInstruction || "Improve clarity and engagement while keeping the same meaning."}
+Original content:
+${currentContent || ""}
+
+Rewritten version:`;
+            break;
+          case "expand":
+            prompt = `Expand the following content with more details, examples, and depth.
+Context: ${systemContext}
+Custom instructions: ${customInstruction || "Add more detail, examples, and explanatory content."}
+Original content:
+${currentContent || ""}
+
+Expanded version:`;
+            break;
+          case "simplify":
+            prompt = `Simplify the following content to make it easier to understand.
+Context: ${systemContext}
+Custom instructions: ${customInstruction || "Make this content simpler and more accessible for beginners."}
+Original content:
+${currentContent || ""}
+
+Simplified version:`;
+            break;
+          case "summarize":
+            prompt = `Summarize the following content to be more concise.
+Context: ${systemContext}
+Custom instructions: ${customInstruction || "Create a concise summary that captures the key points."}
+Original content:
+${currentContent || ""}
+
+Summary:`;
+            break;
+          case "translate":
+            prompt = `Translate the following content.
+Context: ${systemContext}
+Custom instructions: ${customInstruction || "Translate to Spanish"} (if no target language specified, default to Spanish)
+Original content:
+${currentContent || ""}
+
+Translated version:`;
+            break;
+          default:
+            return res.status(400).json({ error: `Unknown action: ${action}` });
+        }
+
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: prompt,
+          config: {
+            systemInstruction: "You are an expert educational content writer. Output only the generated text, no markdown formatting, no explanations, no prefixes like 'Here is' or 'Rewritten version:'.",
+          },
+        });
+        generatedText = response.text?.trim() || "";
+      } catch (e) {
+        console.error("AI text action failed:", e);
+      }
+    }
+
+    if (!generatedText) {
+      generatedText = `[AI ${action} result for "${lessonTitle || "lesson"}" — ${customInstruction || "standard"}]`;
+    }
+
+    // Record generation history
+    const historyId = `ai-text-${Date.now()}`;
+    await query(
+      `INSERT INTO ai_generation_history (id, user_id, course_id, action, result_summary, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [historyId, req.user.id, "", `text_${action}`, generatedText.substring(0, 200)]
+    );
+
+    res.json({ content: generatedText, creditsRemaining: remaining });
+  } catch (err) {
+    console.error("AI text action error:", err);
+    res.status(500).json({ error: "Failed to process AI text action." });
+  }
+});
+
+// ─── AI Generate Full Lesson Content ─────────────────────────
+app.post("/api/courses/ai-generate-lesson-content", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { topic, audience, lessonLength, courseTopic, moduleTitle, lessonTitle } = req.body;
+    if (!topic) return res.status(400).json({ error: "topic is required." });
+
+    const remaining = await deductCreditIfAvailable(req.user.id);
+    if (remaining === -1) return res.status(403).json({ error: "No AI credits remaining.", code: "NO_CREDITS" });
+
+    const ai = getAIClient();
+    let result: any = null;
+
+    if (ai) {
+      try {
+        const prompt = `Generate a complete lesson for a course about "${courseTopic || topic}".
+Module: ${moduleTitle || "General"}
+Existing lesson context: ${lessonTitle || "New Lesson"}
+Target audience: ${audience || "Beginners"}
+Lesson length: ${lessonLength || "15"} minutes
+
+Output valid JSON (no markdown) matching:
+{
+  "title": "Lesson Title",
+  "introduction": "2-3 sentence introduction to hook the learner",
+  "mainContent": "The main educational content broken into multiple paragraphs covering the key concepts, with examples and explanations",
+  "keyTakeaways": ["Takeaway 1", "Takeaway 2", "Takeaway 3"],
+  "actionSteps": ["Action step 1", "Action step 2", "Action step 3"]
+}`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: prompt,
+          config: {
+            systemInstruction: "You are an expert educational content writer. Always output valid JSON only, no markdown formatting, no code fences.",
+            responseMimeType: "application/json",
+          },
+        });
+        const raw = response.text;
+        const cleaned = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+        result = JSON.parse(cleaned);
+      } catch (e) {
+        console.error("AI lesson content generation failed:", e);
+      }
+    }
+
+    if (!result) {
+      result = {
+        title: `Understanding ${topic}`,
+        introduction: `In this lesson, we will explore the fundamentals of ${topic}. By the end, you'll have a solid foundation to build upon.`,
+        mainContent: `${topic} is an important concept in ${courseTopic || "this field"}. Let's dive deep into the key principles and practical applications.`,
+        keyTakeaways: ["Understand the core concepts", "Apply best practices", "Build real-world skills"],
+        actionSteps: ["Review the lesson materials", "Complete the practice exercise", "Share your learnings"],
+      };
+    }
+
+    const historyId = `ai-lesson-${Date.now()}`;
+    await query(
+      `INSERT INTO ai_generation_history (id, user_id, course_id, action, result_summary, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [historyId, req.user.id, "", "generate_lesson_content", JSON.stringify({ title: result.title, topic })]
+    );
+
+    res.json({ lesson: result, creditsRemaining: remaining });
+  } catch (err) {
+    console.error("Generate lesson content error:", err);
+    res.status(500).json({ error: "Failed to generate lesson content." });
+  }
+});
+
+// ─── AI Generate Quiz ───────────────────────────────────────
+app.post("/api/courses/ai-generate-quiz", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { topic, count, courseTopic, lessonTitle } = req.body;
+    if (!topic) return res.status(400).json({ error: "topic is required." });
+
+    const remaining = await deductCreditIfAvailable(req.user.id);
+    if (remaining === -1) return res.status(403).json({ error: "No AI credits remaining.", code: "NO_CREDITS" });
+
+    const ai = getAIClient();
+    let questions: any[] = [];
+
+    if (ai) {
+      try {
+        const questionCount = count || 10;
+        const prompt = `Generate ${questionCount} multiple-choice quiz questions about "${topic}" for a course about "${courseTopic || topic}" (lesson: ${lessonTitle || "General"}).
+
+Output valid JSON (no markdown) matching:
+{
+  "questions": [
+    {
+      "question": "Question text?",
+      "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+      "correctAnswer": 0,
+      "explanation": "Explanation of why this is correct"
+    }
+  ]
+}
+
+Requirements:
+- Each question must have exactly 4 options
+- correctAnswer is the 0-based index of the correct option
+- Explanations should be 1-2 sentences
+- Mix of difficulty levels
+- Cover key concepts related to the topic`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: prompt,
+          config: {
+            systemInstruction: "You are an expert quiz creator. Always output valid JSON only, no markdown formatting, no code fences.",
+            responseMimeType: "application/json",
+          },
+        });
+        const raw = response.text;
+        const cleaned = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        questions = parsed.questions || [];
+      } catch (e) {
+        console.error("AI quiz generation failed:", e);
+      }
+    }
+
+    if (questions.length === 0) {
+      questions = Array.from({ length: 5 }, (_, i) => ({
+        question: `Sample question ${i + 1} about ${topic}?`,
+        options: ["Option A", "Option B", "Option C", "Option D"],
+        correctAnswer: 0,
+        explanation: `This is the correct answer because it aligns with best practices in ${topic}.`,
+      }));
+    }
+
+    const historyId = `ai-quiz-${Date.now()}`;
+    await query(
+      `INSERT INTO ai_generation_history (id, user_id, course_id, action, result_summary, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [historyId, req.user.id, "", "generate_quiz", JSON.stringify({ questionCount: questions.length, topic })]
+    );
+
+    res.json({ questions, creditsRemaining: remaining });
+  } catch (err) {
+    console.error("Generate quiz error:", err);
+    res.status(500).json({ error: "Failed to generate quiz." });
+  }
+});
+
+// ─── AI Generate Assignment ─────────────────────────────────
+app.post("/api/courses/ai-generate-assignment", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { prompt, courseTopic, moduleTitle, lessonTitle } = req.body;
+    if (!prompt) return res.status(400).json({ error: "prompt is required." });
+
+    const remaining = await deductCreditIfAvailable(req.user.id);
+    if (remaining === -1) return res.status(403).json({ error: "No AI credits remaining.", code: "NO_CREDITS" });
+
+    const ai = getAIClient();
+    let content = "";
+
+    if (ai) {
+      try {
+        const systemPrompt = `You are creating a practical assignment for a course.
+Course: ${courseTopic || "General"}
+Module: ${moduleTitle || "General"}
+Lesson: ${lessonTitle || "General"}
+
+Create a detailed assignment description based on this prompt: "${prompt}"
+
+The assignment should include:
+1. A clear title
+2. Step-by-step instructions (3-5 steps)
+3. What the learner will accomplish
+4. Success criteria`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: systemPrompt,
+          config: {
+            systemInstruction: "You are an expert educational content writer who creates practical, actionable assignments. Output the full assignment description in clear paragraphs.",
+          },
+        });
+        content = response.text?.trim() || "";
+      } catch (e) {
+        console.error("AI assignment generation failed:", e);
+      }
+    }
+
+    if (!content) {
+      content = `Assignment: ${prompt}\n\nInstructions:\n1. Review the lesson material\n2. Complete the task described above\n3. Submit your work for review\n\nSuccess Criteria:\n- Complete all steps\n- Apply concepts from the lesson`;
+    }
+
+    const historyId = `ai-assignment-${Date.now()}`;
+    await query(
+      `INSERT INTO ai_generation_history (id, user_id, course_id, action, result_summary, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [historyId, req.user.id, "", "generate_assignment", content.substring(0, 200)]
+    );
+
+    res.json({ content, creditsRemaining: remaining });
+  } catch (err) {
+    console.error("Generate assignment error:", err);
+    res.status(500).json({ error: "Failed to generate assignment." });
+  }
+});
+
+// ─── AI Generate Course Outline ─────────────────────────────
+app.post("/api/courses/ai-generate-outline", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
+  try {
+    const { topic, audience, level } = req.body;
+    if (!topic) return res.status(400).json({ error: "topic is required." });
+
+    const remaining = await deductCreditIfAvailable(req.user.id);
+    if (remaining === -1) return res.status(403).json({ error: "No AI credits remaining.", code: "NO_CREDITS" });
+
+    const ai = getAIClient();
+    let modules: any[] = [];
+
+    if (ai) {
+      try {
+        const prompt = `Generate a course outline for a course about "${topic}".
+Target audience: ${audience || "Beginners"}
+Skill level: ${level || "All Levels"}
+
+Output valid JSON (no markdown):
+{
+  "modules": [
+    {"title": "Module 1: ...", "description": "Brief description of this module", "lessons": ["Lesson 1", "Lesson 2", "Lesson 3"]},
+    {"title": "Module 2: ...", "description": "...", "lessons": ["Lesson 1", "Lesson 2", "Lesson 3", "Lesson 4"]}
+  ]
+}
+
+Requirements:
+- Generate 5-8 modules covering fundamentals to advanced
+- Each module should have 3-5 lessons
+- Progressive difficulty from module to module
+- Cover all essential topics for ${topic}`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: prompt,
+          config: {
+            systemInstruction: "You are an expert curriculum designer. Output valid JSON only, no markdown, no code fences.",
+            responseMimeType: "application/json",
+          },
+        });
+        const raw = response.text;
+        const cleaned = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        modules = parsed.modules || [];
+      } catch (e) {
+        console.error("AI outline generation failed:", e);
+      }
+    }
+
+    if (modules.length === 0) {
+      modules = [
+        { title: `Module 1: Introduction to ${topic}`, description: `Overview of ${topic} and its importance`, lessons: [`What is ${topic}?`, `Getting Started`, `Core Concepts`] },
+        { title: `Module 2: ${topic} Fundamentals`, description: `Deep dive into essential ${topic} concepts`, lessons: [`Fundamental Principles`, `Key Techniques`, `Best Practices`, `Common Pitfalls`] },
+        { title: `Module 3: Advanced ${topic}`, description: `Advanced strategies and real-world applications`, lessons: [`Advanced Techniques`, `Case Studies`, `Practical Projects`] },
+      ];
+    }
+
+    const historyId = `ai-outline-${Date.now()}`;
+    await query(
+      `INSERT INTO ai_generation_history (id, user_id, course_id, action, result_summary, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [historyId, req.user.id, "", "generate_outline", JSON.stringify({ moduleCount: modules.length, topic })]
+    );
+
+    res.json({ modules, creditsRemaining: remaining });
+  } catch (err) {
+    console.error("Generate outline error:", err);
+    res.status(500).json({ error: "Failed to generate course outline." });
   }
 });
 
