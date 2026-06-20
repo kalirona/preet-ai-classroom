@@ -1,5 +1,5 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
-import { Plus, Heading1, Heading2, Type, Video, Image, FileQuestion, ClipboardList, Paperclip, Quote, Minus, Code, Headphones, FileText, BarChart3, Lightbulb, Sparkles, Bot, PenSquare, MessageSquare, Users, MousePointerClick, ArrowUpRight, Calendar, GripVertical, Trash2, ChevronDown, Download, Pointer, ExternalLink } from "lucide-react";
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from "react";
+import { Plus, Heading1, Heading2, Type, Video, Image, FileQuestion, ClipboardList, Paperclip, Quote, Minus, Code, Headphones, FileText, BarChart3, Lightbulb, Sparkles, Bot, PenSquare, MessageSquare, Users, MousePointerClick, ArrowUpRight, Calendar, GripVertical, Trash2, ChevronDown, ChevronRight, Copy, Download, Pointer, ExternalLink, Search, X, Loader2, Zap, Layers, HelpCircle, Command } from "lucide-react";
 import { ContentBlock, BlockType } from "./CourseTypes";
 
 interface ContentEditorProps {
@@ -7,6 +7,8 @@ interface ContentEditorProps {
   onChange: (blocks: ContentBlock[]) => void;
   selectedBlockId: string | null;
   onSelectBlock: (id: string | null) => void;
+  lessonTitle?: string;
+  moduleTitle?: string;
 }
 
 const blockTypeConfig: { type: BlockType; label: string; icon: React.ElementType; color: string }[] = [
@@ -423,11 +425,47 @@ function renderBlockContent(block: ContentBlock, onChange: (content: string) => 
   }
 }
 
-export default function ContentEditor({ blocks, onChange, selectedBlockId, onSelectBlock }: ContentEditorProps) {
+const blockCategories = [
+  {
+    name: "Text & Headings",
+    types: ["heading", "paragraph", "divider", "quote", "code", "button"],
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+  },
+  {
+    name: "Media & Files",
+    types: ["image", "video", "audio", "file", "pdf", "embed"],
+    color: "text-purple-600",
+    bg: "bg-purple-50",
+  },
+  {
+    name: "Interactivity",
+    types: ["quiz", "assignment", "poll", "discussion_prompt", "cta", "booking"],
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+  },
+  {
+    name: "AI & Engagement",
+    types: ["ai_summary", "ai_tutor", "ai_practice", "ask_community", "reflection", "upgrade_offer"],
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+  },
+];
+
+const favoriteBlocks: BlockType[] = ["paragraph", "heading", "video", "image", "quiz", "pdf", "ai_summary"];
+
+export default function ContentEditor({ blocks, onChange, selectedBlockId, onSelectBlock, lessonTitle, moduleTitle }: ContentEditorProps) {
   const [showBlockPicker, setShowBlockPicker] = useState(false);
   const [showTypeMenu, setShowTypeMenu] = useState<string | null>(null);
+  const [inlinePickerIdx, setInlinePickerIdx] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dragBlockId, setDragBlockId] = useState<string | null>(null);
+  const [dragOverBlockIdx, setDragOverBlockIdx] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const blocksContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const blockPickerRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     if (selectedBlockId) {
@@ -436,29 +474,61 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
     }
   }, [blocks.length, selectedBlockId]);
 
-  const addBlock = (type: BlockType) => {
+  useEffect(() => {
+    if (showBlockPicker && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  }, [showBlockPicker]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (!showBlockPicker) setSearchQuery("");
+        setShowBlockPicker(prev => !prev);
+      }
+      if (e.key === "Escape") {
+        setShowBlockPicker(false);
+        setShowTypeMenu(null);
+        setInlinePickerIdx(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showBlockPicker]);
+
+  const addBlock = useCallback((type: BlockType, idx?: number) => {
     const newBlock: ContentBlock = {
       id: `block-${Date.now()}`,
       type,
       content: "",
     };
-    let idx = blocks.length - 1;
-    if (selectedBlockId) {
+    let insertIdx = blocks.length - 1;
+    if (idx !== undefined) {
+      insertIdx = idx;
+    } else if (selectedBlockId) {
       const found = blocks.findIndex((b) => b.id === selectedBlockId);
-      if (found !== -1) idx = found;
+      if (found !== -1) insertIdx = found;
     }
     const updated = [...blocks];
-    updated.splice(idx + 1, 0, newBlock);
+    updated.splice(insertIdx + 1, 0, newBlock);
     onChange(updated);
     onSelectBlock(newBlock.id);
     setShowBlockPicker(false);
-  };
+    setInlinePickerIdx(null);
+    setSearchQuery("");
+  }, [blocks, selectedBlockId, onChange, onSelectBlock]);
 
-  const updateBlockContent = (id: string, content: string) => {
+  const updateBlockContent = useCallback((id: string, content: string) => {
     onChange(blocks.map((b) => b.id === id ? { ...b, content } : b));
-  };
+  }, [blocks, onChange]);
 
-  const deleteBlock = (id: string) => {
+  const updateBlockMeta = useCallback((id: string, key: string, value: any) => {
+    const updated = blocks.map((b) => b.id === id ? { ...b, meta: { ...b.meta, [key]: value } } : b);
+    onChange(updated);
+  }, [blocks, onChange]);
+
+  const deleteBlock = useCallback((id: string) => {
     if (blocks.length <= 1) return;
     const filtered = blocks.filter((b) => b.id !== id);
     onChange(filtered);
@@ -466,15 +536,33 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
       const idx = blocks.findIndex((b) => b.id === id);
       onSelectBlock(filtered[Math.min(idx, filtered.length - 1)]?.id || null);
     }
-  };
+  }, [blocks, onChange, onSelectBlock, selectedBlockId]);
 
-  const changeBlockType = (id: string, newType: BlockType) => {
+  const changeBlockType = useCallback((id: string, newType: BlockType) => {
     onChange(blocks.map((b) => b.id === id ? { ...b, type: newType } : b));
     setShowTypeMenu(null);
-  };
+  }, [blocks, onChange]);
 
-  const handlePaste = (e: React.ClipboardEvent) => {
-    // Simple paste handler: if pasting a URL, could auto-create video/image block
+  const moveBlock = useCallback((fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= blocks.length) return;
+    const updated = [...blocks];
+    const [moved] = updated.splice(fromIdx, 1);
+    updated.splice(toIdx, 0, moved);
+    onChange(updated);
+  }, [blocks, onChange]);
+
+  const duplicateBlock = useCallback((id: string) => {
+    const block = blocks.find(b => b.id === id);
+    if (!block) return;
+    const idx = blocks.findIndex(b => b.id === id);
+    const clone: ContentBlock = { ...block, id: `block-${Date.now()}` };
+    const updated = [...blocks];
+    updated.splice(idx + 1, 0, clone);
+    onChange(updated);
+    onSelectBlock(clone.id);
+  }, [blocks, onChange, onSelectBlock]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const text = e.clipboardData.getData("text");
     if (text.startsWith("http") && selectedBlockId) {
       const block = blocks.find((b) => b.id === selectedBlockId);
@@ -483,153 +571,360 @@ export default function ContentEditor({ blocks, onChange, selectedBlockId, onSel
         updateBlockContent(selectedBlockId, text);
       }
     }
-  };
+  }, [blocks, selectedBlockId, updateBlockContent]);
+
+  const handleKeyDownBlock = useCallback((e: React.KeyboardEvent, blockId: string, idx: number) => {
+    const block = blocks[idx];
+    if (!block) return;
+    if (e.key === "Enter" && !e.shiftKey && (block.type === "paragraph" || block.type === "heading")) {
+      e.preventDefault();
+      addBlock("paragraph", idx);
+    }
+    if (e.key === "Backspace" && !block.content && blocks.length > 1) {
+      e.preventDefault();
+      deleteBlock(blockId);
+    }
+  }, [blocks, addBlock, deleteBlock]);
+
+  const handleBlockDragStart = useCallback((blockId: string, e: React.DragEvent) => {
+    setDragBlockId(blockId);
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = "move";
+  }, []);
+
+  const handleBlockDragOver = useCallback((idx: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverBlockIdx(idx);
+  }, []);
+
+  const handleBlockDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (dragBlockId && dragOverBlockIdx !== null) {
+      const fromIdx = blocks.findIndex(b => b.id === dragBlockId);
+      if (fromIdx !== -1) moveBlock(fromIdx, dragOverBlockIdx);
+    }
+    setDragBlockId(null);
+    setDragOverBlockIdx(null);
+    setIsDragging(false);
+  }, [dragBlockId, dragOverBlockIdx, blocks, moveBlock]);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverBlockIdx(null);
+  }, []);
+
+  const filteredBlockTypes = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const q = searchQuery.toLowerCase();
+    return blockTypeConfig.filter(cfg =>
+      cfg.label.toLowerCase().includes(q) ||
+      cfg.type.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
+  const addBlockFromSearch = useCallback((type: BlockType) => {
+    addBlock(type);
+  }, [addBlock]);
+
+  const addBlockInline = useCallback((type: BlockType) => {
+    addBlock(type, inlinePickerIdx ?? undefined);
+    setInlinePickerIdx(null);
+  }, [addBlock, inlinePickerIdx]);
 
   return (
     <div
       ref={editorRef}
       className="h-full flex flex-col bg-white"
-      onClick={() => setShowBlockPicker(false)}
+      onClick={(e) => {
+        if (!blockPickerRef.current?.contains(e.target as Node)) {
+          setShowBlockPicker(false);
+          setInlinePickerIdx(null);
+        }
+      }}
     >
-      {/* Editor toolbar */}
-      <div className="flex items-center justify-between px-6 py-2.5 border-b border-gray-100 shrink-0">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <span className="font-medium text-gray-600">{blocks.length} blocks</span>
-        </div>
-        <button
-          onClick={() => addBlock("paragraph")}
-          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Block
-        </button>
-      </div>
-
-      {/* Blocks */}
-      <div ref={blocksContainerRef} className="flex-1 overflow-y-auto px-8 py-6 space-y-3">
-        {blocks.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-sm text-gray-400 mb-4">No blocks yet. Add your first block.</p>
-            <button
-              onClick={() => addBlock("paragraph")}
-              className="text-sm font-medium text-white bg-gray-900 px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              + Add Block
-            </button>
+      {/* Lesson breadcrumb */}
+      {lessonTitle && (
+        <div className="px-6 py-2 bg-gradient-to-r from-gray-50/80 to-white border-b border-gray-100 shrink-0 sticky top-0 z-10">
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <span className="font-medium text-gray-500">{moduleTitle || "Course"}</span>
+            <ChevronRight className="w-3 h-3" />
+            <span className="font-semibold text-gray-700">{lessonTitle}</span>
+            <span className="ml-auto font-medium text-gray-500">{blocks.length} {blocks.length === 1 ? "block" : "blocks"}</span>
           </div>
-        )}
+        </div>
+      )}
 
-        {blocks.map((block, idx) => (
-          <div
-            key={block.id}
-            data-block-id={block.id}
-            className={`group relative rounded-xl transition-all ${
-              selectedBlockId === block.id
-                ? "ring-2 ring-gray-900/10 bg-gray-50/50 shadow-sm"
-                : "hover:bg-gray-50/30"
-            }`}
-            onClick={() => onSelectBlock(block.id)}
+      {/* Blocks area */}
+      <div ref={blocksContainerRef} className="flex-1 overflow-y-auto" onPaste={handlePaste}>
+        {/* Sticky floating Add Block button */}
+        <div className="sticky top-0 z-10 px-6 pt-4 pb-2 bg-gradient-to-b from-white via-white/95 to-transparent">
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowBlockPicker(!showBlockPicker); if (!showBlockPicker) setSearchQuery(""); }}
+            className="group w-full flex items-center gap-3 px-5 py-3 rounded-2xl border-2 border-dashed border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all duration-200"
           >
-            {/* Block label bar */}
-            <div className={`flex items-center justify-between px-4 py-1.5 ${
-              selectedBlockId === block.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-            } transition-opacity`}>
-              <div className="flex items-center gap-2">
-                <GripVertical className="w-3.5 h-3.5 text-gray-300 cursor-grab" />
-                <span className={`text-[10px] font-medium ${getBlockColor(block.type)} flex items-center gap-1`}>
-                  <BlockIcon type={block.type} className="w-3.5 h-3.5" />
-                  {blockTypeConfig.find((b) => b.type === block.type)?.label || block.type}
-                </span>
-              </div>
-              <div className="flex items-center gap-0.5">
-                {/* Block type switcher */}
-                <div className="relative">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowTypeMenu(showTypeMenu === block.id ? null : block.id); }}
-                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors"
-                    title="Change block type"
-                  >
-                    <ChevronDown className="w-3.5 h-3.5" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm group-hover:shadow-md transition-all">
+              <Plus className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 text-left">
+              <span className="text-sm font-semibold text-gray-700 group-hover:text-indigo-700 transition-colors">
+                Add a block
+              </span>
+              <span className="ml-2 text-xs text-gray-400">
+                <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono border border-gray-200">⌘K</kbd>
+              </span>
+            </div>
+          </button>
+        </div>
+
+        {/* Block Picker Dropdown */}
+        {showBlockPicker && (
+          <>
+            <div className="fixed inset-0 z-20" onClick={() => { setShowBlockPicker(false); setSearchQuery(""); }} />
+            <div
+              ref={blockPickerRef}
+              className="fixed left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/4 w-[480px] max-w-[90vw] bg-white rounded-2xl border border-gray-200 shadow-2xl z-30 overflow-hidden"
+            >
+              {/* Search bar */}
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+                <Search className="w-5 h-5 text-gray-400 shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search blocks by name..."
+                  className="flex-1 text-sm text-gray-700 bg-transparent border-none outline-none placeholder:text-gray-400"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery("")} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="w-4 h-4" />
                   </button>
-                  {showTypeMenu === block.id && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setShowTypeMenu(null)} />
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl border border-gray-200 shadow-xl z-20 py-1 max-h-60 overflow-y-auto">
-                        {blockTypeConfig.map((cfg) => {
+                )}
+                <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono border border-gray-100">⌘K</kbd>
+                  <span>close</span>
+                </div>
+              </div>
+
+              {/* Results */}
+              <div className="max-h-[360px] overflow-y-auto p-3">
+                {filteredBlockTypes ? (
+                  <div className="grid grid-cols-2 gap-1">
+                    {filteredBlockTypes.map((cfg) => {
+                      const Icon = cfg.icon;
+                      return (
+                        <button key={cfg.type} onClick={() => addBlockFromSearch(cfg.type)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+                            <Icon className={`w-4 h-4 ${cfg.color}`} />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <span className="font-medium">{cfg.label}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Favorites */}
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2 px-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Quick Add</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {favoriteBlocks.map((type) => {
+                          const cfg = blockTypeConfig.find(b => b.type === type);
+                          if (!cfg) return null;
                           const Icon = cfg.icon;
                           return (
-                            <button
-                              key={cfg.type}
-                              onClick={() => changeBlockType(block.id, cfg.type)}
-                              className={`flex items-center gap-2.5 w-full px-3 py-1.5 text-xs text-left hover:bg-gray-50 ${
-                                block.type === cfg.type ? "bg-gray-50 font-semibold text-gray-900" : "text-gray-700"
-                              }`}
-                            >
+                            <button key={type} onClick={() => addBlockFromSearch(type)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 hover:text-gray-900 border border-gray-200/50 transition-all">
                               <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />
                               {cfg.label}
                             </button>
                           );
                         })}
                       </div>
-                    </>
-                  )}
-                </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteBlock(block.id); }}
-                  className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                  title="Delete block"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                    </div>
+                    {/* Categories */}
+                    {blockCategories.map((cat) => (
+                      <div key={cat.name}>
+                        <div className="flex items-center gap-1.5 mb-1.5 px-1">
+                          <Layers className="w-3 h-3 text-gray-400" />
+                          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{cat.name}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          {cat.types.map((type) => {
+                            const cfg = blockTypeConfig.find(b => b.type === type);
+                            if (!cfg) return null;
+                            const Icon = cfg.icon;
+                            return (
+                              <button key={type} onClick={() => addBlockFromSearch(type)} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                                <Icon className={`w-4 h-4 ${cfg.color}`} />
+                                {cfg.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Footer */}
+              <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100 text-[10px] text-gray-400">
+                <span><kbd className="px-1 py-0.5 bg-gray-100 rounded font-mono border border-gray-100">Tab</kbd> navigate</span>
+                <span><kbd className="px-1 py-0.5 bg-gray-100 rounded font-mono border border-gray-100">Enter</kbd> select</span>
+                <span><kbd className="px-1 py-0.5 bg-gray-100 rounded font-mono border border-gray-100">Esc</kbd> close</span>
               </div>
             </div>
+          </>
+        )}
 
-            {/* Block content */}
-            <div className="px-4 pb-3">
-              {renderBlockContent(block, (content) => updateBlockContent(block.id, content), (key, value) => {
-                const updated = blocks.map((b) => b.id === block.id ? { ...b, meta: { ...b.meta, [key]: value } } : b);
-                onChange(updated);
-              })}
-            </div>
-          </div>
-        ))}
-
-        {/* Add block button at bottom */}
-        <div className="relative">
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowBlockPicker(true); }}
-            className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 w-full transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add a block
-          </button>
-          {showBlockPicker && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowBlockPicker(false)} />
-              <div className="absolute left-4 top-full mt-1 w-64 bg-white rounded-xl border border-gray-200 shadow-xl z-20 py-3 max-h-80 overflow-y-auto">
-                <p className="px-4 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Content Blocks</p>
-                {blockTypeConfig.slice(0, 10).map((cfg) => {
-                  const Icon = cfg.icon;
-                  return (
-                    <button key={cfg.type} onClick={() => addBlock(cfg.type)} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
-                      <Icon className={`w-4 h-4 ${cfg.color}`} />{cfg.label}
-                    </button>
-                  );
-                })}
-                <div className="border-t border-gray-100 my-1.5" />
-                <p className="px-4 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">AI & Community</p>
-                {blockTypeConfig.slice(10).map((cfg) => {
-                  const Icon = cfg.icon;
-                  return (
-                    <button key={cfg.type} onClick={() => addBlock(cfg.type)} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
-                      <Icon className={`w-4 h-4 ${cfg.color}`} />{cfg.label}
-                    </button>
-                  );
-                })}
+        {/* Blocks */}
+        <div className="px-6 pb-6 space-y-2">
+          {blocks.length === 0 && !showBlockPicker && (
+            <div className="text-center py-16 px-8">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-8 h-8 text-indigo-300" />
               </div>
-            </>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Start building your lesson</h3>
+              <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto leading-relaxed">
+                Click "Add a block" above or press <kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono text-xs border border-gray-200">⌘K</kbd> to add your first block
+              </p>
+              <button onClick={() => addBlock("paragraph")} className="inline-flex items-center gap-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-5 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-lg">
+                <Plus className="w-4 h-4" />
+                Add Your First Block
+              </button>
+            </div>
           )}
+
+          {blocks.map((block, idx) => (
+            <div key={block.id}>
+              {/* Inline add-block between blocks */}
+              {idx > 0 && (
+                <div className="flex items-center gap-2 group/add relative h-0 opacity-0 group-hover/add:opacity-100 hover:opacity-100 transition-opacity" style={{ marginTop: "-2px", marginBottom: "-2px" }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setInlinePickerIdx(inlinePickerIdx === idx ? null : idx); }}
+                    className="flex items-center gap-1 text-[10px] text-gray-300 hover:text-indigo-500 hover:bg-indigo-50 px-2 py-0.5 rounded-full transition-all relative z-10"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span className="hidden sm:inline">Add block</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Inline block picker */}
+              {inlinePickerIdx === idx && (
+                <div className="ml-8 mb-2">
+                  <div className="flex items-center gap-1.5 flex-wrap p-2 bg-gray-50 rounded-xl border border-gray-200 shadow-sm">
+                    {blockTypeConfig.slice(0, 8).map((cfg) => {
+                      const Icon = cfg.icon;
+                      return (
+                        <button key={cfg.type} onClick={() => addBlockInline(cfg.type)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-gray-600 hover:text-gray-900 hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 transition-all" title={cfg.label}>
+                          <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                          <span className="hidden sm:inline">{cfg.label}</span>
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => { setShowBlockPicker(true); setInlinePickerIdx(null); }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-indigo-500 hover:bg-white hover:shadow-sm border border-transparent hover:border-indigo-200 transition-all">
+                      <Search className="w-3 h-3" />
+                      More...
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Block */}
+              <div
+                data-block-id={block.id}
+                draggable
+                onDragStart={(e) => handleBlockDragStart(block.id, e)}
+                onDragOver={(e) => handleBlockDragOver(idx, e)}
+                onDrop={handleBlockDrop}
+                onDragLeave={handleDragLeave}
+                className={`group relative rounded-xl transition-all ${
+                  dragOverBlockIdx === idx ? "ring-2 ring-indigo-300 bg-indigo-50/30" : ""
+                } ${
+                  selectedBlockId === block.id
+                    ? "ring-2 ring-indigo-200 bg-white shadow-sm border border-indigo-100"
+                    : "hover:bg-gray-50/50 border border-transparent"
+                }`}
+                onClick={() => onSelectBlock(block.id)}
+              >
+                {/* Block label bar */}
+                <div className={`flex items-center justify-between px-4 py-1.5 ${
+                  selectedBlockId === block.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                } transition-opacity`}>
+                  <div className="flex items-center gap-2">
+                    <div className="cursor-grab active:cursor-grabbing p-0.5 text-gray-300 hover:text-gray-500">
+                      <GripVertical className="w-3.5 h-3.5" />
+                    </div>
+                    <span className={`text-[10px] font-medium ${getBlockColor(block.type)} flex items-center gap-1`}>
+                      <BlockIcon type={block.type} className="w-3.5 h-3.5" />
+                      {blockTypeConfig.find((b) => b.type === block.type)?.label || block.type}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowTypeMenu(showTypeMenu === block.id ? null : block.id); }}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                        title="Change block type"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                      {showTypeMenu === block.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setShowTypeMenu(null)} />
+                          <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl border border-gray-200 shadow-xl z-20 py-2 max-h-72 overflow-y-auto">
+                            <p className="px-3 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Change block type</p>
+                            {blockTypeConfig.map((cfg) => {
+                              const Icon = cfg.icon;
+                              return (
+                                <button key={cfg.type} onClick={() => changeBlockType(block.id, cfg.type)} className={`flex items-center gap-2.5 w-full px-3 py-1.5 text-sm text-left hover:bg-gray-50 transition-colors ${block.type === cfg.type ? "bg-gray-50 font-semibold text-gray-900" : "text-gray-700"}`}>
+                                  <Icon className={`w-4 h-4 ${cfg.color}`} />
+                                  {cfg.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); duplicateBlock(block.id); }} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors" title="Duplicate block">
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); deleteBlock(block.id); }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete block">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Block content */}
+                <div className="px-4 pb-3">
+                  {renderBlockContent(block, (content) => updateBlockContent(block.id, content), (key, value) => updateBlockMeta(block.id, key, value))}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
+
+        {/* Bottom add block */}
+        {blocks.length > 0 && (
+          <div className="px-6 pb-8">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowBlockPicker(true); }}
+              className="group w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm text-gray-400 hover:text-indigo-600 hover:bg-indigo-50/30 border border-dashed border-transparent hover:border-indigo-200 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add a block</span>
+              <span className="text-xs text-gray-300">
+                <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-mono border border-gray-100">⌘K</kbd>
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
