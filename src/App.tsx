@@ -128,6 +128,19 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [settingsSubTab, setSettingsSubTab] = useState<string>("");
 
+  // Super Admin always starts on platform overview
+  const [initialTabSet, setInitialTabSet] = useState(false);
+  useEffect(() => {
+    if (currentUser && !initialTabSet) {
+      const hashTab = window.location.hash?.substring(1);
+      if (currentUser.platformRole === PlatformRole.SUPER_ADMIN && (!hashTab || hashTab === "dashboard")) {
+        setActiveTab("superadmin");
+        window.location.hash = "superadmin";
+      }
+      setInitialTabSet(true);
+    }
+  }, [currentUser, initialTabSet]);
+
   // Check if current path is a public course/preview route
   const isPublicRoute = typeof window !== "undefined" && (
     window.location.pathname.startsWith("/course/") ||
