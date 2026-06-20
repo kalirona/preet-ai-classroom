@@ -17,6 +17,7 @@ interface SidebarProps {
   isMobileOpen?: boolean;
   onClose?: () => void;
   onOpenCreateCommunity?: () => void;
+  previewWsRole?: string | null;
 }
 
 export default function Sidebar({
@@ -29,6 +30,7 @@ export default function Sidebar({
   isMobileOpen = false,
   onClose = () => {},
   onOpenCreateCommunity = () => {},
+  previewWsRole = null,
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
@@ -36,12 +38,20 @@ export default function Sidebar({
   const activeCommunity = communities.find(c => c.id === activeCommunityId) || null;
 
   // Resolve platform-level and workspace-level roles
-  const pfRole = user?.platformRole === PlatformRole.SUPER_ADMIN || (user as any)?.role === "super_admin"
-    ? PlatformRole.SUPER_ADMIN
-    : (user?.platformRole || PlatformRole.USER);
-  const wsRole = pfRole === PlatformRole.SUPER_ADMIN 
-    ? WorkspaceRole.OWNER 
-    : (user?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER);
+  // When previewWsRole is set, temporarily override the displayed role (for role switcher testing)
+  const usingPreview = previewWsRole && previewWsRole !== "super_admin";
+  const pfRole = usingPreview
+    ? PlatformRole.USER
+    : (user?.platformRole === PlatformRole.SUPER_ADMIN || (user as any)?.role === "super_admin"
+        ? PlatformRole.SUPER_ADMIN
+        : (user?.platformRole || PlatformRole.USER));
+  const wsRole = previewWsRole === "super_admin"
+    ? WorkspaceRole.OWNER
+    : previewWsRole
+        ? (previewWsRole as WorkspaceRole)
+        : pfRole === PlatformRole.SUPER_ADMIN 
+            ? WorkspaceRole.OWNER 
+            : (user?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER);
 
   const isGlobalSuperAdmin = pfRole === PlatformRole.SUPER_ADMIN;
   const isWsOwner = wsRole === WorkspaceRole.OWNER;

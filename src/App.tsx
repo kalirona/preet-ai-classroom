@@ -129,6 +129,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [settingsSubTab, setSettingsSubTab] = useState<string>("");
+  const [previewWsRole, setPreviewWsRole] = useState<string | null>(null);
 
   // Super Admin always starts on platform overview
   const [initialTabSet, setInitialTabSet] = useState(false);
@@ -367,10 +368,18 @@ export default function App() {
   const handleRoleChange = async (newRole: string) => {
     if (!currentUser) return;
 
-    // If switching to Super Admin, just redirect to platform view (no server call needed)
+    // If switching to Super Admin, clear preview and redirect to platform view
     if (newRole === "super_admin") {
+      setPreviewWsRole(null);
       setActiveTab("superadmin");
       window.location.hash = "superadmin";
+      return;
+    }
+
+    // For Super Admin users, use preview role to simulate workspace role views
+    const isSa = currentUser.platformRole === PlatformRole.SUPER_ADMIN || (currentUser as any)?.role === "super_admin";
+    if (isSa) {
+      setPreviewWsRole(newRole);
       return;
     }
 
@@ -663,6 +672,7 @@ export default function App() {
         }}
         isMobileOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
+        previewWsRole={previewWsRole}
       />
 
       {/* Main Right Content Section Viewport */}
