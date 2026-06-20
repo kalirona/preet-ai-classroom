@@ -951,14 +951,14 @@ export default function App() {
             </div>
           ) : null}
 
-          {activeTab === "payouts" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN && canAccessTab("payouts", currentUser, activeCommunityId) ? (
+          {activeTab === "payouts" && (currentUser?.platformRole !== PlatformRole.SUPER_ADMIN || previewWsRole) && canAccessTab("payouts", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <CreatorPayoutsView
                 workspaceId={activeCommunityId}
                 workspaceName={activeCommunity?.name}
               />
             </ErrorBoundary>
-          ) : activeTab === "payouts" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN ? (
+          ) : activeTab === "payouts" && (currentUser?.platformRole !== PlatformRole.SUPER_ADMIN || previewWsRole) ? (
             <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
               403 Forbidden
             </div>
@@ -990,7 +990,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === "settings" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN && canAccessTab("settings", currentUser, activeCommunityId) ? (
+          {activeTab === "settings" && (currentUser?.platformRole !== PlatformRole.SUPER_ADMIN || previewWsRole) && canAccessTab("settings", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <SettingsView
                 currentUser={currentUser}
@@ -1002,7 +1002,7 @@ export default function App() {
                 initialSubTab={settingsSubTab}
               />
             </ErrorBoundary>
-          ) : activeTab === "settings" && currentUser?.platformRole !== PlatformRole.SUPER_ADMIN ? (
+          ) : activeTab === "settings" && (currentUser?.platformRole !== PlatformRole.SUPER_ADMIN || previewWsRole) ? (
             <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
               403 Forbidden - Settings is restricted to Owner or Admin.
             </div>
@@ -1096,7 +1096,7 @@ export default function App() {
               settings: "settings",
             };
             const section = superAdminTabs[activeTab];
-            if (section && canAccessTab("superadmin", currentUser, activeCommunityId)) {
+            if (section && !previewWsRole && canAccessTab("superadmin", currentUser, activeCommunityId)) {
               return (
                 <ErrorBoundary>
                   <SuperAdminView
