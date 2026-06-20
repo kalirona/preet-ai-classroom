@@ -4,7 +4,9 @@ import { User, Community, Post, LiveEvent, Notification, Course, PlatformRole, W
 // Strict Client-Side Role-Based Tab Guard
 export function canAccessTab(tab: string, user: User | null, activeCommunityId: string): boolean {
   if (!user) return false;
-  const pfRole = user.platformRole || PlatformRole.USER;
+  const pfRole = user.platformRole === PlatformRole.SUPER_ADMIN || (user as any)?.role === "super_admin"
+    ? PlatformRole.SUPER_ADMIN
+    : (user.platformRole || PlatformRole.USER);
   
   // Super Admin bypass / ultimate clearance
   if (pfRole === PlatformRole.SUPER_ADMIN) {
@@ -133,7 +135,8 @@ export default function App() {
   useEffect(() => {
     if (currentUser && !initialTabSet) {
       const hashTab = window.location.hash?.substring(1);
-      if (currentUser.platformRole === PlatformRole.SUPER_ADMIN && (!hashTab || hashTab === "dashboard")) {
+      const isSa = currentUser.platformRole === PlatformRole.SUPER_ADMIN || (currentUser as any)?.role === "super_admin";
+      if (isSa && (!hashTab || hashTab === "dashboard")) {
         setActiveTab("superadmin");
         window.location.hash = "superadmin";
       }
@@ -361,8 +364,16 @@ export default function App() {
   };
 
   // Handle Role Switcher changes
-  const handleRoleChange = async (newRole: WorkspaceRole) => {
+  const handleRoleChange = async (newRole: string) => {
     if (!currentUser) return;
+
+    // If switching to Super Admin, just redirect to platform view (no server call needed)
+    if (newRole === "super_admin") {
+      setActiveTab("superadmin");
+      window.location.hash = "superadmin";
+      return;
+    }
+
     try {
       const res = await fetch("/api/auth/switch-role", {
         method: "POST",

@@ -36,8 +36,10 @@ export default function Sidebar({
   const activeCommunity = communities.find(c => c.id === activeCommunityId) || null;
 
   // Resolve platform-level and workspace-level roles
-  const pfRole = user?.platformRole || PlatformRole.USER;
-  const wsRole = user?.platformRole === PlatformRole.SUPER_ADMIN 
+  const pfRole = user?.platformRole === PlatformRole.SUPER_ADMIN || (user as any)?.role === "super_admin"
+    ? PlatformRole.SUPER_ADMIN
+    : (user?.platformRole || PlatformRole.USER);
+  const wsRole = pfRole === PlatformRole.SUPER_ADMIN 
     ? WorkspaceRole.OWNER 
     : (user?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER);
 

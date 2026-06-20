@@ -4,7 +4,7 @@ import { Bell, HelpCircle, Trophy, ShieldCheck, Menu, LogOut, Settings, Palette,
 
 interface HeaderProps {
   user: User | null;
-  onRoleChange: (role: WorkspaceRole) => void;
+  onRoleChange: (role: string) => void;
   activeCommunity: any;
   notifications: Notification[];
   onMarkNotificationsRead: () => void;
@@ -105,7 +105,7 @@ export default function Header({
         <div className="relative group hidden sm:block">
           <select
             value={user?.workspaceRoles?.[activeCommunity?.id] || WorkspaceRole.MEMBER}
-            onChange={(e) => onRoleChange(e.target.value as WorkspaceRole)}
+            onChange={(e) => onRoleChange(e.target.value)}
             className="text-sm bg-slate-50 text-slate-700 border border-slate-200 rounded-lg py-1.5 px-3 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 cursor-pointer"
             id="role-picker-testing"
           >
@@ -114,6 +114,9 @@ export default function Header({
             <option value={WorkspaceRole.INSTRUCTOR}>Instructor</option>
             <option value={WorkspaceRole.MODERATOR}>Moderator</option>
             <option value={WorkspaceRole.MEMBER}>Member</option>
+            {(user as any)?.platformRole === "super_admin" || (user as any)?.role === "super_admin" ? (
+              <option value="super_admin">Super Admin</option>
+            ) : null}
           </select>
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
             Switch roles to see different views

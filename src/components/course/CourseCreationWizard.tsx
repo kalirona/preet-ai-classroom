@@ -28,6 +28,13 @@ const templateIcons: Record<string, string> = {
   challenge: "from-violet-400 to-violet-600",
 };
 
+function getSteps(mode: string | null): string[] {
+  if (mode === "ai") {
+    return ["Topic", "Review", "Curriculum", "Publish"];
+  }
+  return ["Basics", "Curriculum", "Details", "Pricing", "Settings", "Publish"];
+}
+
 const icons: Record<string, React.ElementType> = {
   video: Video, audio: Headphones, download: Download,
 };

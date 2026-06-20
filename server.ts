@@ -203,7 +203,7 @@ function rowToUser(row: any): any {
     username: row.username,
     fullName: row.full_name,
     role: row.role,
-    platformRole: row.platform_role,
+    platformRole: row.platform_role || row.role,
     avatarUrl: row.avatar_url,
     xp: row.xp,
     level: row.level,
