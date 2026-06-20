@@ -654,6 +654,7 @@ export default function CourseBuilderStudio({ draft, onUpdate, onBack, currentUs
           </div>
         )}
       </div>
+      </div>
     </div>
   );
 }
