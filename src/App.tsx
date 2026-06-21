@@ -715,6 +715,7 @@ export default function App() {
           onLogout={handleLogout}
           platformMode={platformMode}
           onTogglePlatformMode={handleTogglePlatformMode}
+          previewWsRole={previewWsRole}
         />
 
         {/* Tab Route Content Mount */}
