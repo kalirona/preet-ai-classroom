@@ -24,7 +24,7 @@ export default function AuthPage({ initialMode = "login", onAuthSuccess }: AuthP
 
     try {
       const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
-      const body = mode === "login" ? { email, password } : { email, password, name, username: email.split("@")[0] };
+      const body = mode === "login" ? { email, password } : { email, password, fullName: name, username: email.split("@")[0] };
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -33,7 +33,6 @@ export default function AuthPage({ initialMode = "login", onAuthSuccess }: AuthP
       const data = await res.json();
       if (data.success && data.user) {
         onAuthSuccess?.(data.user);
-        window.location.reload();
       } else {
         setError(data.error || "Authentication failed. Please try again.");
       }

@@ -160,8 +160,7 @@ export default function App() {
     window.location.pathname.startsWith("/contact") ||
     window.location.pathname.startsWith("/faq") ||
     window.location.pathname.startsWith("/builder") ||
-    window.location.pathname === "/" ||
-    window.location.pathname === ""
+    window.location.pathname.startsWith("/c/")
   );
   
   // Data array state
@@ -638,14 +637,12 @@ export default function App() {
   }, [activeTab, activeCommunityId]);
 
   if (!currentUser || isPublicRoute) {
-    return (
-      <PublicWebsite
-        onAuthSuccess={(user) => {
-          setCurrentUser(user);
-          window.location.reload();
-        }}
-      />
-    );
+    return <PublicWebsite
+      onAuthSuccess={(user) => {
+        setCurrentUser(user);
+        window.location.href = "/";
+      }}
+    />;
   }
 
   return (

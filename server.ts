@@ -532,8 +532,13 @@ async function ensureSchema() {
 }
 
 app.get("/api/auth/session", async (req, res) => {
-  const user = await getSessionUser(req);
-  res.json({ user: user || null });
+  try {
+    const user = await getSessionUser(req);
+    res.json({ user: user || null });
+  } catch (err) {
+    console.error("Session check error:", err);
+    res.json({ user: null });
+  }
 });
 
 app.post("/api/auth/register", async (req, res) => {
