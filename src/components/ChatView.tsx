@@ -186,7 +186,7 @@ export default function ChatView({ currentUser, activeCommunityId }: ChatViewPro
       setInputText("");
 
       try {
-        const res = await fetch("/api/ai/copilot", {
+        const res = await fetch("/api/ai/assistant", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: text, context: "chat-copilot" }),

@@ -50,10 +50,9 @@ import { sendPasswordResetEmail } from "./server/email.js";
 import { createOrder, captureOrder, verifyWebhook } from "./server/paypal.js";
 
 import {
-  User, Community, Post, Comment, Course, Module, Lesson, LiveEvent,
-  DirectMessage, Notification, Transaction, PlatformRole,
-  WorkspaceRole, PlatformPermission, WorkspacePermission,
-  PLATFORM_ROLE_PERMISSIONS, WORKSPACE_ROLE_PERMISSIONS, can,
+  User, Community, Post, Comment, Course, Module, Lesson,
+  Notification, Transaction, PlatformRole,
+  WorkspaceRole, WorkspacePermission, WORKSPACE_ROLE_PERMISSIONS,
 } from "./src/types";
 
 const app = express();
@@ -424,27 +423,6 @@ function extractWorkspaceId(req: any): string | null {
     req.body.workspaceId || req.body.communityId || null;
 }
 
-function hasPlatformPermission(user: any, permission: PlatformPermission): boolean {
-  return can(permission, user);
-}
-
-function requirePlatformPermission(permission: PlatformPermission) {
-  return (req: any, res: any, next: any) => {
-    const user = req.user;
-    if (!user) return res.status(401).json({ error: "Authentication required." });
-
-    if (hasPlatformPermission(user, permission)) return next();
-
-    createAuditLog({
-      user_id: user.id, user_name: user.fullName,
-      action: "SECURITY_VIOLATION",
-      details: `Denied platform permission: '${permission}'.`,
-    });
-
-    return res.status(403).json({ error: `Forbidden. Missing permission: ${permission}` });
-  };
-}
-
 function requireWorkspacePermission(permission: WorkspacePermission) {
   return (req: any, res: any, next: any) => {
     const user = req.user;
@@ -457,13 +435,11 @@ function requireWorkspacePermission(permission: WorkspacePermission) {
       return res.status(400).json({ error: "Missing workspace tenant context." });
     }
 
-    const userWithRoles = {
-      ...user,
-      platformRole: user.platformRole,
-      workspaceRoles: user.workspaceRoles || {},
-    };
-
-    if (can(permission, userWithRoles, workspaceId)) return next();
+    const wsRole = user.workspaceRoles?.[workspaceId];
+    if (wsRole) {
+      const wsPerms = WORKSPACE_ROLE_PERMISSIONS[wsRole] || [];
+      if (wsPerms.includes(permission)) return next();
+    }
 
     createAuditLog({
       workspace_id: workspaceId, user_id: user.id, user_name: user.fullName,
@@ -3483,7 +3459,10 @@ app.post("/api/rbac/workspaces/:workspaceId/members/:userId/ban", authenticateUs
   }
 });
 
-app.post("/api/rbac/users/:userId/platform-role", authenticateUser, requirePlatformPermission(PlatformPermission.MANAGE_USERS), async (req: any, res: any) => {
+app.post("/api/rbac/users/:userId/platform-role", authenticateUser, (req: any, res: any, next: any) => {
+  if (req.user?.platformRole !== PlatformRole.SUPER_ADMIN) return res.status(403).json({ error: "Super Admin only." });
+  next();
+}, async (req: any, res: any) => {
   try {
     const { userId } = req.params;
     const { platformRole } = req.body;
@@ -3578,19 +3557,6 @@ app.post("/api/ai/write-post", authenticateUser, requireWorkspacePermission(Work
   });
 });
 
-app.post("/api/ai/generate-course", authenticateUser, requireWorkspacePermission(WorkspacePermission.MANAGE_COURSES), async (req: any, res: any) => {
-  try {
-    const { prompt, communityId } = req.body;
-    if (!prompt || !communityId) return res.status(400).json({ error: "Prompt and communityId required." });
-
-    const { course, curriculum } = await generateAICourse(prompt, communityId, req.user.id);
-    res.json({ success: true, course: { ...rowToCourse(course), modules: curriculum.modules } });
-  } catch (err) {
-    console.error("AI course generation error:", err);
-    res.status(500).json({ error: "Failed to generate course." });
-  }
-});
-
 app.get("/api/users/me", authenticateUser, async (req: any, res: any) => {
   try {
     const userResponse = await formatUserForResponse(req.user.id);
@@ -3600,7 +3566,10 @@ app.get("/api/users/me", authenticateUser, async (req: any, res: any) => {
   }
 });
 
-app.get("/api/users", authenticateUser, requirePlatformPermission(PlatformPermission.MANAGE_USERS), async (_req: any, res: any) => {
+app.get("/api/users", authenticateUser, (req: any, res: any, next: any) => {
+  if (req.user?.platformRole !== PlatformRole.SUPER_ADMIN) return res.status(403).json({ error: "Super Admin only." });
+  next();
+}, async (_req: any, res: any) => {
   try {
     const users = await findAllUsers();
     res.json({ users: users.map(rowToUser) });
@@ -3639,82 +3608,6 @@ app.post("/api/database/migrate", authenticateUser, async (req: any, res: any) =
   await ensureSchema();
   const seeded = await isDatabaseSeeded();
   res.json({ success: true, message: `PostgreSQL schema verified. Seeded: ${seeded}` });
-});
-
-// ═══════════════════════════════════════════════════════════════
-// SUPER ADMIN PLATFORM SETTINGS
-// ═══════════════════════════════════════════════════════════════
-
-const platformSettings: Record<string, any> = {
-  maintenanceMode: false,
-  registrationEnabled: true,
-  debugLogging: false,
-  deploymentRegion: "gcp-us-central1",
-  platformName: "Skool SaaS",
-  supportEmail: "support@skool.com",
-  maxUploadMb: 50,
-  sessionTimeoutHours: 24,
-  mfaRequired: false,
-  smtpHost: "",
-  smtpPort: 587,
-  smtpUser: "",
-  smtpPass: "",
-  webhookUrl: "",
-};
-
-app.get("/api/platform/settings", authenticateUser, (req: any, res: any) => {
-  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
-    return res.status(403).json({ error: "Super Admin only." });
-  }
-  const safeSettings = { ...platformSettings };
-  delete safeSettings.smtpPass;
-  res.json({ settings: safeSettings });
-});
-
-app.put("/api/platform/settings", authenticateUser, (req: any, res: any) => {
-  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
-    return res.status(403).json({ error: "Super Admin only." });
-  }
-  const allowed = [
-    "maintenanceMode", "registrationEnabled", "debugLogging", "deploymentRegion",
-    "platformName", "supportEmail", "maxUploadMb", "sessionTimeoutHours",
-    "mfaRequired", "smtpHost", "smtpPort", "smtpUser", "smtpPass", "webhookUrl",
-  ];
-  for (const [key, val] of Object.entries(req.body)) {
-    if (allowed.includes(key)) {
-      platformSettings[key] = val;
-    }
-  }
-  addAuditLog(req.user.id, req.user.fullName, "PLATFORM_SETTINGS_UPDATED", `Updated settings: ${Object.keys(req.body).join(", ")}`);
-  res.json({ success: true, settings: platformSettings });
-});
-
-app.post("/api/platform/toggle-maintenance", authenticateUser, async (req: any, res: any) => {
-  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
-    return res.status(403).json({ error: "Super Admin only." });
-  }
-  platformSettings.maintenanceMode = !platformSettings.maintenanceMode;
-  await addAuditLog(req.user.id, req.user.fullName, "MAINTENANCE_TOGGLE", `Maintenance mode set to ${platformSettings.maintenanceMode}`);
-  res.json({ success: true, maintenanceMode: platformSettings.maintenanceMode });
-});
-
-app.get("/api/platform/backup-keys", authenticateUser, (req: any, res: any) => {
-  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
-    return res.status(403).json({ error: "Super Admin only." });
-  }
-  const keys = [
-    `SHA256::${crypto.randomBytes(8).toString("hex")}...${crypto.randomBytes(8).toString("hex")}`,
-    `SHA256::${crypto.randomBytes(8).toString("hex")}...${crypto.randomBytes(8).toString("hex")}`,
-  ];
-  res.json({ keys, generatedAt: new Date().toISOString() });
-});
-
-app.post("/api/platform/backup-rotate", authenticateUser, async (req: any, res: any) => {
-  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
-    return res.status(403).json({ error: "Super Admin only." });
-  }
-  await addAuditLog(req.user.id, req.user.fullName, "BACKUP_KEYS_ROTATED", "Recovery keys rotated.");
-  res.json({ success: true, message: "Backup recovery keys rotated." });
 });
 
 app.get("/api/platform/stats", authenticateUser, async (req: any, res: any) => {

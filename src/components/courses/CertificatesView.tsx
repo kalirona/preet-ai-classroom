@@ -18,7 +18,7 @@ export default function CertificatesView({ workspaceId }: CertificatesViewProps)
       .then((data) => {
         if (data.certificates) setCertificates(data.certificates);
       })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [workspaceId]);
 

@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Community, User, PlatformRole, WorkspaceRole } from "../types";
 import { 
-  MessageSquare, BookOpen, Calendar, Trophy, BarChart3, Star, Layers, Sparkles, X, ChevronDown, 
-  Menu, Info, Users, ShieldAlert, LogOut, FileText, Settings, Bookmark, Bell, ShoppingCart, UserCheck, ChevronLeft, ChevronRight, HelpCircle, Shield, Database,
-  LayoutDashboard, Receipt, Repeat, Ticket, HeartHandshake, ShieldCheck, ScrollText, Flag,
+  MessageSquare, BookOpen, Calendar, BarChart3, Layers, X, ChevronDown,
+  Users, FileText, Settings, Bookmark, Bell, UserCheck, ChevronLeft, ChevronRight, Shield,
+  LayoutDashboard, ShieldCheck, ScrollText, Flag,
   Globe, DollarSign, CreditCard, Edit, ClipboardList, Award
 } from "lucide-react";
 
@@ -18,6 +18,7 @@ interface SidebarProps {
   onClose?: () => void;
   onOpenCreateCommunity?: () => void;
   previewWsRole?: string | null;
+  platformMode?: boolean;
 }
 
 export default function Sidebar({
@@ -31,6 +32,7 @@ export default function Sidebar({
   onClose = () => {},
   onOpenCreateCommunity = () => {},
   previewWsRole = null,
+  platformMode = false,
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
@@ -42,7 +44,7 @@ export default function Sidebar({
   const usingPreview = previewWsRole && previewWsRole !== "super_admin";
   const pfRole = usingPreview
     ? PlatformRole.USER
-    : (user?.platformRole === PlatformRole.SUPER_ADMIN || (user as any)?.role === "super_admin"
+    : (user?.platformRole === PlatformRole.SUPER_ADMIN
         ? PlatformRole.SUPER_ADMIN
         : (user?.platformRole || PlatformRole.USER));
   const wsRole = previewWsRole === "super_admin"
@@ -60,21 +62,6 @@ export default function Sidebar({
   const isWsModerator = wsRole === WorkspaceRole.MODERATOR;
   const isStudent = wsRole === WorkspaceRole.MEMBER;
 
-  // Super Admin: Platform-only tabs (no workspace tabs)
-  const platformNavigation = isGlobalSuperAdmin
-    ? [
-        { id: "superadmin", name: "Overview", icon: LayoutDashboard },
-        { id: "workspaces", name: "Workspaces", icon: Globe },
-        { id: "users", name: "Users", icon: Users },
-        { id: "revenue", name: "Revenue", icon: DollarSign },
-        { id: "payouts", name: "Payouts", icon: CreditCard },
-        { id: "analytics", name: "Analytics", icon: BarChart3 },
-        { id: "security", name: "Security Center", icon: Shield },
-        { id: "logs", name: "Audit Logs", icon: ScrollText },
-        { id: "settings", name: "Settings", icon: Settings },
-      ]
-    : [];
-
   // Creator (Owner): Full workspace control
   const creatorNavigation = (isWsOwner || isGlobalSuperAdmin)
     ? [
@@ -87,7 +74,9 @@ export default function Sidebar({
         { id: "members", name: "Members", icon: Users },
         { id: "calendar", name: "Calendar", icon: Calendar },
         { id: "chat", name: "Chat", icon: MessageSquare },
+        { id: "resources", name: "Resources", icon: FileText },
         { id: "monetization", name: "Monetization", icon: DollarSign },
+        { id: "payouts", name: "Payouts", icon: CreditCard },
         { id: "settings", name: "Workspace Settings", icon: Settings },
       ]
     : [];
@@ -104,6 +93,7 @@ export default function Sidebar({
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
         { id: "settings", name: "Workspace Settings", icon: Settings },
         { id: "chat", name: "Chat", icon: MessageSquare },
+        { id: "resources", name: "Resources", icon: FileText },
       ]
     : [];
 
@@ -114,12 +104,12 @@ export default function Sidebar({
         { id: "courses", name: "Courses", icon: Layers },
         { id: "course-studio", name: "Course Studio", icon: Edit },
         { id: "course-analytics", name: "Course Analytics", icon: BarChart3 },
-        { id: "student-progress", name: "Student Progress", icon: BarChart3 },
+        { id: "students", name: "Students", icon: Users },
         { id: "assignments", name: "Assignments", icon: ClipboardList },
         { id: "certificates", name: "Certificates", icon: Award },
-        { id: "students", name: "Students", icon: Users },
         { id: "calendar", name: "Calendar", icon: Calendar },
         { id: "chat", name: "Chat", icon: MessageSquare },
+        { id: "resources", name: "Resources", icon: FileText },
       ]
     : [];
 
@@ -128,6 +118,7 @@ export default function Sidebar({
     ? [
         { id: "community", name: "Community", icon: MessageSquare },
         { id: "chat", name: "Chat", icon: MessageSquare },
+        { id: "resources", name: "Resources", icon: FileText },
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
         { id: "reports", name: "Reports", icon: Flag },
       ]
@@ -140,7 +131,23 @@ export default function Sidebar({
         { id: "classroom", name: "Classroom", icon: BookOpen },
         { id: "calendar", name: "Calendar", icon: Calendar },
         { id: "chat", name: "Chat", icon: MessageSquare },
+        { id: "resources", name: "Resources", icon: FileText },
         { id: "profile", name: "Profile", icon: UserCheck },
+      ]
+    : [];
+
+  // Platform Mode navigation (Super Admin only)
+  const platformModeNavigation = isGlobalSuperAdmin && platformMode
+    ? [
+        { id: "superadmin", name: "Overview", icon: LayoutDashboard },
+        { id: "workspaces", name: "Workspaces", icon: Globe },
+        { id: "users", name: "Users", icon: Users },
+        { id: "revenue", name: "Revenue", icon: DollarSign },
+        { id: "payouts", name: "Payouts", icon: CreditCard },
+        { id: "analytics", name: "Analytics", icon: BarChart3 },
+        { id: "security", name: "Security Center", icon: Shield },
+        { id: "logs", name: "Audit Logs", icon: ScrollText },
+        { id: "settings", name: "Platform Settings", icon: Settings },
       ]
     : [];
 
@@ -244,7 +251,7 @@ export default function Sidebar({
             {isWorkspaceDropdownOpen && (
               <div className="absolute left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-56 overflow-y-auto animate-in zoom-in-95 duration-100">
                 <span className="block text-[8px] font-bold text-gray-400 uppercase tracking-widest font-mono p-1">Active sharded spaces</span>
-                {communities.filter(comm => isGlobalSuperAdmin || user?.joinedCommunities.includes(comm.id)).map((comm) => (
+                {communities.filter(comm => isGlobalSuperAdmin || user?.joinedCommunities?.includes(comm.id) ?? false).map((comm) => (
                   <button
                     key={comm.id}
                     onClick={() => handleSelectSpace(comm.id)}
@@ -285,15 +292,15 @@ export default function Sidebar({
         <div className="flex-1 overflow-y-auto p-3 space-y-5" id="main-navigation-scroller">
           
           {/* MAIN NAVIGATION - Role-based */}
-          {isGlobalSuperAdmin ? (
+          {platformMode && isGlobalSuperAdmin ? (
             <div className="space-y-1">
               {!isCollapsed && (
-                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">
+                <span className="block text-[9px] font-bold uppercase text-indigo-500 tracking-widest font-mono mb-1.5 px-3">
                   Platform
                 </span>
               )}
               <nav className="space-y-0.5">
-                {platformNavigation.map((m) => {
+                {platformModeNavigation.map((m) => {
                   const isSel = activeTab === m.id;
                   const Icon = m.icon;
                   return (
@@ -461,8 +468,8 @@ export default function Sidebar({
             </div>
           )}
 
-          {/* PERSONAL - All roles except super admin */}
-          {!isGlobalSuperAdmin && (
+          {/* PERSONAL - Hidden in Platform Mode */}
+          {!platformMode && (
             <div className="space-y-1">
               {!isCollapsed && (
                 <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-widest font-mono mb-1.5 px-3">

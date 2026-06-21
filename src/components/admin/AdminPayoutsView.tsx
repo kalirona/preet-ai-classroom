@@ -33,7 +33,7 @@ export default function AdminPayoutsView() {
       .then((data) => {
         if (data.payouts) setPayouts(data.payouts);
       })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false));
   };
 

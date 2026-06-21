@@ -12,12 +12,12 @@ export default function CourseAnalyticsView({ workspaceId }: CourseAnalyticsView
   useEffect(() => {
     if (!workspaceId) return;
     setLoading(true);
-    fetch(`/api/workspace/${workspaceId}/courses`)
+    fetch(`/api/courses?communityId=${workspaceId}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.courses) setCourses(data.courses);
       })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [workspaceId]);
 

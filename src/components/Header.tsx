@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { User, WorkspaceRole, PlatformRole, Notification } from "../types";
-import { Bell, HelpCircle, Trophy, ShieldCheck, Menu, LogOut, Settings, Palette, User as UserIcon, Plus, Search, Shield, Sparkles } from "lucide-react";
+import { Bell, Trophy, ShieldCheck, Menu, LogOut, Settings, Palette, User as UserIcon, Plus, Search, Shield, Sparkles, Monitor, LayoutDashboard } from "lucide-react";
 
 interface HeaderProps {
   user: User | null;
@@ -13,6 +13,8 @@ interface HeaderProps {
   onTabChange: (tab: string) => void;
   onToggleSidebar: () => void;
   onLogout?: () => void;
+  platformMode?: boolean;
+  onTogglePlatformMode?: () => void;
 }
 
 const roleLabel: Record<string, string> = {
@@ -43,7 +45,9 @@ export default function Header({
   openCreateCommunity,
   onTabChange,
   onToggleSidebar,
-  onLogout
+  onLogout,
+  platformMode = false,
+  onTogglePlatformMode
 }: HeaderProps) {
   const [showBellMenu, setShowBellMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -101,27 +105,56 @@ export default function Header({
 
       {/* Right: Actions + Notifications + Profile */}
       <div className="flex items-center gap-3">
-        {/* Role Switcher */}
-        <div className="relative group hidden sm:block">
-          <select
-            value={user?.workspaceRoles?.[activeCommunity?.id] || WorkspaceRole.MEMBER}
-            onChange={(e) => onRoleChange(e.target.value)}
-            className="text-sm bg-slate-50 text-slate-700 border border-slate-200 rounded-lg py-1.5 px-3 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 cursor-pointer"
-            id="role-picker-testing"
-          >
-            <option value={WorkspaceRole.OWNER}>Creator</option>
-            <option value={WorkspaceRole.ADMIN}>Admin</option>
-            <option value={WorkspaceRole.INSTRUCTOR}>Instructor</option>
-            <option value={WorkspaceRole.MODERATOR}>Moderator</option>
-            <option value={WorkspaceRole.MEMBER}>Member</option>
-            {(user as any)?.platformRole === "super_admin" || (user as any)?.role === "super_admin" ? (
-              <option value="super_admin">Super Admin</option>
-            ) : null}
-          </select>
-          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
-            Switch roles to see different views
+        {/* Platform Mode Toggle (Super Admin only) */}
+        {user?.platformRole === PlatformRole.SUPER_ADMIN || (user as any)?.role === "super_admin" ? (
+          <div className="relative group hidden sm:block">
+            <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+              <button
+                onClick={() => { if (platformMode && onTogglePlatformMode) onTogglePlatformMode(); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition cursor-pointer ${
+                  !platformMode
+                    ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                Workspace
+              </button>
+              <button
+                onClick={() => { if (!platformMode && onTogglePlatformMode) onTogglePlatformMode(); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition cursor-pointer ${
+                  platformMode
+                    ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                Platform
+              </button>
+            </div>
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
+              Toggle between Platform and Workspace view
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="relative group hidden sm:block">
+            <select
+              value={user?.workspaceRoles?.[activeCommunity?.id] || WorkspaceRole.MEMBER}
+              onChange={(e) => onRoleChange(e.target.value)}
+              className="text-sm bg-slate-50 text-slate-700 border border-slate-200 rounded-lg py-1.5 px-3 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 cursor-pointer"
+              id="role-picker-testing"
+            >
+              <option value={WorkspaceRole.OWNER}>Creator</option>
+              <option value={WorkspaceRole.ADMIN}>Admin</option>
+              <option value={WorkspaceRole.INSTRUCTOR}>Instructor</option>
+              <option value={WorkspaceRole.MODERATOR}>Moderator</option>
+              <option value={WorkspaceRole.MEMBER}>Member</option>
+            </select>
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
+              Switch roles to see different views
+            </div>
+          </div>
+        )}
 
         {/* New Community Button */}
         <button
@@ -271,16 +304,6 @@ export default function Header({
                 >
                   <Palette className="w-4 h-4 text-slate-400" />
                   Appearance
-                </button>
-                <button
-                  className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
-                  onClick={() => {
-                    onTabChange("support");
-                    setShowProfileMenu(false);
-                  }}
-                >
-                  <HelpCircle className="w-4 h-4 text-slate-400" />
-                  Help & Support
                 </button>
               </div>
 

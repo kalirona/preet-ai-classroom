@@ -38,7 +38,7 @@ export default function CreatorPayoutsView({ workspaceId, workspaceName }: Creat
       .then((data) => {
         if (data.payouts) setPayouts(data.payouts);
       })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false));
   };
 

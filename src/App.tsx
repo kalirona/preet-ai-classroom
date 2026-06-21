@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { User, Community, Post, LiveEvent, Notification, Course, PlatformRole, WorkspaceRole } from "./types";
 
 // Strict Client-Side Role-Based Tab Guard
@@ -28,10 +28,6 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
 
     // Owner-only workspace tabs
     case "monetization":
-    case "mrr":
-    case "sales":
-    case "subscriptions":
-    case "coupons":
       return wsRole === WorkspaceRole.OWNER;
 
     // Owner, Admin, or Instructor
@@ -49,7 +45,6 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     // Owner, Admin, or Moderator
     case "members":
     case "moderation":
-    case "audit_logs_tab":
     case "reports":
       return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN || wsRole === WorkspaceRole.MODERATOR;
 
@@ -70,14 +65,13 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     case "course-analytics":
     case "assignments":
     case "certificates":
-    case "student-progress":
       return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.INSTRUCTOR;
 
     // Settings — Owner/Admin only (no Instructor, no Member)
     case "settings":
       return wsRole === WorkspaceRole.OWNER || wsRole === WorkspaceRole.ADMIN;
 
-    // Anyone can access (feed, classroom, calendar, resources, profile, chat, saved, notifications_tab, home)
+    // Anyone can access (feed, classroom, calendar, resources, profile, chat, saved, notifications_tab)
     default:
       return true;
   }
@@ -95,20 +89,23 @@ import ChatView from "./components/ChatView";
 import ResourcesView from "./components/ResourcesView";
 import SavedPostsView from "./components/SavedPostsView";
 import SettingsView from "./components/SettingsView";
-import SuperAdminView from "./components/SuperAdminView";
-import WorkspaceAuditLogsView from "./components/WorkspaceAuditLogsView";
+const PlatformOverview = React.lazy(() => import("./components/platform/PlatformOverview"));
+const PlatformWorkspaces = React.lazy(() => import("./components/platform/PlatformWorkspaces"));
+const PlatformUsers = React.lazy(() => import("./components/platform/PlatformUsers"));
+const PlatformRevenue = React.lazy(() => import("./components/platform/PlatformRevenue"));
+const PlatformPayouts = React.lazy(() => import("./components/platform/PlatformPayouts"));
+const PlatformAnalytics = React.lazy(() => import("./components/platform/PlatformAnalytics"));
+const PlatformSecurity = React.lazy(() => import("./components/platform/PlatformSecurity"));
+const PlatformAuditLogs = React.lazy(() => import("./components/platform/PlatformAuditLogs"));
+const PlatformSettings = React.lazy(() => import("./components/platform/PlatformSettings"));
 import ProfileView from "./components/ProfileView";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 // Added Creator specialized subcomponents
 import WorkspaceDashboardView from "./components/WorkspaceDashboardView";
-import CreatorSalesView from "./components/CreatorSalesView";
-import CreatorSubscriptionsView from "./components/CreatorSubscriptionsView";
-import CreatorCouponsView from "./components/CreatorCouponsView";
 import ModerationCenter from "./components/ModerationCenter";
 import ReportsView from "./components/ReportsView";
 import NotificationsView from "./components/NotificationsView";
-import SupportView from "./components/SupportView";
 import StudentProgressView from "./components/courses/StudentProgressView";
 import CourseAnalyticsView from "./components/courses/CourseAnalyticsView";
 import AssignmentsView from "./components/courses/AssignmentsView";
@@ -130,6 +127,7 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [settingsSubTab, setSettingsSubTab] = useState<string>("");
   const [previewWsRole, setPreviewWsRole] = useState<string | null>(null);
+  const [platformMode, setPlatformMode] = useState(false);
 
   // Super Admin always starts on platform overview
   const [initialTabSet, setInitialTabSet] = useState(false);
@@ -139,6 +137,7 @@ export default function App() {
       const isSa = currentUser.platformRole === PlatformRole.SUPER_ADMIN || (currentUser as any)?.role === "super_admin";
       if (isSa && (!hashTab || hashTab === "dashboard")) {
         setActiveTab("superadmin");
+        setPlatformMode(true);
         window.location.hash = "superadmin";
       }
       setInitialTabSet(true);
@@ -168,10 +167,6 @@ export default function App() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  // Enterprise Tenant Isolation Audit states
-  const [workspaceLogs, setWorkspaceLogs] = useState<any[]>([]);
-  const [loadingWsLogs, setLoadingWsLogs] = useState(false);
-
   // UX modal triggers
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("skool_onboarding_dismissed"));
   const [showCreateCommunity, setShowCreateCommunity] = useState(false);
@@ -278,7 +273,7 @@ export default function App() {
       if (path.startsWith("/admin") || path.startsWith("/platform") || path.startsWith("/enterprise") || path.startsWith("/security") || path.startsWith("/global-analytics") || hash?.startsWith("#superadmin") || hash?.startsWith("#platform") || hash?.startsWith("#admin")) {
         targetTab = "superadmin";
       } else if (path.startsWith("/creator") || hash?.startsWith("#mrr")) {
-        targetTab = "mrr";
+        targetTab = "monetization";
       } else if (path.startsWith("/settings") || hash?.startsWith("#settings")) {
         targetTab = "settings";
         const qIdx = hash ? hash.indexOf("?") : -1;
@@ -415,7 +410,21 @@ export default function App() {
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error("Role switch failed:", e);
+    }
+  };
+
+  // Toggle between Platform Mode and Workspace Mode (Super Admin only)
+  const handleTogglePlatformMode = () => {
+    const newMode = !platformMode;
+    setPlatformMode(newMode);
+    if (newMode) {
+      setPreviewWsRole(null);
+      setActiveTab("superadmin");
+      window.location.hash = "superadmin";
+    } else {
+      setActiveTab("dashboard");
+      window.location.hash = "dashboard";
     }
   };
 
@@ -425,7 +434,7 @@ export default function App() {
       await fetch("/api/notifications/read-all", { method: "POST" });
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (err) {
-      console.error(err);
+      console.error("Mark all notifications read failed:", err);
     }
   };
 
@@ -446,14 +455,18 @@ export default function App() {
 
   // Pin Post toggle (Creator Privilege)
   const handlePinPost = async (postId: string) => {
-    const res = await fetch(`/api/posts/${postId}/pin`, { method: "POST" });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to pin post.");
-    if (data.success) {
-      setPosts(prev => prev.map(p => {
-        if (p.id === postId) return { ...p, isPinned: !p.isPinned };
-        return p;
-      }));
+    try {
+      const res = await fetch(`/api/posts/${postId}/pin`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { console.error("Failed to pin post:", data.error); return; }
+      if (data.success) {
+        setPosts(prev => prev.map(p => {
+          if (p.id === postId) return { ...p, isPinned: !p.isPinned };
+          return p;
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to pin post:", err);
     }
   };
 
@@ -495,17 +508,21 @@ export default function App() {
 
   // Register Event RSVP
   const handleRsvpEvent = async (eventId: string) => {
-    const res = await fetch(`/api/events/${eventId}/rsvp`, { method: "POST" });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to RSVP.");
-    if (data.success && data.event) {
-      setEvents(prev => prev.map(e => e.id === eventId ? data.event : e));
-      setCurrentUser(prev => {
-        if (!prev) return prev;
-        const updatedXp = prev.xp + 20;
-        const updatedLevel = Math.floor(updatedXp / 200) > prev.level ? prev.level + 1 : prev.level;
-        return { ...prev, xp: updatedXp, level: updatedLevel };
-      });
+    try {
+      const res = await fetch(`/api/events/${eventId}/rsvp`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { console.error("Failed to RSVP:", data.error); return; }
+      if (data.success && data.event) {
+        setEvents(prev => prev.map(e => e.id === eventId ? data.event : e));
+        setCurrentUser(prev => {
+          if (!prev) return prev;
+          const updatedXp = prev.xp + 20;
+          const updatedLevel = Math.floor(updatedXp / 200) > prev.level ? prev.level + 1 : prev.level;
+          return { ...prev, xp: updatedXp, level: updatedLevel };
+        });
+      }
+    } catch (err) {
+      console.error("Failed to RSVP:", err);
     }
   };
 
@@ -612,7 +629,7 @@ export default function App() {
         return true;
       }
     } catch (err) {
-      console.error(err);
+      console.error("Update community failed:", err);
     }
     return false;
   };
@@ -622,19 +639,19 @@ export default function App() {
   // Fetch tenant-isolated security logs whenever the active tab pivots
   useEffect(() => {
     if (activeTab !== "audit_logs_tab" || !activeCommunityId) return;
-
     const controller = new AbortController();
-    setLoadingWsLogs(true);
     fetch(`/api/rbac/audit-logs?workspaceId=${activeCommunityId}`, { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
-        if (!controller.signal.aborted && data.auditLogs) setWorkspaceLogs(data.auditLogs);
+        if (!controller.signal.aborted && data.auditLogs) console.debug("ws audit logs", data.auditLogs);
       })
-      .catch(err => { if (!controller.signal.aborted) console.error("Error fetching workspace secure timeline:", err); })
-      .finally(() => { if (!controller.signal.aborted) setLoadingWsLogs(false); });
-
+      .catch(() => {/* silence */})
+      .finally(() => {/* silence */});
     return () => controller.abort();
   }, [activeTab, activeCommunityId]);
+
+  const platformTotalMRR = useMemo(() => communities.reduce((sum, c) => sum + (c.isPremium ? (c.priceMonthly || 0) : 0), 0), [communities]);
+  const platformCommissionFee = 3;
 
   if (!currentUser || isPublicRoute) {
     return <PublicWebsite
@@ -670,6 +687,7 @@ export default function App() {
         isMobileOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
         previewWsRole={previewWsRole}
+        platformMode={platformMode}
       />
 
       {/* Main Right Content Section Viewport */}
@@ -695,6 +713,8 @@ export default function App() {
           }}
           onToggleSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           onLogout={handleLogout}
+          platformMode={platformMode}
+          onTogglePlatformMode={handleTogglePlatformMode}
         />
 
         {/* Tab Route Content Mount */}
@@ -711,8 +731,8 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {/* Feed, Home, Community all render FeedView */}
-          {(activeTab === "home" || activeTab === "feed" || activeTab === "community") && (
+          {/* Feed and Community both render FeedView */}
+          {(activeTab === "feed" || activeTab === "community") && (
             <ErrorBoundary>
               <FeedView
                 userRole={currentUser?.workspaceRoles?.[activeCommunityId] || WorkspaceRole.MEMBER}
@@ -880,16 +900,6 @@ export default function App() {
             </div>
           ) : null}
 
-          {activeTab === "student-progress" && canAccessTab("student-progress", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <StudentProgressView workspaceId={activeCommunityId} />
-            </ErrorBoundary>
-          ) : activeTab === "student-progress" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Student Progress is restricted.
-            </div>
-          ) : null}
-
           {activeTab === "course-analytics" && canAccessTab("course-analytics", currentUser, activeCommunityId) ? (
             <ErrorBoundary>
               <CourseAnalyticsView workspaceId={activeCommunityId} />
@@ -959,6 +969,10 @@ export default function App() {
             <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
               403 Forbidden
             </div>
+          ) : activeTab === "payouts" && currentUser?.platformRole === PlatformRole.SUPER_ADMIN && !previewWsRole ? (
+            <div className="p-8 text-center text-amber-700 font-bold bg-amber-50 border border-amber-200 rounded-2xl m-6">
+              Switch to Platform View to manage platform payouts.
+            </div>
           ) : null}
 
           {activeTab === "notifications_tab" && (
@@ -1003,115 +1017,78 @@ export default function App() {
             <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
               403 Forbidden - Settings is restricted to Owner or Admin.
             </div>
-          ) : null}
-
-          {activeTab === "audit_logs_tab" && canAccessTab("audit_logs_tab", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <WorkspaceAuditLogsView
-                currentUser={currentUser}
-                activeCommunity={activeCommunity}
-                workspaceLogs={workspaceLogs}
-                loadingWsLogs={loadingWsLogs}
-                onRefresh={() => {
-                  setLoadingWsLogs(true);
-                  fetch(`/api/rbac/audit-logs?workspaceId=${activeCommunityId}`)
-                    .then(res => res.json())
-                    .then(data => {
-                      if (data.auditLogs) setWorkspaceLogs(data.auditLogs);
-                    })
-                    .catch(err => console.error("Error fetching workspace audit logs:", err))
-                    .finally(() => setLoadingWsLogs(false));
-                }}
-              />
-            </ErrorBoundary>
-          ) : activeTab === "audit_logs_tab" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Audit Logs are restricted to Owner, Admin, or Moderator.
+          ) : activeTab === "settings" && currentUser?.platformRole === PlatformRole.SUPER_ADMIN && !previewWsRole ? (
+            <div className="p-8 text-center text-amber-700 font-bold bg-amber-50 border border-amber-200 rounded-2xl m-6">
+              Switch to Platform View to manage platform settings.
             </div>
           ) : null}
 
-          {activeTab === "sales" && canAccessTab("sales", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <CreatorSalesView
-                currentUser={currentUser}
-                activeCommunity={activeCommunity}
-              />
-            </ErrorBoundary>
-          ) : activeTab === "sales" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Sales are restricted to the Owner.
-            </div>
-          ) : null}
-
-          {activeTab === "subscriptions" && canAccessTab("subscriptions", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <CreatorSubscriptionsView
-                currentUser={currentUser}
-                activeCommunity={activeCommunity}
-              />
-            </ErrorBoundary>
-          ) : activeTab === "subscriptions" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Subscriptions are restricted to the Owner.
-            </div>
-          ) : null}
-
-          {activeTab === "coupons" && canAccessTab("coupons", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <CreatorCouponsView />
-            </ErrorBoundary>
-          ) : activeTab === "coupons" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - Coupons are restricted to the Owner.
-            </div>
-          ) : null}
-
-          {activeTab === "mrr" && canAccessTab("mrr", currentUser, activeCommunityId) ? (
-            <ErrorBoundary>
-              <CreatorDashboard
-                activeCommunity={activeCommunity}
-                onUpdateCommunity={handleUpdateActiveCommunity}
-              />
-            </ErrorBoundary>
-          ) : activeTab === "mrr" ? (
-            <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-              403 Forbidden - MRR Dashboard is restricted to the Owner.
-            </div>
-          ) : null}
-
-          {/* Super Admin routing: all super admin tabs render SuperAdminView */}
+          {/* Platform Mode routing: individual platform components */}
           {(() => {
-            const superAdminTabs: Record<string, string> = {
-              superadmin: "dashboard",
-              workspaces: "workspaces",
-              users: "users",
-              revenue: "revenue",
-              payouts: "payouts",
-              analytics: "analytics",
-              security: "security",
-              logs: "logs",
-              settings: "settings",
-            };
-            const section = superAdminTabs[activeTab];
-            if (section && !previewWsRole && canAccessTab("superadmin", currentUser, activeCommunityId)) {
-              return (
-                <ErrorBoundary>
-                  <SuperAdminView
-                    currentUser={currentUser}
-                    communities={communities}
-                    activeSection={section}
-                  />
-                </ErrorBoundary>
-              );
-            }
-            if (section) {
-              return (
-                <div className="p-8 text-center text-red-600 font-bold bg-red-50 border border-red-200 rounded-2xl m-6">
-                  403 Forbidden - Platform Admin is restricted.
+            if (!platformMode || previewWsRole || !canAccessTab("superadmin", currentUser, activeCommunityId)) return null;
+
+            return (
+              <>
+                <div className="bg-gradient-to-r from-indigo-600/5 to-purple-600/5 rounded-2xl p-4 border border-indigo-100/50 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
+                      P
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold text-slate-800 block">Platform Control Center</span>
+                      <span className="text-[10px] text-slate-400">Global administration and system configuration</span>
+                    </div>
+                  </div>
                 </div>
-              );
-            }
-            return null;
+                <Suspense fallback={<div className="py-12 text-center text-slate-400 font-mono text-xs">Loading...</div>}>
+                  {activeTab === "superadmin" && (
+                    <ErrorBoundary>
+                      <PlatformOverview currentUser={currentUser} communities={communities} />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === "workspaces" && (
+                    <ErrorBoundary>
+                      <PlatformWorkspaces communities={communities} />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === "users" && (
+                    <ErrorBoundary>
+                      <PlatformUsers currentUser={currentUser} />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === "revenue" && (
+                    <ErrorBoundary>
+                      <PlatformRevenue totalMRR={platformTotalMRR} platformCommissionFee={platformCommissionFee} />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === "payouts" && (
+                    <ErrorBoundary>
+                      <PlatformPayouts />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === "analytics" && (
+                    <ErrorBoundary>
+                      <PlatformAnalytics totalMRR={platformTotalMRR} platformCommissionFee={platformCommissionFee} />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === "security" && (
+                    <ErrorBoundary>
+                      <PlatformSecurity />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === "logs" && (
+                    <ErrorBoundary>
+                      <PlatformAuditLogs />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === "settings" && (
+                    <ErrorBoundary>
+                      <PlatformSettings currentUser={currentUser} />
+                    </ErrorBoundary>
+                  )}
+                </Suspense>
+              </>
+            );
           })()}
 
           {activeTab === "reports" && canAccessTab("reports", currentUser, activeCommunityId) ? (
@@ -1134,11 +1111,6 @@ export default function App() {
             </div>
           ) : null}
 
-          {activeTab === "support" && (
-            <ErrorBoundary>
-              <SupportView currentUser={currentUser} activeCommunityId={activeCommunityId} />
-            </ErrorBoundary>
-          )}
         </main>
 
       </div>

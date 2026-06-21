@@ -42,7 +42,7 @@ export default function StudentProgressView({ workspaceId }: StudentProgressView
       .then((data) => {
         if (data.students) setStudents(data.students);
       })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [workspaceId]);
 

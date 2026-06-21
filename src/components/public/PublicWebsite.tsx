@@ -26,7 +26,7 @@ function CoursePreview({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/courses/${id}`)
+    fetch(`/api/public/courses/${id}`)
       .then(res => res.json())
       .then(data => {
         if (data.course) {
