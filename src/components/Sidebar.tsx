@@ -251,7 +251,7 @@ export default function Sidebar({
             {isWorkspaceDropdownOpen && (
               <div className="absolute left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-56 overflow-y-auto animate-in zoom-in-95 duration-100">
                 <span className="block text-[8px] font-bold text-gray-400 uppercase tracking-widest font-mono p-1">Active sharded spaces</span>
-                {communities.filter(comm => isGlobalSuperAdmin || user?.joinedCommunities?.includes(comm.id) ?? false).map((comm) => (
+                {communities.filter(comm => isGlobalSuperAdmin || (user?.joinedCommunities?.includes(comm.id) ?? false)).map((comm) => (
                   <button
                     key={comm.id}
                     onClick={() => handleSelectSpace(comm.id)}

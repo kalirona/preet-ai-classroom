@@ -423,6 +423,16 @@ function extractWorkspaceId(req: any): string | null {
     req.body.workspaceId || req.body.communityId || null;
 }
 
+function can(permission: WorkspacePermission, user: any, workspaceId: string): boolean {
+  if (user.platformRole === PlatformRole.SUPER_ADMIN) return true;
+  const wsRole = user.workspaceRoles?.[workspaceId];
+  if (wsRole) {
+    const wsPerms = WORKSPACE_ROLE_PERMISSIONS[wsRole] || [];
+    if (wsPerms.includes(permission)) return true;
+  }
+  return false;
+}
+
 function requireWorkspacePermission(permission: WorkspacePermission) {
   return (req: any, res: any, next: any) => {
     const user = req.user;
