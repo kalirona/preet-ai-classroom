@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle, Key, Eye, EyeOff, Power, Cpu, Coins, BookOpen, FileEdit, HelpCircle, MessageSquare } from "lucide-react";
+import { CheckCircle, Key, Eye, EyeOff, Power, Cpu, Coins, BookOpen, FileEdit, HelpCircle, MessageSquare, Sparkles } from "lucide-react";
 
 const STORAGE_KEY = "platform_ai_settings";
 
@@ -140,6 +140,11 @@ export default function AISettings() {
         </div>
       </div>
 
+      {saved && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <CheckCircle className="w-4 h-4" /> AI settings saved.
+        </div>
+      )}
       <button
         onClick={handleSave}
         className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5"

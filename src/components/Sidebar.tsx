@@ -4,7 +4,7 @@ import {
   MessageSquare, BookOpen, Calendar, BarChart3, Layers, X, ChevronDown,
   Users, FileText, Settings, Bookmark, Bell, UserCheck, ChevronLeft, ChevronRight, Shield,
   LayoutDashboard, ShieldCheck, ScrollText, Flag,
-  Globe, DollarSign, CreditCard, Edit, ClipboardList, Award
+  Globe, DollarSign, CreditCard, Edit, ClipboardList, Award, Mail
 } from "lucide-react";
 
 interface SidebarProps {
@@ -147,6 +147,7 @@ export default function Sidebar({
         { id: "analytics", name: "Analytics", icon: BarChart3 },
         { id: "security", name: "Security Center", icon: Shield },
         { id: "logs", name: "Audit Logs", icon: ScrollText },
+        { id: "inbox", name: "Support Inbox", icon: Mail },
         { id: "settings", name: "Platform Settings", icon: Settings },
       ]
     : [];

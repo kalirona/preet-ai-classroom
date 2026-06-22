@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, ShieldAlert, AlertTriangle, Ban, Unlock, Trash2, CheckCircle } from "lucide-react";
+import { Shield, ShieldAlert, AlertTriangle, Ban, Unlock, Trash2, CheckCircle, Lock, Globe } from "lucide-react";
 
 const STORAGE_KEYS = {
   bannedIps: "platform_banned_ips",
@@ -8,22 +8,17 @@ const STORAGE_KEYS = {
 };
 
 function loadArray(key: string, fallback: any[]) {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch { return fallback; }
+  try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : fallback; }
+  catch { return fallback; }
 }
 
 function loadObject(key: string, fallback: any) {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch { return fallback; }
+  try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : fallback; }
+  catch { return fallback; }
 }
 
 export default function PlatformSecurity() {
-  const [shieldThreatLevel, setShieldThreatLevel] = useState<string>("LOW");
-  const [alarmActive, setAlarmActive] = useState(false);
+  const [lockdown, setLockdown] = useState(false);
   const [securityModules, setSecurityModules] = useState<Record<string, boolean>>(
     loadObject(STORAGE_KEYS.securityModules, {
       corsMode: true, xssSanitizer: true, sqliBlocker: true,
@@ -33,16 +28,16 @@ export default function PlatformSecurity() {
   const [bannedIps, setBannedIps] = useState<string[]>(loadArray(STORAGE_KEYS.bannedIps, [
     "198.51.100.42", "203.0.113.111", "185.220.101.4",
   ]));
-  const [newIpBan, setNewIpBan] = useState("");
-  const [abuseLogs, setAbuseLogs] = useState<any[]>(loadArray(STORAGE_KEYS.abuseLogs, [
-    { id: "ab01", ip: "185.220.101.4", date: "2026-05-30 08:12:45 UTC", event: "Brute force login attempt", threat: "CRITICAL", actionHandled: "Blocked" },
-    { id: "ab02", ip: "203.0.113.111", date: "2026-05-30 07:44:19 UTC", event: "SQL injection probe in /api/courses/search", threat: "HIGH", actionHandled: "Blocked" },
-    { id: "ab03", ip: "109.244.3.89", date: "2026-05-30 06:15:30 UTC", event: "Content scraping detected", threat: "MEDIUM", actionHandled: "Rate limited" },
-    { id: "ab04", ip: "198.51.100.42", date: "2026-05-30 05:08:12 UTC", event: "XSS attempt on workspace comments", threat: "CRITICAL", actionHandled: "Blocked" },
+  const [newIp, setNewIp] = useState("");
+  const [logs, setLogs] = useState<any[]>(loadArray(STORAGE_KEYS.abuseLogs, [
+    { id: "ab01", ip: "185.220.101.4", date: "2026-05-30 08:12:45 UTC", event: "Brute force login attempt", threat: "CRITICAL", action: "Blocked" },
+    { id: "ab02", ip: "203.0.113.111", date: "2026-05-30 07:44:19 UTC", event: "SQL injection probe", threat: "HIGH", action: "Blocked" },
+    { id: "ab03", ip: "109.244.3.89", date: "2026-05-30 06:15:30 UTC", event: "Content scraping detected", threat: "MEDIUM", action: "Rate limited" },
+    { id: "ab04", ip: "198.51.100.42", date: "2026-05-30 05:08:12 UTC", event: "XSS attempt on comments", threat: "CRITICAL", action: "Blocked" },
   ]));
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  const showFeedback = (type: "success" | "error", msg: string) => {
+  const show = (type: "success" | "error", msg: string) => {
     setFeedback({ type, msg });
     setTimeout(() => setFeedback(null), 2500);
   };
@@ -53,30 +48,26 @@ export default function PlatformSecurity() {
     localStorage.setItem(STORAGE_KEYS.securityModules, JSON.stringify(next));
   };
 
-  const handleBanIp = () => {
-    if (!newIpBan.trim()) return;
-    const next = [...bannedIps, newIpBan.trim()];
+  const handleBan = () => {
+    if (!newIp.trim()) return;
+    const next = [...bannedIps, newIp.trim()];
     setBannedIps(next);
     localStorage.setItem(STORAGE_KEYS.bannedIps, JSON.stringify(next));
-    setNewIpBan("");
-    showFeedback("success", `IP ${newIpBan.trim()} banned.`);
+    setNewIp("");
+    show("success", `IP ${newIp.trim()} banned.`);
   };
 
-  const handleUnbanIp = (ip: string) => {
+  const handleUnban = (ip: string) => {
     const next = bannedIps.filter((item) => item !== ip);
     setBannedIps(next);
     localStorage.setItem(STORAGE_KEYS.bannedIps, JSON.stringify(next));
-    showFeedback("success", `IP ${ip} unbanned.`);
+    show("success", `IP ${ip} unbanned.`);
   };
 
   const handleClearLogs = () => {
-    setAbuseLogs([]);
+    setLogs([]);
     localStorage.setItem(STORAGE_KEYS.abuseLogs, JSON.stringify([]));
-    showFeedback("success", "Security log cleared.");
-  };
-
-  const threatColors: Record<string, string> = {
-    LOW: "text-emerald-600", ELEVATED: "text-amber-600", CRITICAL: "text-rose-600", LOCKDOWN: "text-red-700",
+    show("success", "Security log cleared.");
   };
 
   return (
@@ -90,61 +81,23 @@ export default function PlatformSecurity() {
         </div>
       )}
 
-      {/* Threat Monitor */}
+      {/* Lockdown */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-100 pb-3 flex-wrap gap-2">
+        <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-              <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-600 font-mono">Security Shield</h3>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Threat monitoring and intrusion prevention.</p>
+            <h3 className="text-sm font-bold text-slate-900">Emergency Lockdown</h3>
+            <p className="text-xs text-slate-400">Block access to all workspaces and terminate active sessions.</p>
           </div>
-
-          <div className="flex items-center gap-0.5 bg-slate-900 p-1 rounded-lg text-xs font-mono font-bold text-white shrink-0">
-            {(["LOW", "ELEVATED", "CRITICAL", "LOCKDOWN"] as const).map((level) => (
-              <button key={level} onClick={() => setShieldThreatLevel(level)}
-                className={`px-2 py-0.5 rounded text-[10px] cursor-pointer font-extrabold transition ${shieldThreatLevel === level ? (level === "LOCKDOWN" ? "bg-red-700 animate-pulse" : level === "CRITICAL" ? "bg-rose-600" : level === "ELEVATED" ? "bg-amber-600" : "bg-emerald-600") : "text-slate-500 hover:text-slate-300"}`}>
-                {level}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-[9px] uppercase font-mono font-bold text-slate-400">Threat Level</span>
-            <p className={`text-sm font-bold font-mono mt-1 ${threatColors[shieldThreatLevel] || "text-slate-700"}`}>{shieldThreatLevel}</p>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-[9px] uppercase font-mono font-bold text-slate-400">Server Port</span>
-            <p className="text-xs font-bold font-mono text-slate-700 mt-1">TCP 3000 SSL</p>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-            <span className="text-[9px] uppercase font-mono font-bold text-slate-400">Firewall</span>
-            <p className="text-xs font-bold text-slate-700 mt-1">Active</p>
-          </div>
-        </div>
-
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="space-y-0.5">
-            <span className="text-[10px] text-rose-600 block font-bold font-mono tracking-wider uppercase">Emergency Lockdown</span>
-            <h4 className="text-xs font-bold text-rose-900">Broadcast platform-wide security lockdown</h4>
-            <p className="text-[10px] text-rose-700/80">Enforces lockdown across all workspaces and terminates active sessions.</p>
-          </div>
-          <button onClick={() => { setAlarmActive(!alarmActive); setShieldThreatLevel(alarmActive ? "LOW" : "LOCKDOWN"); showFeedback("success", alarmActive ? "Lockdown disarmed." : "Lockdown activated."); }}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wider uppercase font-mono shadow-sm transition shrink-0 cursor-pointer ${alarmActive ? "bg-rose-600 text-white animate-pulse" : "bg-rose-900 hover:bg-rose-800 text-white"}`}>
-            {alarmActive ? "Disarm Lockdown" : "Activate Lockdown"}
+          <button onClick={() => { setLockdown(!lockdown); show("success", lockdown ? "Lockdown lifted." : "Lockdown active."); }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wider uppercase shadow-sm transition shrink-0 cursor-pointer ${lockdown ? "bg-rose-600 text-white animate-pulse" : "bg-rose-900 hover:bg-rose-800 text-white"}`}>
+            {lockdown ? "Disarm" : "Activate"}
           </button>
         </div>
       </div>
 
-      {/* Security Protocols */}
+      {/* Security Modules */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">Security Protocols</h3>
-          <p className="text-[10px] text-slate-400 mt-0.5">Manage security modules and protection layers.</p>
-        </div>
+        <h3 className="text-sm font-bold text-slate-900">Security Measures</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Object.entries(securityModules).map(([key, value]) => {
             const labels: Record<string, string> = {
@@ -154,8 +107,8 @@ export default function PlatformSecurity() {
             return (
               <div key={key} className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex items-center justify-between gap-3">
                 <div>
-                  <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block">{labels[key] || key}</span>
-                  <span className="text-xs font-bold text-slate-700">{value ? "Active" : "Disabled"}</span>
+                  <span className="text-xs font-bold text-slate-700">{labels[key] || key}</span>
+                  <span className={`text-[10px] block ${value ? "text-emerald-600" : "text-slate-400"}`}>{value ? "Active" : "Disabled"}</span>
                 </div>
                 <button type="button" onClick={() => toggleModule(key)}
                   className={`w-11 h-6 rounded-full transition relative shrink-0 cursor-pointer ${value ? "bg-indigo-600" : "bg-slate-200"}`}>
@@ -167,36 +120,30 @@ export default function PlatformSecurity() {
         </div>
       </div>
 
-      {/* IP Ban & Abuse Logs */}
+      {/* IP Ban & Security Log */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm md:col-span-4 space-y-4">
-          <div>
-            <h4 className="text-xs font-bold text-slate-900">IP Ban Registry</h4>
-            <p className="text-[9.5px] text-slate-400 mt-0.5">Block malicious IP addresses.</p>
-          </div>
-          <div className="space-y-1.5">
-            <label className="block text-[10px] font-mono uppercase font-bold text-slate-500">IP Address</label>
-            <div className="flex gap-2">
-              <input type="text" placeholder="198.51.100.8" value={newIpBan} onChange={(e) => setNewIpBan(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleBanIp(); }}
-                className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition" />
-              <button onClick={handleBanIp}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-mono text-[10.5px] font-bold transition cursor-pointer shadow-sm flex items-center gap-1">
-                <Ban className="w-3 h-3" /> Ban
-              </button>
-            </div>
+          <h4 className="text-sm font-bold text-slate-900">IP Ban</h4>
+          <div className="flex gap-2">
+            <input type="text" placeholder="192.168.1.1" value={newIp} onChange={(e) => setNewIp(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleBan(); }}
+              className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition" />
+            <button onClick={handleBan}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm flex items-center gap-1">
+              <Ban className="w-3 h-3" /> Ban
+            </button>
           </div>
           <div className="pt-2 border-t border-slate-100">
-            <span className="text-[9px] uppercase font-mono font-bold text-slate-400 tracking-wider block mb-2">Banned IPs ({bannedIps.length})</span>
-            <div className="space-y-1 max-h-36 overflow-y-auto">
+            <span className="text-xs font-bold text-slate-500 block mb-2">Banned ({bannedIps.length})</span>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
               {bannedIps.length === 0 ? (
-                <p className="text-[10px] text-slate-300 font-mono text-center py-2">No banned IPs</p>
+                <p className="text-xs text-slate-300 font-mono text-center py-2">No banned IPs</p>
               ) : (
                 bannedIps.map((ip, idx) => (
-                  <div key={idx} className="flex justify-between items-center bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-[10.5px] font-mono">
+                  <div key={idx} className="flex justify-between items-center bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-xs font-mono">
                     <span className="text-slate-700 flex items-center gap-1.5"><ShieldAlert className="w-3 h-3 text-rose-500" /> {ip}</span>
-                    <button onClick={() => handleUnbanIp(ip)}
-                      className="text-slate-400 hover:text-emerald-600 font-bold uppercase text-[9px] transition flex items-center gap-1 cursor-pointer">
+                    <button onClick={() => handleUnban(ip)}
+                      className="text-slate-400 hover:text-emerald-600 font-bold uppercase text-[10px] transition flex items-center gap-1 cursor-pointer">
                       <Unlock className="w-3 h-3" /> unban
                     </button>
                   </div>
@@ -207,44 +154,44 @@ export default function PlatformSecurity() {
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm md:col-span-8 space-y-4">
-          <div className="flex justify-between items-center flex-wrap gap-2">
+          <div className="flex justify-between items-center">
             <div>
-              <h4 className="text-xs font-bold text-slate-900">Security Event Log</h4>
-              <p className="text-[9.5px] text-slate-400 mt-0.5">Blocked threats and suspicious activity.</p>
+              <h4 className="text-sm font-bold text-slate-900">Security Log</h4>
+              <p className="text-xs text-slate-400">Blocked threats and suspicious activity.</p>
             </div>
-            {abuseLogs.length > 0 && (
+            {logs.length > 0 && (
               <button onClick={handleClearLogs}
-                className="px-3 py-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg font-mono text-[9px] font-bold uppercase transition cursor-pointer flex items-center gap-1">
-                <Trash2 className="w-3 h-3" /> Clear Log
+                className="px-3 py-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1">
+                <Trash2 className="w-3 h-3" /> Clear
               </button>
             )}
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left font-sans text-xs border-collapse">
+            <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-[9px] font-bold font-mono tracking-wider text-slate-400 uppercase bg-slate-50/50">
-                  <th className="py-2 px-3 pb-2.5">Time</th>
-                  <th className="py-2 px-3 pb-2.5">Source IP</th>
-                  <th className="py-2 px-3 pb-2.5">Event</th>
-                  <th className="py-2 px-3 pb-2.5">Severity</th>
-                  <th className="py-2 px-3 pb-2.5 text-right">Action</th>
+                <tr className="border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase bg-slate-50/50">
+                  <th className="py-2 px-3">Time</th>
+                  <th className="py-2 px-3">IP</th>
+                  <th className="py-2 px-3">Event</th>
+                  <th className="py-2 px-3">Severity</th>
+                  <th className="py-2 px-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {abuseLogs.length === 0 ? (
-                  <tr><td colSpan={5} className="py-8 text-center text-slate-300 font-mono text-[10.5px]">No security events</td></tr>
+                {logs.length === 0 ? (
+                  <tr><td colSpan={5} className="py-8 text-center text-slate-300 font-mono text-xs">No security events</td></tr>
                 ) : (
-                  abuseLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50/80 text-[10.5px] transition">
-                      <td className="py-3 px-3 font-mono text-slate-400 text-[10px] whitespace-nowrap">{log.date}</td>
+                  logs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50/80 text-xs transition">
+                      <td className="py-3 px-3 font-mono text-slate-400 whitespace-nowrap">{log.date}</td>
                       <td className="py-3 px-3 font-mono font-semibold text-slate-700">{log.ip}</td>
                       <td className="py-3 px-3 text-slate-800">{log.event}</td>
                       <td className="py-3 px-3">
-                        <span className={`px-1.5 py-0.5 rounded font-mono font-bold text-[8.5px] border ${
+                        <span className={`px-1.5 py-0.5 rounded font-mono font-bold text-[10px] border ${
                           log.threat === "CRITICAL" ? "bg-rose-50 text-rose-600 border-rose-200" : log.threat === "HIGH" ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-blue-50 text-blue-600 border-blue-200"
                         }`}>{log.threat}</span>
                       </td>
-                      <td className="py-3 px-3 text-right font-medium text-slate-500 text-[10px]">{log.actionHandled}</td>
+                      <td className="py-3 px-3 text-right font-medium text-slate-500">{log.action}</td>
                     </tr>
                   ))
                 )}

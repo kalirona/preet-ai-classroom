@@ -24,6 +24,7 @@ export function canAccessTab(tab: string, user: User | null, activeCommunityId: 
     case "revenue":
     case "security":
     case "logs":
+    case "inbox":
       return false;
 
     // Owner-only workspace tabs
@@ -98,6 +99,7 @@ const PlatformAnalytics = React.lazy(() => import("./components/platform/Platfor
 const PlatformSecurity = React.lazy(() => import("./components/platform/PlatformSecurity"));
 const PlatformAuditLogs = React.lazy(() => import("./components/platform/PlatformAuditLogs"));
 const PlatformSettings = React.lazy(() => import("./components/platform/PlatformSettings"));
+const PlatformInbox = React.lazy(() => import("./components/platform/PlatformInbox"));
 import ProfileView from "./components/ProfileView";
 import ErrorBoundary from "./components/ErrorBoundary";
 import BootstrapAdmin from "./components/BootstrapAdmin";
@@ -1097,6 +1099,11 @@ export default function App() {
                   {activeTab === "settings" && (
                     <ErrorBoundary>
                       <PlatformSettings currentUser={currentUser} />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === "inbox" && (
+                    <ErrorBoundary>
+                      <PlatformInbox />
                     </ErrorBoundary>
                   )}
                 </Suspense>

@@ -130,10 +130,15 @@ export default function BillingRevenue() {
         </div>
       </div>
 
+      {saved && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <CheckCircle className="w-4 h-4" /> Billing settings saved.
+        </div>
+      )}
       <button onClick={handleSave}
         className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5">
         <Wallet className="w-3.5 h-3.5" />
-        {saved ? "Saved!" : "Save Billing Settings"}
+        Save Billing Settings
       </button>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { User } from "../../types";
-import { RefreshCw } from "lucide-react";
+import { User, PlatformRole } from "../../types";
+import { RefreshCw, ShieldAlert } from "lucide-react";
 
 interface PlatformUsersProps {
   currentUser: User | null;
@@ -21,25 +21,26 @@ export default function PlatformUsers({ currentUser }: PlatformUsersProps) {
   );
 
   useEffect(() => {
-    async function loadUsers() {
-      setIsLoading(true);
-      setErrorMessage("");
-      try {
-        const res = await fetch("/api/gamification/leaderboard");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.leaderboard) {
-            setGlobalUsers(data.leaderboard);
-          }
-        }
-      } catch (err) {
-        setErrorMessage("Failed to load users.");
-      } finally {
-        setIsLoading(false);
-      }
-    }
     loadUsers();
   }, []);
+
+  async function loadUsers() {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const res = await fetch("/api/users");
+      if (res.ok) {
+        const data = await res.json();
+        setGlobalUsers(data.users || []);
+      } else {
+        setErrorMessage("Failed to load users.");
+      }
+    } catch {
+      setErrorMessage("Failed to load users.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const handleUpdatePlatformRole = async (userId: string, targetPlatformRole: string) => {
     setSuccessMessage("");
@@ -50,42 +51,61 @@ export default function PlatformUsers({ currentUser }: PlatformUsersProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platformRole: targetPlatformRole }),
       });
-
       if (!res.ok) {
         const errData = await res.json();
-        setErrorMessage(errData.error || "Failed to alter status.");
+        setErrorMessage(errData.error || "Failed to update role.");
         return;
       }
-
-      setSuccessMessage(`Successfully elevated and updated platform-level access to ${targetPlatformRole}!`);
+      setSuccessMessage(`Role updated to ${targetPlatformRole}.`);
       setGlobalUsers((prev) =>
         prev.map((u) =>
           u.id === userId ? { ...u, platformRole: targetPlatformRole as PlatformRole } : u
         )
       );
-    } catch (err) {
-      setErrorMessage("RBAC operational promotion failed.");
+    } catch {
+      setErrorMessage("Failed to update role.");
+    }
+  };
+
+  const handleSuspend = async (userId: string, fullName: string) => {
+    setSuccessMessage("");
+    setErrorMessage("");
+    try {
+      const res = await fetch(`/api/rbac/users/${userId}/platform-role`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platformRole: "suspended" }),
+      });
+      if (!res.ok) {
+        setErrorMessage("Failed to suspend user.");
+        return;
+      }
+      setSuccessMessage(`${fullName} suspended.`);
+      setGlobalUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId ? { ...u, platformRole: "suspended" as PlatformRole } : u
+        )
+      );
+    } catch {
+      setErrorMessage("Failed to suspend user.");
     }
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono">User Management</h3>
-            <p className="text-[10px] text-slate-400 mt-0.5">Manage platform roles and security clearance levels.</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Manage platform roles and access.</p>
           </div>
-
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search by name, email, role..."
-              value={usersSearch}
-              onChange={(e) => setUsersSearch(e.target.value)}
-              className="w-full sm:w-64 pl-3 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:outline-none transition"
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Search by name, email, role..."
+            value={usersSearch}
+            onChange={(e) => setUsersSearch(e.target.value)}
+            className="w-64 pl-3 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:outline-none transition"
+          />
         </div>
 
         {successMessage && (
@@ -103,20 +123,13 @@ export default function PlatformUsers({ currentUser }: PlatformUsersProps) {
         ) : (
           <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto pr-1">
             {filteredUsers.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 font-mono text-xs">
-                No users matching search criteria.
-              </div>
+              <div className="py-12 text-center text-slate-400 font-mono text-xs">No users found.</div>
             ) : (
               filteredUsers.map((userObj) => (
                 <div key={userObj.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs hover:bg-slate-50/80 px-2 rounded-xl transition group">
                   <div className="flex items-center gap-3">
                     {userObj.avatarUrl ? (
-                      <img
-                        src={userObj.avatarUrl}
-                        alt="avatar"
-                        referrerPolicy="no-referrer"
-                        className="w-9 h-9 rounded-full border border-slate-200 object-cover"
-                      />
+                      <img src={userObj.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full border border-slate-200 object-cover" />
                     ) : (
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
                         {(userObj.fullName || "U")[0]}
@@ -125,9 +138,7 @@ export default function PlatformUsers({ currentUser }: PlatformUsersProps) {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900 group-hover:text-indigo-600 transition">{userObj.fullName || "Unknown"}</span>
-                        <span className="text-[9px] bg-slate-100 text-slate-500 font-mono px-1.5 py-0.5 rounded">
-                          Lvl {userObj.level || 1}
-                        </span>
+                        <span className="text-[9px] bg-slate-100 text-slate-500 font-mono px-1.5 py-0.5 rounded">Lvl {userObj.level || 1}</span>
                       </div>
                       <span className="text-[10.5px] text-slate-400 font-mono">{userObj.email}</span>
                     </div>
@@ -142,13 +153,14 @@ export default function PlatformUsers({ currentUser }: PlatformUsersProps) {
                     >
                       <option value="user">User</option>
                       <option value="super_admin">Super Admin</option>
+                      <option value="suspended">Suspended</option>
                     </select>
 
                     <button
-                      onClick={() => setSuccessMessage(`Account suspended for ${userObj.fullName}.`)}
-                      className="px-2.5 py-1.5 border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-lg text-[10px] uppercase font-mono font-bold cursor-pointer transition"
+                      onClick={() => handleSuspend(userObj.id, userObj.fullName || "Unknown")}
+                      className="px-2.5 py-1.5 border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-lg text-[10px] uppercase font-mono font-bold cursor-pointer transition flex items-center gap-1"
                     >
-                      Suspend
+                      <ShieldAlert className="w-3 h-3" /> Suspend
                     </button>
                   </div>
                 </div>
