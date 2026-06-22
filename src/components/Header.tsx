@@ -110,7 +110,7 @@ export default function Header({
       {/* Right: Actions + Notifications + Profile */}
       <div className="flex items-center gap-3">
         {/* Platform Mode Toggle (Super Admin only) */}
-        {(user?.platformRole === PlatformRole.SUPER_ADMIN || (user as any)?.role === "super_admin") && (
+        {(user?.platformRole === PlatformRole.SUPER_ADMIN) && (
           <div className="relative group hidden sm:block">
             <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
               <button
@@ -150,7 +150,7 @@ export default function Header({
             className="text-sm bg-slate-50 text-slate-700 border border-slate-200 rounded-lg py-1.5 px-3 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 cursor-pointer"
             id="role-picker-testing"
           >
-            {(user?.platformRole === PlatformRole.SUPER_ADMIN || (user as any)?.role === "super_admin") && (
+        {(user?.platformRole === PlatformRole.SUPER_ADMIN) && (
               <option value="super_admin">Super Admin</option>
             )}
             <option value={WorkspaceRole.OWNER}>Creator</option>

@@ -4,7 +4,7 @@ import { User, Community, Post, LiveEvent, Notification, Course, PlatformRole, W
 // Strict Client-Side Role-Based Tab Guard
 export function canAccessTab(tab: string, user: User | null, activeCommunityId: string): boolean {
   if (!user) return false;
-  const pfRole = user.platformRole === PlatformRole.SUPER_ADMIN || (user as any)?.role === "super_admin"
+  const pfRole = user.platformRole === PlatformRole.SUPER_ADMIN
     ? PlatformRole.SUPER_ADMIN
     : (user.platformRole || PlatformRole.USER);
   
@@ -134,7 +134,7 @@ export default function App() {
   useEffect(() => {
     if (currentUser && !initialTabSet) {
       const hashTab = window.location.hash?.substring(1);
-      const isSa = currentUser.platformRole === PlatformRole.SUPER_ADMIN || (currentUser as any)?.role === "super_admin";
+      const isSa = currentUser.platformRole === PlatformRole.SUPER_ADMIN;
       if (isSa && (!hashTab || hashTab === "dashboard")) {
         setActiveTab("superadmin");
         setPlatformMode(true);
@@ -371,7 +371,7 @@ export default function App() {
     }
 
     // For Super Admin users, use preview role to simulate workspace role views
-    const isSa = currentUser.platformRole === PlatformRole.SUPER_ADMIN || (currentUser as any)?.role === "super_admin";
+    const isSa = currentUser.platformRole === PlatformRole.SUPER_ADMIN;
     if (isSa) {
       setPreviewWsRole(newRole);
       return;

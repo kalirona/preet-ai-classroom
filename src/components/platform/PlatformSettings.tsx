@@ -5,12 +5,14 @@ import AIProvidersSettings from "./settings/AIProvidersSettings";
 import BillingSettings from "./settings/BillingSettings";
 import FeatureFlagsSettings from "./settings/FeatureFlagsSettings";
 import SystemMonitor from "./settings/SystemMonitor";
+import AdminManagement from "./settings/AdminManagement";
 
 interface PlatformSettingsProps {
   currentUser: User | null;
 }
 
 const TABS = [
+  { key: "admin", label: "Admin Mgmt" },
   { key: "branding", label: "Branding" },
   { key: "ai-providers", label: "AI Providers" },
   { key: "billing", label: "Billing" },
@@ -41,6 +43,7 @@ export default function PlatformSettings({ currentUser }: PlatformSettingsProps)
       </div>
 
       {/* Tab Content */}
+      {activeTab === "admin" && <AdminManagement currentUser={currentUser} />}
       {activeTab === "branding" && <BrandingSettings />}
       {activeTab === "ai-providers" && <AIProvidersSettings />}
       {activeTab === "billing" && <BillingSettings />}

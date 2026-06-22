@@ -461,6 +461,17 @@ function requireWorkspacePermission(permission: WorkspacePermission) {
   };
 }
 
+function requirePlatformPermission() {
+  return (req: any, res: any, next: any) => {
+    if (!req.user) return res.status(401).json({ error: "Authentication required." });
+    if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+      addAuditLog(req.user.id, req.user.fullName, "SECURITY_VIOLATION", `Blocked: non-super-admin attempted platform access to '${req.originalUrl}'.`);
+      return res.status(403).json({ error: "Access denied. Super Admin only." });
+    }
+    next();
+  };
+}
+
 async function formatUserForResponse(userId: string): Promise<any> {
   const user = await findUserById(userId);
   if (!user) return null;
