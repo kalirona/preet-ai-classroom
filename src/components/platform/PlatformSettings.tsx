@@ -1,27 +1,31 @@
 import React, { useState } from "react";
 import { User } from "../../types";
-import BrandingSettings from "./settings/BrandingSettings";
-import AIProvidersSettings from "./settings/AIProvidersSettings";
-import BillingSettings from "./settings/BillingSettings";
-import FeatureFlagsSettings from "./settings/FeatureFlagsSettings";
-import SystemMonitor from "./settings/SystemMonitor";
+import DashboardOverview from "./settings/DashboardOverview";
 import AdminManagement from "./settings/AdminManagement";
+import AISettings from "./settings/AISettings";
+import BillingRevenue from "./settings/BillingRevenue";
+import PlatformBranding from "./settings/PlatformBranding";
+import EmailSettings from "./settings/EmailSettings";
+import SecuritySettings from "./settings/SecuritySettings";
+import MaintenanceSystem from "./settings/MaintenanceSystem";
 
 interface PlatformSettingsProps {
   currentUser: User | null;
 }
 
 const TABS = [
+  { key: "overview", label: "Dashboard" },
   { key: "admin", label: "Admin Mgmt" },
-  { key: "branding", label: "Branding" },
-  { key: "ai-providers", label: "AI Providers" },
+  { key: "ai", label: "AI" },
   { key: "billing", label: "Billing" },
-  { key: "feature-flags", label: "Feature Flags" },
+  { key: "branding", label: "Branding" },
+  { key: "email", label: "Email" },
+  { key: "security", label: "Security" },
   { key: "system", label: "System" },
 ] as const;
 
 export default function PlatformSettings({ currentUser }: PlatformSettingsProps) {
-  const [activeTab, setActiveTab] = useState<string>("branding");
+  const [activeTab, setActiveTab] = useState<string>("overview");
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
@@ -43,12 +47,14 @@ export default function PlatformSettings({ currentUser }: PlatformSettingsProps)
       </div>
 
       {/* Tab Content */}
+      {activeTab === "overview" && <DashboardOverview />}
       {activeTab === "admin" && <AdminManagement currentUser={currentUser} />}
-      {activeTab === "branding" && <BrandingSettings />}
-      {activeTab === "ai-providers" && <AIProvidersSettings />}
-      {activeTab === "billing" && <BillingSettings />}
-      {activeTab === "feature-flags" && <FeatureFlagsSettings />}
-      {activeTab === "system" && <SystemMonitor />}
+      {activeTab === "ai" && <AISettings />}
+      {activeTab === "billing" && <BillingRevenue />}
+      {activeTab === "branding" && <PlatformBranding />}
+      {activeTab === "email" && <EmailSettings />}
+      {activeTab === "security" && <SecuritySettings />}
+      {activeTab === "system" && <MaintenanceSystem />}
     </div>
   );
 }
