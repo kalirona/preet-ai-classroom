@@ -438,6 +438,29 @@ export async function createSchema() {
 
     `CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash)`,
 
+    `CREATE TABLE IF NOT EXISTS banned_ips (
+      id TEXT PRIMARY KEY,
+      ip_address TEXT NOT NULL UNIQUE,
+      reason TEXT DEFAULT '',
+      banned_by TEXT REFERENCES users(id),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+
+    `CREATE INDEX IF NOT EXISTS idx_banned_ips_address ON banned_ips(ip_address)`,
+
+    `CREATE TABLE IF NOT EXISTS security_events (
+      id TEXT PRIMARY KEY,
+      ip_address TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      severity TEXT NOT NULL DEFAULT 'MEDIUM',
+      action_taken TEXT DEFAULT '',
+      user_id TEXT REFERENCES users(id),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+
+    `CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at DESC)`,
+
     `CREATE TABLE IF NOT EXISTS spaces (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -1617,4 +1640,51 @@ export async function findUsersByIds(ids: string[]): Promise<DbRow[]> {
 export async function findAllUsers(): Promise<DbRow[]> {
   const result = await query("SELECT * FROM users ORDER BY xp DESC");
   return result.rows;
+}
+
+// ─── Banned IPs ─────────────────────────────────────────────
+export async function findBannedIps(): Promise<DbRow[]> {
+  const result = await query("SELECT * FROM banned_ips ORDER BY created_at DESC");
+  return result.rows;
+}
+
+export async function banIp(ip: string, reason: string, bannedBy: string): Promise<DbRow> {
+  const id = `ban-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const result = await query(
+    "INSERT INTO banned_ips (id, ip_address, reason, banned_by) VALUES ($1, $2, $3, $4) ON CONFLICT (ip_address) DO NOTHING RETURNING *",
+    [id, ip, reason, bannedBy]
+  );
+  return result.rows[0] || (await query("SELECT * FROM banned_ips WHERE ip_address = $1", [ip])).rows[0];
+}
+
+export async function unbanIp(ip: string): Promise<void> {
+  await query("DELETE FROM banned_ips WHERE ip_address = $1", [ip]);
+}
+
+// ─── Security Events ────────────────────────────────────────
+export async function findSecurityEvents(limit = 200): Promise<DbRow[]> {
+  const result = await query("SELECT * FROM security_events ORDER BY created_at DESC LIMIT $1", [limit]);
+  return result.rows;
+}
+
+export async function createSecurityEvent(event: {
+  ip_address: string;
+  event_type: string;
+  description?: string;
+  severity?: string;
+  action_taken?: string;
+  user_id?: string | null;
+}): Promise<DbRow> {
+  const id = `sev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const result = await query(
+    `INSERT INTO security_events (id, ip_address, event_type, description, severity, action_taken, user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [id, event.ip_address, event.event_type, event.description || "",
+     event.severity || "MEDIUM", event.action_taken || "", event.user_id || null]
+  );
+  return result.rows[0];
+}
+
+export async function clearSecurityEvents(): Promise<void> {
+  await query("DELETE FROM security_events");
 }

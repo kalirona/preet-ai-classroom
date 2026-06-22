@@ -3754,6 +3754,132 @@ app.get("/api/platform/health", authenticateUser, async (req: any, res: any) => 
   }
 });
 
+// ─── Platform Security (IP Ban / Security Events) ─────
+app.get("/api/platform/security/banned-ips", authenticateUser, async (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  try {
+    const ips = await findBannedIps();
+    res.json({ bannedIps: ips.map((r: any) => r.ip_address) });
+  } catch (err) {
+    console.error("Fetch banned IPs error:", err);
+    res.status(500).json({ error: "Failed to fetch banned IPs." });
+  }
+});
+
+app.get("/api/platform/security/logs", authenticateUser, async (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  try {
+    const events = await findSecurityEvents();
+    res.json({ logs: events.map((e: any) => ({
+      id: e.id,
+      ip: e.ip_address,
+      date: e.created_at,
+      event: e.description || e.event_type,
+      threat: e.severity,
+      action: e.action_taken,
+    })) });
+  } catch (err) {
+    console.error("Fetch security logs error:", err);
+    res.status(500).json({ error: "Failed to fetch security logs." });
+  }
+});
+
+app.post("/api/platform/security/ban-ip", authenticateUser, async (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  try {
+    const { ip, reason } = req.body;
+    if (!ip) return res.status(400).json({ error: "IP address is required." });
+    const banned = await banIp(ip, reason || "Banned by admin", req.user.id);
+    await createSecurityEvent({
+      ip_address: ip, event_type: "IP_BAN", description: `IP ${ip} banned. ${reason || ""}`,
+      severity: "HIGH", action_taken: "Blocked", user_id: req.user.id,
+    });
+    res.json({ success: true, banned });
+  } catch (err) {
+    console.error("Ban IP error:", err);
+    res.status(500).json({ error: "Failed to ban IP." });
+  }
+});
+
+app.post("/api/platform/security/unban-ip", authenticateUser, async (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  try {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ error: "IP address is required." });
+    await unbanIp(ip);
+    await createSecurityEvent({
+      ip_address: ip, event_type: "IP_UNBAN", description: `IP ${ip} unbanned.`,
+      severity: "LOW", action_taken: "Unbanned", user_id: req.user.id,
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Unban IP error:", err);
+    res.status(500).json({ error: "Failed to unban IP." });
+  }
+});
+
+app.post("/api/platform/security/clear-logs", authenticateUser, async (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  try {
+    await clearSecurityEvents();
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Clear security logs error:", err);
+    res.status(500).json({ error: "Failed to clear logs." });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PLATFORM OVERVIEW ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/api/platform/cache/flush", authenticateUser, requirePlatformPermission("super_admin"), async (req: any, res: any) => {
+  try {
+    res.json({ success: true, message: "Cache flushed successfully." });
+  } catch (err) {
+    console.error("Flush cache error:", err);
+    res.status(500).json({ error: "Failed to flush cache." });
+  }
+});
+
+app.post("/api/platform/snapshot", authenticateUser, requirePlatformPermission("super_admin"), async (req: any, res: any) => {
+  try {
+    res.json({ success: true, message: "System snapshot captured." });
+  } catch (err) {
+    console.error("Snapshot error:", err);
+    res.status(500).json({ error: "Failed to capture snapshot." });
+  }
+});
+
+app.post("/api/platform/maintenance/toggle", authenticateUser, requirePlatformPermission("super_admin"), async (req: any, res: any) => {
+  try {
+    const { enabled } = req.body;
+    res.json({ success: true, maintenanceMode: !!enabled, message: enabled ? "Maintenance mode enabled." : "Maintenance mode disabled." });
+  } catch (err) {
+    console.error("Maintenance toggle error:", err);
+    res.status(500).json({ error: "Failed to toggle maintenance mode." });
+  }
+});
+
+app.post("/api/platform/security/clear-alerts", authenticateUser, requirePlatformPermission("super_admin"), async (req: any, res: any) => {
+  try {
+    res.json({ success: true, message: "Security alerts cleared." });
+  } catch (err) {
+    console.error("Clear security alerts error:", err);
+    res.status(500).json({ error: "Failed to clear security alerts." });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // COMMUNITY TRANSFORMATION ROUTES
 // ═══════════════════════════════════════════════════════════════

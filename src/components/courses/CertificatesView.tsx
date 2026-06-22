@@ -18,7 +18,7 @@ export default function CertificatesView({ workspaceId }: CertificatesViewProps)
       .then((data) => {
         if (data.certificates) setCertificates(data.certificates);
       })
-      .catch(() => {})
+      .catch((err: unknown) => console.error("Failed to load certificates:", err))
       .finally(() => setLoading(false));
   }, [workspaceId]);
 

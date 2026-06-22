@@ -17,7 +17,7 @@ export default function AssignmentsView({ workspaceId }: AssignmentsViewProps) {
       .then((data) => {
         if (data.assignments) setAssignments(data.assignments);
       })
-      .catch(() => {})
+      .catch((err: unknown) => console.error("Failed to load assignments:", err))
       .finally(() => setLoading(false));
   }, [workspaceId]);
 

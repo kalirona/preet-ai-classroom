@@ -17,7 +17,7 @@ export default function CourseAnalyticsView({ workspaceId }: CourseAnalyticsView
       .then((data) => {
         if (data.courses) setCourses(data.courses);
       })
-      .catch(() => {})
+      .catch((err: unknown) => console.error("Failed to load course analytics:", err))
       .finally(() => setLoading(false));
   }, [workspaceId]);
 

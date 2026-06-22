@@ -1,8 +1,9 @@
-import { Download, FileText, FileCode, FileSpreadsheet, FileImage, Search } from "lucide-react";
+import { Download, FileText, FileCode, FileSpreadsheet, FileImage, Search, CheckCircle } from "lucide-react";
 import { useState } from "react";
 
 export default function ResourcesView() {
   const [search, setSearch] = useState("");
+  const [downloadedId, setDownloadedId] = useState<string | null>(null);
 
   const resourceCards = [
     {
@@ -14,6 +15,7 @@ export default function ResourcesView() {
       downloads: 412,
       icon: FileCode,
       iconColor: "from-indigo-500 to-indigo-600",
+      fileUrl: "/mock/ai-streaming-compiler.zip",
       desc: "Complete speculative streaming response compiler for Node.js Express. Ready to drop in with optimized JSON routing patterns.",
     },
     {
@@ -25,6 +27,7 @@ export default function ResourcesView() {
       downloads: 180,
       icon: FileCode,
       iconColor: "from-emerald-500 to-emerald-600",
+      fileUrl: "/mock/stripe-webhook.js",
       desc: "Stripe webhook listener with signature validation, metadata parsing, and automatic client database dispatch.",
     },
     {
@@ -36,6 +39,7 @@ export default function ResourcesView() {
       downloads: 290,
       icon: FileSpreadsheet,
       iconColor: "from-amber-500 to-amber-600",
+      fileUrl: "/mock/conversion-matrix.xlsx",
       desc: "Retention calculators, CAC boundaries, viral loop trackers, and high-converting metrics spreadsheet.",
     },
     {
@@ -47,6 +51,7 @@ export default function ResourcesView() {
       downloads: 94,
       icon: FileImage,
       iconColor: "from-rose-500 to-rose-600",
+      fileUrl: "/mock/biomechanics-guide.pdf",
       desc: "Illustrated blueprint of respiratory volume cycles, spine decompression shifts, and restorative posture checks.",
     },
   ];
@@ -113,11 +118,15 @@ export default function ResourcesView() {
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-[10px] text-slate-400 font-mono">{res.downloads} downloads</span>
                   <button
-                    onClick={() => alert(`Downloading ${res.title}...`)}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                    onClick={() => { window.open(res.fileUrl, "_blank", "noopener noreferrer"); setDownloadedId(res.id); setTimeout(() => setDownloadedId(null), 2000); }}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-sm ${
+                      downloadedId === res.id
+                        ? "bg-emerald-500 text-white"
+                        : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                    }`}
                   >
-                    <Download className="w-3 h-3" />
-                    Download
+                    {downloadedId === res.id ? <CheckCircle className="w-3 h-3" /> : <Download className="w-3 h-3" />}
+                    {downloadedId === res.id ? "Downloaded" : "Download"}
                   </button>
                 </div>
               </div>

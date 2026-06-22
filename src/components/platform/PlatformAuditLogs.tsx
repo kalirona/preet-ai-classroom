@@ -13,7 +13,7 @@ export default function PlatformAuditLogs() {
       .then((data) => {
         if (data?.auditLogs) setAuditLogs(data.auditLogs);
       })
-      .catch(() => {})
+      .catch((err: unknown) => console.error("Failed to load audit logs:", err))
       .finally(() => setIsLoading(false));
   }, []);
 

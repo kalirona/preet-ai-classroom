@@ -1,16 +1,9 @@
-import { useState } from "react";
-import { Shield, ShieldAlert, AlertTriangle, Ban, Unlock, Trash2, CheckCircle, Lock, Globe } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Shield, ShieldAlert, AlertTriangle, Ban, Unlock, Trash2, CheckCircle, Lock, Globe, Loader2 } from "lucide-react";
 
 const STORAGE_KEYS = {
-  bannedIps: "platform_banned_ips",
-  abuseLogs: "platform_abuse_logs",
   securityModules: "platform_security_modules",
 };
-
-function loadArray(key: string, fallback: any[]) {
-  try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : fallback; }
-  catch { return fallback; }
-}
 
 function loadObject(key: string, fallback: any) {
   try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : fallback; }
@@ -25,16 +18,12 @@ export default function PlatformSecurity() {
       ddosRateLimit: true, twoFactorForce: true, secureCookies: true,
     })
   );
-  const [bannedIps, setBannedIps] = useState<string[]>(loadArray(STORAGE_KEYS.bannedIps, [
-    "198.51.100.42", "203.0.113.111", "185.220.101.4",
-  ]));
+  const [bannedIps, setBannedIps] = useState<string[]>([]);
   const [newIp, setNewIp] = useState("");
-  const [logs, setLogs] = useState<any[]>(loadArray(STORAGE_KEYS.abuseLogs, [
-    { id: "ab01", ip: "185.220.101.4", date: "2026-05-30 08:12:45 UTC", event: "Brute force login attempt", threat: "CRITICAL", action: "Blocked" },
-    { id: "ab02", ip: "203.0.113.111", date: "2026-05-30 07:44:19 UTC", event: "SQL injection probe", threat: "HIGH", action: "Blocked" },
-    { id: "ab03", ip: "109.244.3.89", date: "2026-05-30 06:15:30 UTC", event: "Content scraping detected", threat: "MEDIUM", action: "Rate limited" },
-    { id: "ab04", ip: "198.51.100.42", date: "2026-05-30 05:08:12 UTC", event: "XSS attempt on comments", threat: "CRITICAL", action: "Blocked" },
-  ]));
+  const [banReason, setBanReason] = useState("");
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [banning, setBanning] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   const show = (type: "success" | "error", msg: string) => {
@@ -42,33 +31,65 @@ export default function PlatformSecurity() {
     setTimeout(() => setFeedback(null), 2500);
   };
 
+  useEffect(() => {
+    Promise.all([
+        fetch("/api/platform/security/banned-ips").then(r => r.json()).then(d => { if (d.bannedIps) setBannedIps(d.bannedIps); }).catch((err: unknown) => console.error("Failed to load banned IPs:", err)),
+      fetch("/api/platform/security/logs").then(r => r.json()).then(d => { if (d.logs) setLogs(d.logs); }).catch((err: unknown) => console.error("Failed to load security logs:", err)),
+    ]).finally(() => setLoading(false));
+  }, []);
+
   const toggleModule = (key: string) => {
     const next = { ...securityModules, [key]: !securityModules[key] };
     setSecurityModules(next);
     localStorage.setItem(STORAGE_KEYS.securityModules, JSON.stringify(next));
   };
 
-  const handleBan = () => {
+  const handleBan = async () => {
     if (!newIp.trim()) return;
-    const next = [...bannedIps, newIp.trim()];
-    setBannedIps(next);
-    localStorage.setItem(STORAGE_KEYS.bannedIps, JSON.stringify(next));
-    setNewIp("");
-    show("success", `IP ${newIp.trim()} banned.`);
+    setBanning(true);
+    try {
+      const res = await fetch("/api/platform/security/ban-ip", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip: newIp.trim(), reason: banReason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { show("error", data.error || "Failed to ban IP."); return; }
+      setBannedIps(prev => [newIp.trim(), ...prev]);
+      setNewIp("");
+      setBanReason("");
+      show("success", `IP ${newIp.trim()} banned.`);
+    } catch { show("error", "Network error."); }
+    finally { setBanning(false); }
   };
 
-  const handleUnban = (ip: string) => {
-    const next = bannedIps.filter((item) => item !== ip);
-    setBannedIps(next);
-    localStorage.setItem(STORAGE_KEYS.bannedIps, JSON.stringify(next));
-    show("success", `IP ${ip} unbanned.`);
+  const handleUnban = async (ip: string) => {
+    try {
+      const res = await fetch("/api/platform/security/unban-ip", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip }),
+      });
+      if (!res.ok) { const d = await res.json(); show("error", d.error || "Failed to unban."); return; }
+      setBannedIps(prev => prev.filter(item => item !== ip));
+      show("success", `IP ${ip} unbanned.`);
+    } catch { show("error", "Network error."); }
   };
 
-  const handleClearLogs = () => {
-    setLogs([]);
-    localStorage.setItem(STORAGE_KEYS.abuseLogs, JSON.stringify([]));
-    show("success", "Security log cleared.");
+  const handleClearLogs = async () => {
+    try {
+      const res = await fetch("/api/platform/security/clear-logs", { method: "POST" });
+      if (!res.ok) return;
+      setLogs([]);
+      show("success", "Security log cleared.");
+    } catch { show("error", "Network error."); }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
@@ -128,11 +149,13 @@ export default function PlatformSecurity() {
             <input type="text" placeholder="192.168.1.1" value={newIp} onChange={(e) => setNewIp(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleBan(); }}
               className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition" />
-            <button onClick={handleBan}
-              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm flex items-center gap-1">
-              <Ban className="w-3 h-3" /> Ban
+            <button onClick={handleBan} disabled={banning || !newIp.trim()}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+              {banning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Ban className="w-3 h-3" />} Ban
             </button>
           </div>
+          <input type="text" placeholder="Reason (optional)" value={banReason} onChange={(e) => setBanReason(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition" />
           <div className="pt-2 border-t border-slate-100">
             <span className="text-xs font-bold text-slate-500 block mb-2">Banned ({bannedIps.length})</span>
             <div className="space-y-1 max-h-40 overflow-y-auto">
@@ -181,14 +204,14 @@ export default function PlatformSecurity() {
                 {logs.length === 0 ? (
                   <tr><td colSpan={5} className="py-8 text-center text-slate-300 font-mono text-xs">No security events</td></tr>
                 ) : (
-                  logs.map((log) => (
+                  logs.map((log: any) => (
                     <tr key={log.id} className="hover:bg-slate-50/80 text-xs transition">
-                      <td className="py-3 px-3 font-mono text-slate-400 whitespace-nowrap">{log.date}</td>
+                      <td className="py-3 px-3 font-mono text-slate-400 whitespace-nowrap">{new Date(log.date).toLocaleString()}</td>
                       <td className="py-3 px-3 font-mono font-semibold text-slate-700">{log.ip}</td>
                       <td className="py-3 px-3 text-slate-800">{log.event}</td>
                       <td className="py-3 px-3">
                         <span className={`px-1.5 py-0.5 rounded font-mono font-bold text-[10px] border ${
-                          log.threat === "CRITICAL" ? "bg-rose-50 text-rose-600 border-rose-200" : log.threat === "HIGH" ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-blue-50 text-blue-600 border-blue-200"
+                          log.threat === "CRITICAL" || log.threat === "HIGH" ? "bg-rose-50 text-rose-600 border-rose-200" : log.threat === "MEDIUM" ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-blue-50 text-blue-600 border-blue-200"
                         }`}>{log.threat}</span>
                       </td>
                       <td className="py-3 px-3 text-right font-medium text-slate-500">{log.action}</td>

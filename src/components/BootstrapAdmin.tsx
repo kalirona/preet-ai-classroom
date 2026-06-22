@@ -25,7 +25,7 @@ export default function BootstrapAdmin({ currentUser, onAdminClaimed }: Props) {
         const hasAdmin = (data.users || []).some((u: any) => u.platformRole === "super_admin");
         setCanClaim(!hasAdmin);
       })
-      .catch(() => {})
+      .catch((err: unknown) => console.error("Bootstrap admin check failed:", err))
       .finally(() => setChecking(false));
   }, [currentUser]);
 

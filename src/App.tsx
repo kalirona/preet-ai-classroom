@@ -648,8 +648,7 @@ export default function App() {
       .then(data => {
         if (!controller.signal.aborted && data.auditLogs) console.debug("ws audit logs", data.auditLogs);
       })
-      .catch(() => {/* silence */})
-      .finally(() => {/* silence */});
+      .catch((err: unknown) => console.debug("Audit log fetch failed:", err));
     return () => controller.abort();
   }, [activeTab, activeCommunityId]);
 

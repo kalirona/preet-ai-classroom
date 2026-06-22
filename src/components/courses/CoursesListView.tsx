@@ -18,7 +18,7 @@ export default function CoursesListView({ workspaceId }: CoursesListViewProps) {
       .then((data) => {
         if (data.courses) setCourses(data.courses);
       })
-      .catch(() => {})
+      .catch((err: unknown) => console.error("Failed to load courses:", err))
       .finally(() => setLoading(false));
   }, [workspaceId]);
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { User, Community } from "../../types";
-import { Send, ArrowRight, CheckCircle, RefreshCw, Shield, Wrench, AlertTriangle } from "lucide-react";
+import { Send, ArrowRight, CheckCircle, RefreshCw, Shield, Wrench, AlertTriangle, Loader2 } from "lucide-react";
 
 interface PlatformOverviewProps {
   currentUser: User | null;
@@ -12,11 +12,28 @@ export default function PlatformOverview({ currentUser, communities }: PlatformO
   const [broadcastSuccess, setBroadcastSuccess] = useState(false);
   const [maintenanceModeActive, setMaintenanceModeActive] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
   const totalMRR = (communities ?? []).reduce((sum, c) => sum + (c.isPremium ? c.priceMonthly : 0), 0);
 
   const showFeedback = (type: "success" | "error", msg: string) => {
     setFeedback({ type, msg });
     setTimeout(() => setFeedback(null), 2500);
+  };
+
+  const callAction = async (action: string, url: string, body?: Record<string, unknown>) => {
+    setLoading(action);
+    try {
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Action failed.");
+      showFeedback("success", data.message);
+      if (body && "enabled" in body) setMaintenanceModeActive(!!body.enabled);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Action failed.";
+      showFeedback("error", msg);
+    } finally {
+      setLoading(null);
+    }
   };
 
   const handleDispatchBroadcast = (e: React.FormEvent) => {
@@ -143,35 +160,39 @@ export default function PlatformOverview({ currentUser, communities }: PlatformO
         <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <button
-            onClick={() => showFeedback("success", "Cache flushed successfully.")}
-            className="p-4 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group"
+            onClick={() => callAction("cache", "/api/platform/cache/flush")}
+            disabled={loading !== null}
+            className="p-4 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group disabled:opacity-60"
           >
-            <span>Flush Cache</span>
+            <span>{loading === "cache" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Flush Cache"}</span>
             <ArrowRight className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition shrink-0" />
           </button>
           <button
-            onClick={() => showFeedback("success", "System snapshot captured.")}
-            className="p-4 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group"
+            onClick={() => callAction("snapshot", "/api/platform/snapshot")}
+            disabled={loading !== null}
+            className="p-4 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group disabled:opacity-60"
           >
-            <span>Capture Snapshot</span>
+            <span>{loading === "snapshot" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Capture Snapshot"}</span>
             <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition shrink-0" />
           </button>
           <button
-            onClick={() => { setMaintenanceModeActive(!maintenanceModeActive); showFeedback("success", maintenanceModeActive ? "Maintenance mode disabled." : "Maintenance mode enabled."); }}
-            className={`p-4 border rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group ${
+            onClick={() => callAction("maintenance", "/api/platform/maintenance/toggle", { enabled: !maintenanceModeActive })}
+            disabled={loading !== null}
+            className={`p-4 border rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group disabled:opacity-60 ${
               maintenanceModeActive
                 ? "bg-rose-50 border-rose-200 text-rose-700"
                 : "bg-slate-50/50 hover:bg-slate-50 border-slate-200 text-slate-600"
             }`}
           >
-            <span>{maintenanceModeActive ? "Disable Maintenance" : "Enable Maintenance"}</span>
+            <span>{loading === "maintenance" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : maintenanceModeActive ? "Disable Maintenance" : "Enable Maintenance"}</span>
             <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition shrink-0" />
           </button>
           <button
-            onClick={() => showFeedback("success", "Security alerts cleared.")}
-            className="p-4 bg-cyan-50/50 hover:bg-cyan-50 border border-cyan-100 text-cyan-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group"
+            onClick={() => callAction("alerts", "/api/platform/security/clear-alerts")}
+            disabled={loading !== null}
+            className="p-4 bg-cyan-50/50 hover:bg-cyan-50 border border-cyan-100 text-cyan-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group disabled:opacity-60"
           >
-            <span>Clear Security Alerts</span>
+            <span>{loading === "alerts" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Clear Security Alerts"}</span>
             <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:text-cyan-600 group-hover:translate-x-0.5 transition shrink-0" />
           </button>
         </div>

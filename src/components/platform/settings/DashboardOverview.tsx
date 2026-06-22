@@ -19,7 +19,7 @@ export default function DashboardOverview() {
     fetch("/api/platform/stats")
       .then((r) => r.json())
       .then((data) => setStats(data))
-      .catch(() => {})
+      .catch((err: unknown) => { console.error("Failed to load platform stats:", err); setStats(null); })
       .finally(() => setLoading(false));
   }, []);
 

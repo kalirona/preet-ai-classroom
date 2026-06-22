@@ -36,7 +36,6 @@ export default function WorkspaceDashboardView({
   const handleQuickPostSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickPostText.trim()) return;
-    alert("Simulated post submitted successfully! Redirecting you to the Home Feed to see it in action.");
     setQuickPostText("");
     onChangeTab("feed");
   };
