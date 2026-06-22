@@ -145,9 +145,7 @@ export default function PlatformUsers({ currentUser }: PlatformUsersProps) {
                     </select>
 
                     <button
-                      onClick={() => {
-                        alert(`Account suspension triggered for ${userObj.fullName}.`);
-                      }}
+                      onClick={() => setSuccessMessage(`Account suspended for ${userObj.fullName}.`)}
                       className="px-2.5 py-1.5 border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-400 rounded-lg text-[10px] uppercase font-mono font-bold cursor-pointer transition"
                     >
                       Suspend

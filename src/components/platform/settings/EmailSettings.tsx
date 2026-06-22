@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Mail, Server, Key, User, Send, FileText, Shield, ShoppingCart, Award } from "lucide-react";
+import { CheckCircle, Mail, Server, Key, User, Send, FileText, Shield, ShoppingCart, Award } from "lucide-react";
+
+const STORAGE_KEY = "platform_email_settings";
 
 const TEMPLATES = [
   { key: "welcome", label: "Welcome Email", icon: FileText, desc: "Sent to new users after registration." },
@@ -9,16 +11,24 @@ const TEMPLATES = [
 ];
 
 export default function EmailSettings() {
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState("587");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [fromName, setFromName] = useState("Preet Digital Lab");
-  const [fromEmail, setFromEmail] = useState("noreply@preetdigitallab.com");
+  const loadSaved = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  };
+  const initial = loadSaved();
+  const [host, setHost] = useState(initial.host || "");
+  const [port, setPort] = useState(initial.port || "587");
+  const [username, setUsername] = useState(initial.username || "");
+  const [password, setPassword] = useState(initial.password || "");
+  const [fromName, setFromName] = useState(initial.fromName || "Preet Digital Lab");
+  const [fromEmail, setFromEmail] = useState(initial.fromEmail || "noreply@preetdigitallab.com");
   const [testSent, setTestSent] = useState(false);
   const [saved, setSaved] = useState(false);
 
   function handleSave() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ host, port, username, password, fromName, fromEmail }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -107,7 +117,7 @@ export default function EmailSettings() {
         <button onClick={handleSave}
           className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5">
           <Mail className="w-3.5 h-3.5" />
-          Save Email Settings
+          {saved ? "Saved!" : "Save Email Settings"}
         </button>
         <button onClick={() => { setTestSent(true); setTimeout(() => setTestSent(false), 3000); }}
           className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer">

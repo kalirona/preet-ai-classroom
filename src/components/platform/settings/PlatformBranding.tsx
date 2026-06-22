@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Palette, Image, Globe, Mail, Copyright, Eye } from "lucide-react";
+import { CheckCircle, Palette, Image, Globe, Mail, Copyright, Eye } from "lucide-react";
+
+const STORAGE_KEY = "platform_branding";
 
 const PRESET_COLORS = [
   { label: "Indigo", value: "#4f46e5" },
@@ -13,15 +15,21 @@ const PRESET_COLORS = [
 ];
 
 export default function PlatformBranding() {
-  const [platformName, setPlatformName] = useState("Preet Digital Lab");
-  const [primaryColor, setPrimaryColor] = useState("#4f46e5");
-  const [logoUrl, setLogoUrl] = useState("");
-  const [faviconUrl, setFaviconUrl] = useState("");
-  const [footerCopyright, setFooterCopyright] = useState("© 2026 Preet Digital Lab. All rights reserved.");
-  const [supportEmail, setSupportEmail] = useState("support@preetdigitallab.com");
+  const loadSaved = () => {
+    try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : {}; }
+    catch { return {}; }
+  };
+  const initial = loadSaved();
+  const [platformName, setPlatformName] = useState(initial.platformName || "Preet Digital Lab");
+  const [primaryColor, setPrimaryColor] = useState(initial.primaryColor || "#4f46e5");
+  const [logoUrl, setLogoUrl] = useState(initial.logoUrl || "");
+  const [faviconUrl, setFaviconUrl] = useState(initial.faviconUrl || "");
+  const [footerCopyright, setFooterCopyright] = useState(initial.footerCopyright || "© 2026 Preet Digital Lab. All rights reserved.");
+  const [supportEmail, setSupportEmail] = useState(initial.supportEmail || "support@preetdigitallab.com");
   const [saved, setSaved] = useState(false);
 
   function handleSave() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ platformName, primaryColor, logoUrl, faviconUrl, footerCopyright, supportEmail }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }

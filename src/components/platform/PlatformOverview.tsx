@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { User, Community } from "../../types";
-import { Send, ArrowRight } from "lucide-react";
+import { Send, ArrowRight, CheckCircle, RefreshCw, Shield, Wrench, AlertTriangle } from "lucide-react";
 
 interface PlatformOverviewProps {
   currentUser: User | null;
@@ -11,7 +11,13 @@ export default function PlatformOverview({ currentUser, communities }: PlatformO
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [broadcastSuccess, setBroadcastSuccess] = useState(false);
   const [maintenanceModeActive, setMaintenanceModeActive] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const totalMRR = (communities ?? []).reduce((sum, c) => sum + (c.isPremium ? c.priceMonthly : 0), 0);
+
+  const showFeedback = (type: "success" | "error", msg: string) => {
+    setFeedback({ type, msg });
+    setTimeout(() => setFeedback(null), 2500);
+  };
 
   const handleDispatchBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +31,15 @@ export default function PlatformOverview({ currentUser, communities }: PlatformO
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
+      {feedback && (
+        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium ${
+          feedback.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"
+        }`}>
+          {feedback.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+          {feedback.msg}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 relative overflow-hidden">
           <span className="text-sm font-semibold text-slate-500">Status</span>
@@ -59,7 +74,7 @@ export default function PlatformOverview({ currentUser, communities }: PlatformO
           <div className="flex justify-between items-center border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">Communities</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">Isolated relational databases under active DNS mapping.</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">All workspaces on the platform.</p>
             </div>
             <span className="text-[10px] bg-slate-100 text-slate-600 font-mono font-bold px-2.5 py-1 rounded-lg">{(communities ?? []).length} active</span>
           </div>
@@ -128,21 +143,21 @@ export default function PlatformOverview({ currentUser, communities }: PlatformO
         <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 font-mono mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <button
-            onClick={() => { alert("MySQL cache flush initiated."); }}
+            onClick={() => showFeedback("success", "Cache flushed successfully.")}
             className="p-4 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group"
           >
-            <span>Flush MySQL Cache</span>
+            <span>Flush Cache</span>
             <ArrowRight className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition shrink-0" />
           </button>
           <button
-            onClick={() => alert("System snapshot captured.")}
+            onClick={() => showFeedback("success", "System snapshot captured.")}
             className="p-4 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group"
           >
             <span>Capture Snapshot</span>
             <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition shrink-0" />
           </button>
           <button
-            onClick={() => { setMaintenanceModeActive(!maintenanceModeActive); alert("Maintenance mode toggled."); }}
+            onClick={() => { setMaintenanceModeActive(!maintenanceModeActive); showFeedback("success", maintenanceModeActive ? "Maintenance mode disabled." : "Maintenance mode enabled."); }}
             className={`p-4 border rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group ${
               maintenanceModeActive
                 ? "bg-rose-50 border-rose-200 text-rose-700"
@@ -153,7 +168,7 @@ export default function PlatformOverview({ currentUser, communities }: PlatformO
             <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition shrink-0" />
           </button>
           <button
-            onClick={() => { alert("Security alerts cleared."); }}
+            onClick={() => showFeedback("success", "Security alerts cleared.")}
             className="p-4 bg-cyan-50/50 hover:bg-cyan-50 border border-cyan-100 text-cyan-700 rounded-xl text-xs text-left font-bold transition-all hover:shadow-sm flex items-center justify-between group"
           >
             <span>Clear Security Alerts</span>

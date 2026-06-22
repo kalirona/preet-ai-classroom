@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Key, Eye, EyeOff, Power, Cpu, Coins, BookOpen, FileEdit, HelpCircle, MessageSquare } from "lucide-react";
+import { CheckCircle, Key, Eye, EyeOff, Power, Cpu, Coins, BookOpen, FileEdit, HelpCircle, MessageSquare } from "lucide-react";
+
+const STORAGE_KEY = "platform_ai_settings";
 
 type Provider = "openai" | "gemini" | "claude";
 
@@ -20,16 +22,20 @@ const FEATURES = [
 ];
 
 export default function AISettings() {
-  const [apiKeys, setApiKeys] = useState<Record<Provider, string>>(INITIAL_KEYS);
-  const [enabled, setEnabled] = useState<Record<Provider, boolean>>(INITIAL_ENABLED);
+  const loadSaved = () => {
+    try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : {}; }
+    catch { return {}; }
+  };
+  const initial = loadSaved();
+  const [apiKeys, setApiKeys] = useState<Record<Provider, string>>(initial.apiKeys || INITIAL_KEYS);
+  const [enabled, setEnabled] = useState<Record<Provider, boolean>>(initial.enabled || INITIAL_ENABLED);
   const [visible, setVisible] = useState<Record<Provider, boolean>>({ openai: false, gemini: false, claude: false });
-  const [features, setFeatures] = useState<Record<string, boolean>>(
-    Object.fromEntries(FEATURES.map((f) => [f.key, true]))
-  );
-  const [monthlyBudget, setMonthlyBudget] = useState("50");
+  const [features, setFeatures] = useState<Record<string, boolean>>(initial.features || {});
+  const [monthlyBudget, setMonthlyBudget] = useState(initial.monthlyBudget || "50");
   const [saved, setSaved] = useState(false);
 
   function handleSave() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ apiKeys, enabled, features, monthlyBudget }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }

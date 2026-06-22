@@ -1,18 +1,26 @@
 import React, { useState } from "react";
-import { Percent, CreditCard, DollarSign, Calendar, Wallet, TrendingUp } from "lucide-react";
+import { CheckCircle, Percent, CreditCard, DollarSign, Calendar, Wallet, TrendingUp } from "lucide-react";
+
+const STORAGE_KEY = "platform_billing";
 
 type PaymentGateway = "stripe" | "paypal";
 type PayoutSchedule = "weekly" | "monthly";
 
 export default function BillingRevenue() {
-  const [commission, setCommission] = useState(10);
-  const [gateway, setGateway] = useState<PaymentGateway>("stripe");
-  const [stripeKey, setStripeKey] = useState("");
-  const [paypalEmail, setPaypalEmail] = useState("");
-  const [payoutSchedule, setPayoutSchedule] = useState<PayoutSchedule>("monthly");
+  const loadSaved = () => {
+    try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : {}; }
+    catch { return {}; }
+  };
+  const initial = loadSaved();
+  const [commission, setCommission] = useState(initial.commission ?? 10);
+  const [gateway, setGateway] = useState<PaymentGateway>(initial.gateway || "stripe");
+  const [stripeKey, setStripeKey] = useState(initial.stripeKey || "");
+  const [paypalEmail, setPaypalEmail] = useState(initial.paypalEmail || "");
+  const [payoutSchedule, setPayoutSchedule] = useState<PayoutSchedule>(initial.payoutSchedule || "monthly");
   const [saved, setSaved] = useState(false);
 
   function handleSave() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ commission, gateway, stripeKey, paypalEmail, payoutSchedule }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -125,7 +133,7 @@ export default function BillingRevenue() {
       <button onClick={handleSave}
         className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5">
         <Wallet className="w-3.5 h-3.5" />
-        Save Billing Settings
+        {saved ? "Saved!" : "Save Billing Settings"}
       </button>
     </div>
   );

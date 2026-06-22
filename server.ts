@@ -2711,6 +2711,30 @@ app.get("/api/workspace/:workspaceId/students", authenticateUser, async (req: an
   }
 });
 
+// ─── Workspace Certificates ──────────────────────────
+app.get("/api/workspace/:workspaceId/certificates", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_ANALYTICS), async (req: any, res: any) => {
+  try {
+    const { workspaceId } = req.params;
+    const certificates = await findCertificatesByWorkspace(workspaceId);
+    res.json({ certificates });
+  } catch (err) {
+    console.error("Workspace certificates error:", err);
+    res.status(500).json({ error: "Failed to fetch certificates." });
+  }
+});
+
+// ─── Workspace Assignments ───────────────────────────
+app.get("/api/workspace/:workspaceId/assignments", authenticateUser, requireWorkspacePermission(WorkspacePermission.VIEW_ANALYTICS), async (req: any, res: any) => {
+  try {
+    const { workspaceId } = req.params;
+    const assignments = await findAssignmentsByWorkspace(workspaceId);
+    res.json({ assignments });
+  } catch (err) {
+    console.error("Workspace assignments error:", err);
+    res.status(500).json({ error: "Failed to fetch assignments." });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // PAYOUT REQUESTS (Creator: submit & view, Admin: manage all)
 // ═══════════════════════════════════════════════════════════════
@@ -2973,6 +2997,7 @@ app.post("/api/lessons/:id/assignment-submit", authenticateUser, requireWorkspac
     if (!lesson) return res.status(404).json({ error: "Lesson not found." });
 
     const { submissionText } = req.body;
+    if (!submissionText) return res.status(400).json({ error: "Submission text required." });
 
     const user = await findUserById(req.user.id);
     const completed = user?.completed_lessons || [];
@@ -2982,13 +3007,15 @@ app.post("/api/lessons/:id/assignment-submit", authenticateUser, requireWorkspac
       await awardXp(req.user.id, 20);
     }
 
-    res.json({
-      success: true,
-      submission: {
-        text: submissionText, feedback: "Excellent work! Approved.",
-        status: "approved", grade: "A+", graded: true,
-      },
+    const mod = await findModuleById(lesson.module_id);
+    const submission = await createAssignmentSubmission({
+      lesson_id: req.params.id,
+      user_id: req.user.id,
+      course_id: mod?.course_id || null,
+      submission_text: submissionText,
     });
+
+    res.json({ success: true, submission });
   } catch (err) {
     console.error("Assignment submit error:", err);
     res.status(500).json({ error: "Failed to submit assignment." });
@@ -3125,6 +3152,17 @@ app.delete("/api/channels/:id", authenticateUser, requireWorkspacePermission(Wor
   } catch (err) {
     console.error("Delete channel error:", err);
     res.status(500).json({ error: "Failed to delete channel." });
+  }
+});
+
+// ─── Channel Messages ─────────────────────────────────
+app.get("/api/channels/:channelId/messages", authenticateUser, requireWorkspacePermission(WorkspacePermission.CHAT_PARTICIPATION), async (req: any, res: any) => {
+  try {
+    const messages = await findMessages(req.params.channelId);
+    res.json({ messages });
+  } catch (err) {
+    console.error("Get channel messages error:", err);
+    res.status(500).json({ error: "Failed to fetch channel messages." });
   }
 });
 
@@ -3666,6 +3704,32 @@ app.get("/api/platform/stats", authenticateUser, async (req: any, res: any) => {
     });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch platform stats." });
+  }
+});
+
+// ─── Platform Health ─────────────────────────────────
+app.get("/api/platform/health", authenticateUser, async (req: any, res: any) => {
+  if (req.user.platformRole !== PlatformRole.SUPER_ADMIN) {
+    return res.status(403).json({ error: "Super Admin only." });
+  }
+  try {
+    const uptimeSeconds = process.uptime();
+    const uptimeHours = Math.floor(uptimeSeconds / 3600);
+    const uptimeMinutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const dbResult = await query("SELECT 1 as ok").catch(() => null);
+    const dbConnected = dbResult !== null;
+    res.json({
+      status: dbConnected ? "healthy" : "degraded",
+      uptimeSeconds: Math.floor(uptimeSeconds),
+      uptimeHuman: `${uptimeHours}h ${uptimeMinutes}m`,
+      dbConnected,
+      memoryUsage: process.memoryUsage().heapUsed,
+      memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      nodeVersion: process.version,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch platform health." });
   }
 });
 

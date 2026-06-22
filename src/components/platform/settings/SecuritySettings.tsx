@@ -1,15 +1,23 @@
 import React, { useState } from "react";
-import { Shield, LogIn, Key, Clock, Timer, Lock, Smartphone, AlertTriangle } from "lucide-react";
+import { CheckCircle, Shield, LogIn, Key, Clock, Timer, Lock, Smartphone, AlertTriangle } from "lucide-react";
+
+const STORAGE_KEY = "platform_security_settings";
 
 export default function SecuritySettings() {
-  const [googleLogin, setGoogleLogin] = useState(true);
-  const [emailLogin, setEmailLogin] = useState(true);
-  const [rateLimit, setRateLimit] = useState("5");
-  const [sessionTimeout, setSessionTimeout] = useState("24");
-  const [force2FA, setForce2FA] = useState(false);
+  const loadSaved = () => {
+    try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : {}; }
+    catch { return {}; }
+  };
+  const initial = loadSaved();
+  const [googleLogin, setGoogleLogin] = useState(initial.googleLogin ?? true);
+  const [emailLogin, setEmailLogin] = useState(initial.emailLogin ?? true);
+  const [rateLimit, setRateLimit] = useState(initial.rateLimit ?? "5");
+  const [sessionTimeout, setSessionTimeout] = useState(initial.sessionTimeout ?? "24");
+  const [force2FA, setForce2FA] = useState(initial.force2FA ?? false);
   const [saved, setSaved] = useState(false);
 
   function handleSave() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ googleLogin, emailLogin, rateLimit, sessionTimeout, force2FA }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -104,7 +112,7 @@ export default function SecuritySettings() {
       <button onClick={handleSave}
         className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5">
         <Shield className="w-3.5 h-3.5" />
-        Save Security Settings
+        {saved ? "Saved!" : "Save Security Settings"}
       </button>
     </div>
   );

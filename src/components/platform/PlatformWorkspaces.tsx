@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Community } from "../../types";
-import { Plus, RefreshCw } from "lucide-react";
+import { CheckCircle, Plus, RefreshCw } from "lucide-react";
 
 interface PlatformWorkspacesProps {
   communities: Community[];
@@ -13,11 +13,17 @@ export default function PlatformWorkspaces({ communities }: PlatformWorkspacesPr
   const [simWsEmail, setSimWsEmail] = useState("");
   const [simWsSuccessMsg, setSimWsSuccessMsg] = useState("");
   const [simIsProvisioning, setSimIsProvisioning] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  const showFeedback = (type: "success" | "error", msg: string) => {
+    setFeedback({ type, msg });
+    setTimeout(() => setFeedback(null), 2500);
+  };
 
   const handleSimulateWorkspaceProvision = (e: React.FormEvent) => {
     e.preventDefault();
     if (!simWsName || !simWsSubdomain || !simWsEmail) {
-      alert("Please fill all fields to provision.");
+      showFeedback("error", "Please fill all fields to provision.");
       return;
     }
     setSimIsProvisioning(true);
@@ -25,7 +31,7 @@ export default function PlatformWorkspaces({ communities }: PlatformWorkspacesPr
 
     setTimeout(() => {
       setSimIsProvisioning(false);
-      setSimWsSuccessMsg(`Successfully provisioned virtual SQL database container shard for '${simWsName}' mapped to subdomain 'https://${simWsSubdomain.toLowerCase()}.skoolsaas.pro' with total analytical segregation. Email token sent to operator ${simWsEmail}.`);
+      setSimWsSuccessMsg(`Workspace "${simWsName}" provisioned at ${simWsSubdomain.toLowerCase()}.skoolsaas.pro. Invite sent to ${simWsEmail}.`);
       setSimWsName("");
       setSimWsSubdomain("");
       setSimWsEmail("");
@@ -34,6 +40,14 @@ export default function PlatformWorkspaces({ communities }: PlatformWorkspacesPr
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
+      {feedback && (
+        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium ${
+          feedback.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"
+        }`}>
+          {feedback.type === "success" ? <CheckCircle className="w-4 h-4" /> : null}
+          {feedback.msg}
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Workspace List */}
@@ -63,7 +77,7 @@ export default function PlatformWorkspaces({ communities }: PlatformWorkspacesPr
                     <span className="font-bold font-mono text-slate-900">${comm.isPremium ? comm.priceMonthly : 0}<span className="text-slate-400 font-normal text-[10px]">/mo</span></span>
                   </div>
                   <button
-                    onClick={() => alert(`Health check for "${comm.name}". Schema validated.`)}
+                    onClick={() => showFeedback("success", `Health check for "${comm.name}" passed.`)}
                     className="px-2.5 py-1.5 hover:bg-slate-100 border border-slate-200 rounded-lg font-bold text-[10px] text-slate-600 cursor-pointer transition"
                   >
                     Check

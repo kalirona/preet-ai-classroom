@@ -305,6 +305,22 @@ export async function createSchema() {
 
     `CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_id, created_at DESC)`,
 
+    `CREATE TABLE IF NOT EXISTS assignment_submissions (
+      id TEXT PRIMARY KEY,
+      lesson_id TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id),
+      submission_text TEXT NOT NULL,
+      feedback TEXT,
+      status TEXT DEFAULT 'submitted',
+      grade TEXT,
+      graded BOOLEAN DEFAULT false,
+      submitted_at TIMESTAMPTZ DEFAULT NOW(),
+      graded_at TIMESTAMPTZ,
+      graded_by TEXT REFERENCES users(id),
+      UNIQUE(lesson_id, user_id)
+    )`,
+
     `CREATE TABLE IF NOT EXISTS channels (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -1177,6 +1193,19 @@ export async function createCertificate(cert: Partial<DbRow>): Promise<DbRow> {
   return result.rows[0];
 }
 
+export async function findCertificatesByWorkspace(workspaceId: string): Promise<DbRow[]> {
+  const result = await query(
+    `SELECT cc.*, c.name AS course_name, u.full_name AS student_name, u.id AS user_id
+     FROM course_certificates cc
+     JOIN courses c ON c.id = cc.course_id
+     JOIN users u ON u.id = cc.user_id
+     WHERE c.workspace_id = $1
+     ORDER BY cc.issued_at DESC`,
+    [workspaceId]
+  );
+  return result.rows;
+}
+
 export async function findCertificatesByUser(userId: string): Promise<DbRow[]> {
   const result = await query(
     `SELECT cc.*, c.name AS course_name, c.course_type
@@ -1187,6 +1216,11 @@ export async function findCertificatesByUser(userId: string): Promise<DbRow[]> {
     [userId]
   );
   return result.rows;
+}
+
+export async function findModuleById(id: string): Promise<DbRow | null> {
+  const result = await query("SELECT * FROM modules WHERE id = $1", [id]);
+  return result.rows[0] || null;
 }
 
 export async function findModulesByCourse(courseId: string): Promise<DbRow[]> {
@@ -1300,6 +1334,37 @@ export async function createMessage(msg: Partial<DbRow>): Promise<DbRow> {
     [id, msg.sender_id, msg.sender_name, msg.sender_avatar || null, msg.recipient_id, msg.content]
   );
   return result.rows[0];
+}
+
+export async function createAssignmentSubmission(sub: Partial<DbRow>): Promise<DbRow> {
+  const id = sub.id || `as-${Date.now()}`;
+  const result = await query(
+    `INSERT INTO assignment_submissions (id, lesson_id, user_id, course_id, submission_text, status)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (lesson_id, user_id) DO UPDATE SET submission_text = $5, status = 'submitted', submitted_at = NOW()
+     RETURNING *`,
+    [id, sub.lesson_id, sub.user_id, sub.course_id, sub.submission_text, "submitted"]
+  );
+  return result.rows[0];
+}
+
+export async function findAssignmentsByWorkspace(workspaceId: string): Promise<DbRow[]> {
+  const result = await query(
+    `SELECT l.id, l.title, l.assignment_instructions, l.content_type, l.created_at,
+            c.name AS course_name, c.id AS course_id,
+            u.full_name AS student_name, u.id AS user_id,
+            asub.submission_text, asub.status, asub.grade, asub.feedback, asub.submitted_at, asub.graded
+     FROM lessons l
+     JOIN modules m ON m.id = l.module_id
+     JOIN courses c ON c.id = m.course_id
+     JOIN course_enrollments ce ON ce.course_id = c.id
+     JOIN users u ON u.id = ce.user_id
+     LEFT JOIN assignment_submissions asub ON asub.lesson_id = l.id AND asub.user_id = u.id
+     WHERE l.workspace_id = $1 AND l.content_type = 'assignment'
+     ORDER BY l.created_at DESC`,
+    [workspaceId]
+  );
+  return result.rows;
 }
 
 export async function findChannelsByWorkspace(workspaceId: string): Promise<DbRow[]> {

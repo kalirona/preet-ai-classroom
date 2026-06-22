@@ -9,16 +9,16 @@ interface ReportsViewProps {
 
 interface HealthData {
   totalMembers: number;
-  activeMembers7d: number;
-  activeMembers30d: number;
-  engagementRate: number;
-  retentionRate: number;
+  active7d: number;
+  active30d: number;
+  engagement30d: number;
+  retention30d: number;
   newMembers30d: number;
   posts30d: number;
   comments30d: number;
   reactions30d: number;
-  topContributors: Array<{ userId: string; name: string; posts: number; comments: number }>;
-  churnRisk: Array<{ userId: string; name: string; lastActive: string }>;
+  topContributors: Array<{ id: string; full_name: string; posts_count: number; comments_count: number }>;
+  churnRisk: Array<{ id: string; full_name: string; last_active: string }>;
 }
 
 export default function ReportsView({ currentUser, activeCommunityId }: ReportsViewProps) {
@@ -38,7 +38,7 @@ export default function ReportsView({ currentUser, activeCommunityId }: ReportsV
       const res = await fetch(`/api/analytics/community-health?workspaceId=${activeCommunityId}`);
       if (res.ok) {
         const data = await res.json();
-        setHealth(data);
+        setHealth(data.health);
       } else {
         setError("Failed to load analytics");
       }
@@ -92,9 +92,9 @@ export default function ReportsView({ currentUser, activeCommunityId }: ReportsV
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 { label: "Total Members", value: health.totalMembers, icon: Users, color: "from-indigo-500 to-indigo-600" },
-                { label: "Active (7d)", value: health.activeMembers7d, icon: Activity, color: "from-emerald-500 to-emerald-600" },
-                { label: "Engagement", value: `${health.engagementRate}%`, icon: Heart, color: "from-rose-500 to-rose-600" },
-                { label: "Retention", value: `${health.retentionRate}%`, icon: TrendingUp, color: "from-amber-500 to-amber-600" },
+                { label: "Active (7d)", value: health.active7d, icon: Activity, color: "from-emerald-500 to-emerald-600" },
+                { label: "Engagement", value: `${health.engagement30d}%`, icon: Heart, color: "from-rose-500 to-rose-600" },
+                { label: "Retention", value: `${health.retention30d}%`, icon: TrendingUp, color: "from-amber-500 to-amber-600" },
               ].map(({ label, value, icon: Icon, color }) => (
                 <div key={label} className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
@@ -138,14 +138,14 @@ export default function ReportsView({ currentUser, activeCommunityId }: ReportsV
                     <div className="py-8 text-center text-slate-300 text-xs font-mono">No data</div>
                   ) : (
                     health.topContributors.slice(0, 5).map((c, i) => (
-                      <div key={c.userId} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/80 transition">
+                      <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/80 transition">
                         <span className="text-xs font-bold text-slate-300 w-5 text-center font-mono">{i + 1}</span>
                         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-                          {c.name?.[0] || "?"}
+                          {c.full_name?.[0] || "?"}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-xs font-semibold text-slate-900 block truncate">{c.name}</span>
-                          <span className="text-[10px] text-slate-400">{c.posts} posts · {c.comments} comments</span>
+                          <span className="text-xs font-semibold text-slate-900 block truncate">{c.full_name}</span>
+                          <span className="text-[10px] text-slate-400">{c.posts_count} posts · {c.comments_count} comments</span>
                         </div>
                       </div>
                     ))
@@ -164,14 +164,14 @@ export default function ReportsView({ currentUser, activeCommunityId }: ReportsV
                     <div className="py-8 text-center text-slate-300 text-xs font-mono">No at-risk members</div>
                   ) : (
                     health.churnRisk.slice(0, 5).map((m) => (
-                      <div key={m.userId} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/80 transition">
+                      <div key={m.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/80 transition">
                         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-                          {m.name?.[0] || "?"}
+                          {m.full_name?.[0] || "?"}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-xs font-semibold text-slate-900 block truncate">{m.name}</span>
+                          <span className="text-xs font-semibold text-slate-900 block truncate">{m.full_name}</span>
                           <span className="text-[10px] text-slate-400">
-                            Last active: {m.lastActive ? new Date(m.lastActive).toLocaleDateString() : "Unknown"}
+                            Last active: {m.last_active ? new Date(m.last_active).toLocaleDateString() : "Unknown"}
                           </span>
                         </div>
                         <UserMinus className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -191,7 +191,7 @@ export default function ReportsView({ currentUser, activeCommunityId }: ReportsV
                   <span className="text-[10px] uppercase font-mono font-bold text-slate-400">New Members (30d)</span>
                 </div>
                 <div className="bg-slate-50 rounded-xl border border-slate-200/80 p-4 text-center">
-                  <span className="text-2xl font-extrabold text-slate-900 block">{health.activeMembers30d}</span>
+                  <span className="text-2xl font-extrabold text-slate-900 block">{health.active30d}</span>
                   <span className="text-[10px] uppercase font-mono font-bold text-slate-400">Active (30d)</span>
                 </div>
                 <div className="bg-slate-50 rounded-xl border border-slate-200/80 p-4 text-center">
