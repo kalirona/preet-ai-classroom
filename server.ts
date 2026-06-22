@@ -672,6 +672,22 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+app.post("/api/auth/claim-admin", authenticateUser, async (req: any, res: any) => {
+  try {
+    const existing = await query("SELECT id FROM users WHERE platform_role = 'super_admin' LIMIT 1");
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: "A Super Admin already exists. Use the Admin Mgmt tab in Platform Settings to promote additional admins." });
+    }
+    await updateUser(req.user.id, { platform_role: "super_admin" });
+    await addAuditLog(req.user.id, req.user.fullName, "PLATFORM_ROLE_UPDATED", "First Super Admin claimed via bootstrap.");
+    const userResponse = await formatUserForResponse(req.user.id);
+    res.json({ success: true, user: userResponse });
+  } catch (err) {
+    console.error("Claim admin error:", err);
+    res.status(500).json({ error: "Failed to claim super admin." });
+  }
+});
+
 app.post("/api/auth/logout", async (req, res) => {
   const cookies = req.headers.cookie || "";
   const match = cookies.match(/skool_token=([^;]+)/);

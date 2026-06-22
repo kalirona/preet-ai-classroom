@@ -100,6 +100,7 @@ const PlatformAuditLogs = React.lazy(() => import("./components/platform/Platfor
 const PlatformSettings = React.lazy(() => import("./components/platform/PlatformSettings"));
 import ProfileView from "./components/ProfileView";
 import ErrorBoundary from "./components/ErrorBoundary";
+import BootstrapAdmin from "./components/BootstrapAdmin";
 
 // Added Creator specialized subcomponents
 import WorkspaceDashboardView from "./components/WorkspaceDashboardView";
@@ -716,6 +717,17 @@ export default function App() {
           platformMode={platformMode}
           onTogglePlatformMode={handleTogglePlatformMode}
           previewWsRole={previewWsRole}
+        />
+
+        {/* Bootstrap Super Admin (shown when no super admin exists) */}
+        <BootstrapAdmin
+          currentUser={currentUser}
+          onAdminClaimed={(user) => {
+            setCurrentUser(user);
+            setPlatformMode(true);
+            setActiveTab("superadmin");
+            window.location.hash = "superadmin";
+          }}
         />
 
         {/* Tab Route Content Mount */}
