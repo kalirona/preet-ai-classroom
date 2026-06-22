@@ -127,7 +127,7 @@ export default function PlatformSecurity() {
                   onClick={() => setSecurityModules(prev => ({ ...prev, [key]: !value }))}
                   className={`w-11 h-6 rounded-full transition relative shrink-0 cursor-pointer ${value ? "bg-indigo-600" : "bg-slate-200"}`}
                 >
-                  <span className={`w-4.5 h-4.5 rounded-full bg-white absolute top-0.75 transition-all duration-150 ${value ? "left-5.5" : "left-1"}`} />
+                  <span className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-all duration-150 ${value ? "left-6" : "left-1"}`} />
                 </button>
               </div>
             );

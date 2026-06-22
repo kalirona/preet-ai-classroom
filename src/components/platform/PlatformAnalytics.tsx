@@ -64,7 +64,7 @@ export default function PlatformAnalytics({ totalMRR, platformCommissionFee }: P
             <div className="absolute right-6 top-6 bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse block" />
               <div>
-                <span className="text-[8px] text-slate-500 uppercase block font-mono">Current Peak Peak</span>
+                <span className="text-[8px] text-slate-500 uppercase block font-mono">Current Peak</span>
                 <span className="text-[10.5px] font-bold text-white font-mono">${(totalMRR).toLocaleString()} USD</span>
               </div>
             </div>

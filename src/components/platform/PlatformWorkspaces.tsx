@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Community } from "../../types";
 import { Plus, RefreshCw } from "lucide-react";
 
@@ -43,7 +43,7 @@ export default function PlatformWorkspaces({ communities }: PlatformWorkspacesPr
             <p className="text-[10px] text-slate-400 mt-0.5">Manage tenant namespaces and database links.</p>
           </div>
 
-          <div className="divide-y divide-slate-100 max-h-90 overflow-y-auto pr-1">
+          <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto pr-1">
             {(communities ?? []).map((comm) => (
               <div key={comm.id} className="py-3.5 flex items-center justify-between text-xs hover:bg-slate-50/80 px-2 rounded-xl transition group">
                 <div className="flex items-center gap-3">

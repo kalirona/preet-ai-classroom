@@ -1,14 +1,12 @@
-import React from "react";
-
 interface PlatformRevenueProps {
   totalMRR: number;
   platformCommissionFee: number;
 }
 
-const PlatformRevenue: React.FC<PlatformRevenueProps> = ({
+export default function PlatformRevenue({
   totalMRR,
   platformCommissionFee,
-}) => {
+}: PlatformRevenueProps) {
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
@@ -67,6 +65,4 @@ const PlatformRevenue: React.FC<PlatformRevenueProps> = ({
       </div>
     </div>
   );
-};
-
-export default PlatformRevenue;
+}

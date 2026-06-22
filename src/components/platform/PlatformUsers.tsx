@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, PlatformRole } from "../../types";
+import { User } from "../../types";
 import { RefreshCw } from "lucide-react";
 
 interface PlatformUsersProps {

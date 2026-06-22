@@ -731,7 +731,7 @@ export default function App() {
         />
 
         {/* Tab Route Content Mount */}
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-y-auto scroll-smooth">
           {activeTab === "dashboard" && (
             <ErrorBoundary>
               <WorkspaceDashboardView
@@ -1041,7 +1041,7 @@ export default function App() {
             if (!platformMode || previewWsRole || !canAccessTab("superadmin", currentUser, activeCommunityId)) return null;
 
             return (
-              <>
+              <div className="max-w-7xl mx-auto px-6 py-6 w-full">
                 <div className="bg-gradient-to-r from-indigo-600/5 to-purple-600/5 rounded-2xl p-4 border border-indigo-100/50 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
@@ -1100,7 +1100,7 @@ export default function App() {
                     </ErrorBoundary>
                   )}
                 </Suspense>
-              </>
+              </div>
             );
           })()}
 

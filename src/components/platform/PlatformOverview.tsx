@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { User, Community } from "../../types";
 import { Send, ArrowRight } from "lucide-react";
 
