@@ -32,6 +32,7 @@ import { courseTemplates } from "./CourseTemplates";
 import CourseCreationWizard from "./CourseCreationWizard";
 import CourseBuilderStudio from "./CourseBuilderStudio";
 import ResourceLibrary from "./ResourceLibrary";
+import CoursePreviewModal from "./CoursePreviewModal";
 
 const templateIcons: Record<string, string> = {
   blank: "from-gray-400 to-gray-500",
@@ -85,10 +86,23 @@ export default function CourseBuilder({
   const [builderView, setBuilderView] = useState<BuilderView>("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [previewCourse, setPreviewCourse] = useState<CourseDraft | null>(null);
 
   useEffect(() => {
-    setCourses(initialCourses);
-  }, []);
+    if (initialCourses && initialCourses.length > 0) {
+      setCourses(prev => {
+        const prevMap = new Map(prev.map(c => [c.id, c]));
+        let changed = false;
+        const merged = initialCourses.map(ic => {
+          const existing = prevMap.get(ic.id);
+          if (existing) return existing;
+          changed = true;
+          return ic;
+        });
+        return changed || prev.length !== merged.length ? merged : prev;
+      });
+    }
+  }, [initialCourses]);
 
   const courseMetrics = useMemo(() => {
     const lessonCount = courses.reduce(
@@ -169,37 +183,45 @@ export default function CourseBuilder({
     setActiveDraft(draft);
     setShowWizard(false);
     onCoursesChange?.(updated);
+    const savePayload = {
+      name: draft.name,
+      description: draft.description,
+      coverUrl: draft.coverUrl,
+      status: draft.status,
+      price: draft.price,
+      category: draft.category,
+      modules: draft.modules.map((m, mi) => ({
+        id: m.id,
+        title: m.title,
+        index: mi,
+        lessons: m.lessons.map((l, li) => ({
+          id: l.id,
+          title: l.title,
+          durationMinutes: l.durationMinutes,
+          contentType: l.contentType,
+          videoUrl: l.videoUrl || "",
+          textContent: l.textContent || "",
+          index: li,
+          isLocked: l.isLocked,
+          attachments: l.attachments || [],
+          quizQuestions: l.quizQuestions || [],
+          assignmentInstructions: l.assignmentInstructions || "",
+        })),
+      })),
+    };
     try {
-      await fetch(`/api/courses/${draft.id}`, {
+      const putRes = await fetch(`/api/courses/${draft.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: draft.name,
-          description: draft.description,
-          coverUrl: draft.coverUrl,
-          status: draft.status,
-          price: draft.price,
-          category: draft.category,
-          modules: draft.modules.map((m, mi) => ({
-            id: m.id,
-            title: m.title,
-            index: mi,
-            lessons: m.lessons.map((l, li) => ({
-              id: l.id,
-              title: l.title,
-              durationMinutes: l.durationMinutes,
-              contentType: l.contentType,
-              videoUrl: l.videoUrl || "",
-              textContent: l.textContent || "",
-              index: li,
-              isLocked: l.isLocked,
-              attachments: l.attachments || [],
-              quizQuestions: l.quizQuestions || [],
-              assignmentInstructions: l.assignmentInstructions || "",
-            })),
-          })),
-        }),
+        body: JSON.stringify(savePayload),
       });
+      if (putRes.status === 404) {
+        await fetch("/api/courses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ communityId: draft.communityId, id: draft.id, ...savePayload }),
+        });
+      }
     } catch (err) {
       console.error("Failed to save course:", err);
     }
@@ -210,37 +232,45 @@ export default function CourseBuilder({
     setCourses(updatedCourses);
     setActiveDraft(updated);
     onCoursesChange?.(updatedCourses);
+    const payload = {
+      name: updated.name,
+      description: updated.description,
+      coverUrl: updated.coverUrl,
+      status: updated.status,
+      price: updated.price,
+      category: updated.category,
+      modules: updated.modules.map((m, mi) => ({
+        id: m.id,
+        title: m.title,
+        index: mi,
+        lessons: m.lessons.map((l, li) => ({
+          id: l.id,
+          title: l.title,
+          durationMinutes: l.durationMinutes,
+          contentType: l.contentType,
+          videoUrl: l.videoUrl || "",
+          textContent: l.textContent || "",
+          index: li,
+          isLocked: l.isLocked,
+          attachments: l.attachments || [],
+          quizQuestions: l.quizQuestions || [],
+          assignmentInstructions: l.assignmentInstructions || "",
+        })),
+      })),
+    };
     try {
-      await fetch(`/api/courses/${updated.id}`, {
+      const putRes = await fetch(`/api/courses/${updated.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: updated.name,
-          description: updated.description,
-          coverUrl: updated.coverUrl,
-          status: updated.status,
-          price: updated.price,
-          category: updated.category,
-          modules: updated.modules.map((m, mi) => ({
-            id: m.id,
-            title: m.title,
-            index: mi,
-            lessons: m.lessons.map((l, li) => ({
-              id: l.id,
-              title: l.title,
-              durationMinutes: l.durationMinutes,
-              contentType: l.contentType,
-              videoUrl: l.videoUrl || "",
-              textContent: l.textContent || "",
-              index: li,
-              isLocked: l.isLocked,
-              attachments: l.attachments || [],
-              quizQuestions: l.quizQuestions || [],
-              assignmentInstructions: l.assignmentInstructions || "",
-            })),
-          })),
-        }),
+        body: JSON.stringify(payload),
       });
+      if (putRes.status === 404) {
+        await fetch("/api/courses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ communityId: updated.communityId, id: updated.id, ...payload }),
+        });
+      }
     } catch (err) {
       console.error("Failed to save course:", err);
     }
@@ -325,13 +355,17 @@ export default function CourseBuilder({
             <button
               type="button"
               onClick={() => {
-                window.open(course.slug ? `/course/${course.slug}` : `/preview/course/${course.id}`, "_blank");
+                if (course.status === "published") {
+                  window.open(course.slug ? `/course/${course.slug}` : `/preview/course/${course.id}`, "_blank");
+                } else {
+                  setPreviewCourse(course);
+                }
                 setOpenMenuId(null);
               }}
               className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
             >
               <Eye className="h-4 w-4" />
-              Preview
+              {course.status === "published" ? "View Live" : "Preview Draft"}
             </button>
             <button
               type="button"
@@ -450,11 +484,17 @@ export default function CourseBuilder({
             </button>
             <button
               type="button"
-              onClick={() => window.open(course.slug ? `/course/${course.slug}` : `/preview/course/${course.id}`, "_blank")}
-              className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              onClick={() => {
+                if (course.status === "published") {
+                  window.open(course.slug ? `/course/${course.slug}` : `/preview/course/${course.id}`, "_blank");
+                } else {
+                  setPreviewCourse(course);
+                }
+              }}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
             >
               <Eye className="h-4 w-4" />
-              Preview
+              {course.status === "published" ? "View Live" : "Preview"}
             </button>
           </div>
         </div>
@@ -780,6 +820,10 @@ export default function CourseBuilder({
             </div>
           </div>
         </div>
+      )}
+
+      {previewCourse && (
+        <CoursePreviewModal course={previewCourse} onClose={() => setPreviewCourse(null)} />
       )}
     </div>
   );

@@ -5,7 +5,8 @@
 
 export enum PlatformRole {
   SUPER_ADMIN = "super_admin",
-  USER = "user"
+  USER = "user",
+  SUSPENDED = "suspended"
 }
 
 export enum WorkspaceRole {

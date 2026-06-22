@@ -26,6 +26,8 @@ export default function ClassroomView({ currentUser, activeCommunity, courses }:
   const userLevel = currentUser?.level || 1;
   const userXp = currentUser?.xp || 0;
 
+  const publishedCourses = courses.filter(c => c.status === "published");
+
   const getCourseProgress = (course: Course): number => {
     if (!course.modules) return 0;
     const all = course.modules.flatMap(m => m.lessons || []);
@@ -33,8 +35,8 @@ export default function ClassroomView({ currentUser, activeCommunity, courses }:
     return Math.round((all.filter(l => completedLessons.includes(l.id)).length / all.length) * 100);
   };
 
-  const getContinueTarget = () => {
-    for (const course of courses) {
+  const findNextLesson = (): { course: Course; nextLesson: any } | null => {
+    for (const course of publishedCourses) {
       for (const mod of course.modules || []) {
         for (const lesson of mod.lessons || []) {
           if (!completedLessons.includes(lesson.id)) {
@@ -46,7 +48,7 @@ export default function ClassroomView({ currentUser, activeCommunity, courses }:
     return null;
   };
 
-  const completedCourses = courses.filter(c => getCourseProgress(c) === 100);
+  const completedCourses = publishedCourses.filter(c => getCourseProgress(c) === 100);
 
   const liveSessions = [
     { id: "live_1", title: "Weekly SaaS Architecture AMA", host: "Alex Rivera", date: "Today at 7:00 PM", desc: "Live code walkthrough & Q&A", attendees: 18, isLiveSoon: true },
@@ -55,7 +57,7 @@ export default function ClassroomView({ currentUser, activeCommunity, courses }:
 
   const tabs: { id: ClassroomTab; label: string; icon: React.ElementType; count?: number }[] = [
     { id: "continue", label: "Continue Learning", icon: PlayCircle },
-    { id: "my-courses", label: "My Courses", icon: BookOpen, count: courses.length },
+    { id: "my-courses", label: "My Courses", icon: BookOpen, count: publishedCourses.length },
     { id: "upcoming", label: "Upcoming Sessions", icon: Clock },
     { id: "certificates", label: "Certificates", icon: Award, count: completedCourses.length },
   ];
@@ -145,11 +147,11 @@ export default function ClassroomView({ currentUser, activeCommunity, courses }:
             {/* Quick course progress list */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
               <h3 className="text-sm font-semibold text-gray-900">My Courses</h3>
-              {courses.length === 0 ? (
+              {publishedCourses.length === 0 ? (
                 <p className="text-sm text-gray-400">No courses available.</p>
               ) : (
                 <div className="space-y-2">
-                  {courses.slice(0, 5).map(course => {
+                  {publishedCourses.slice(0, 5).map(course => {
                     const progress = getCourseProgress(course);
                     return (
                       <div key={course.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
@@ -169,10 +171,10 @@ export default function ClassroomView({ currentUser, activeCommunity, courses }:
                       </div>
                     );
                   })}
-                  {courses.length > 5 && (
+                  {publishedCourses.length > 5 && (
                     <button onClick={() => setActiveTab("my-courses")}
                       className="text-sm font-medium text-gray-500 hover:text-gray-900 pt-2 block">
-                      View all {courses.length} courses &rarr;
+                      View all {publishedCourses.length} courses &rarr;
                     </button>
                   )}
                 </div>
@@ -230,7 +232,7 @@ export default function ClassroomView({ currentUser, activeCommunity, courses }:
       {/* My Courses */}
       {activeTab === "my-courses" && (
         <div className="space-y-6">
-          {courses.length === 0 ? (
+          {publishedCourses.length === 0 ? (
             <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center">
               <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <h4 className="text-base font-semibold text-gray-700">No courses yet</h4>
@@ -238,7 +240,7 @@ export default function ClassroomView({ currentUser, activeCommunity, courses }:
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map(course => (
+              {publishedCourses.map(course => (
                 <div key={course.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md hover:border-gray-300 transition-all flex flex-col group">
                   <div className="h-40 bg-gray-100 relative overflow-hidden shrink-0">
                     {course.coverUrl && (

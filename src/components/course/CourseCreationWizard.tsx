@@ -512,44 +512,98 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
     return () => document.removeEventListener("click", handler);
   }, [aiDropdownModule]);
 
-  const handleCreate = () => {
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreate = async () => {
     if (!name.trim()) { setError("Course name is required"); return; }
-    const draft: CourseDraft = {
-      id: `course-${Date.now()}`,
-      communityId,
-      name: name.trim(),
-      slug: slug || name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
-      description: description.trim() || selectedTemplate?.description || "",
-      coverUrl,
-      category,
-      modules,
-      status: publishAction,
-      price,
-      isFree,
-      instructorName,
-      instructorAvatar: "",
-      enrolledCount: 0,
-      completionRate: 0,
-      revenue: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      templateId: selectedTemplate?.id,
-      settings: {
-        certificate,
-        dripContent,
-        dripDays: dripContent ? dripDays : 0,
-        prerequisites: [],
-        completionRules: completionRule,
-        allowComments,
-        allowDiscussions,
-        allowDownloads,
-        seoTitle: seoTitle || name.trim(),
-        seoDescription: seoDescription || description.trim(),
-      },
-      scheduledDate: publishAction === "scheduled" ? scheduledDate : undefined,
-      visibility,
-    };
-    onComplete(draft);
+    setIsCreating(true);
+    setError("");
+    const draftId = `course-${Date.now()}`;
+    try {
+      const response = await fetch("/api/courses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          communityId,
+          id: draftId,
+          name: name.trim(),
+          description: description.trim() || selectedTemplate?.description || "",
+          coverUrl,
+          category,
+          modules: modules.map((m, mi) => ({
+            id: m.id,
+            title: m.title,
+            index: mi,
+            lessons: m.lessons.map((l, li) => ({
+              id: l.id,
+              title: l.title,
+              durationMinutes: l.durationMinutes,
+              contentType: l.contentType,
+              videoUrl: l.videoUrl || "",
+              textContent: l.textContent || "",
+              index: li,
+              isLocked: l.isLocked,
+              attachments: l.attachments || [],
+              quizQuestions: l.quizQuestions || [],
+              assignmentInstructions: l.assignmentInstructions || "",
+            })),
+          })),
+          price,
+          status: publishAction,
+          scheduledAt: publishAction === "scheduled" ? scheduledDate : null,
+          certificateEnabled: certificate,
+          estimatedHours: modules.reduce((acc, m) => acc + m.lessons.reduce((s, l) => s + l.durationMinutes, 0), 0) / 60,
+          difficultyLevel: "beginner",
+          tags: [],
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Failed to create course.");
+        setIsCreating(false);
+        return;
+      }
+      const realId = data.course?.id || draftId;
+      const draft: CourseDraft = {
+        id: realId,
+        communityId,
+        name: name.trim(),
+        slug: slug || name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
+        description: description.trim() || selectedTemplate?.description || "",
+        coverUrl,
+        category,
+        modules,
+        status: publishAction,
+        price,
+        isFree,
+        instructorName,
+        instructorAvatar: "",
+        enrolledCount: 0,
+        completionRate: 0,
+        revenue: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        templateId: selectedTemplate?.id,
+        settings: {
+          certificate,
+          dripContent,
+          dripDays: dripContent ? dripDays : 0,
+          prerequisites: [],
+          completionRules: completionRule,
+          allowComments,
+          allowDiscussions,
+          allowDownloads,
+          seoTitle: seoTitle || name.trim(),
+          seoDescription: seoDescription || description.trim(),
+        },
+        scheduledDate: publishAction === "scheduled" ? scheduledDate : undefined,
+        visibility,
+      };
+      onComplete(draft);
+    } catch (e) {
+      setError("Network error. Failed to create course.");
+      setIsCreating(false);
+    }
   };
 
   const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
@@ -1488,10 +1542,11 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
                 {step === 3 && (
                   <button
                     onClick={step === 0 && aiCurriculum ? () => setStep(1) : handleCreate}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
+                    disabled={isCreating}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Sparkles className="w-4 h-4" />
-                    {publishAction === "draft" ? "Save Draft" : publishAction === "published" ? "Publish Course" : publishAction === "scheduled" ? "Schedule Course" : "Archive Course"}
+                    {isCreating ? "Creating..." : publishAction === "draft" ? "Save Draft" : publishAction === "published" ? "Publish Course" : publishAction === "scheduled" ? "Schedule Course" : "Archive Course"}
                   </button>
                 )}
               </>
@@ -1513,10 +1568,11 @@ export default function CourseCreationWizard({ communityId, onComplete, onCancel
                 {step === 5 && (
                   <button
                     onClick={handleCreate}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
+                    disabled={isCreating}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-600 px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Sparkles className="w-4 h-4" />
-                    {publishAction === "draft" ? "Save Draft" : publishAction === "published" ? "Publish Course" : publishAction === "scheduled" ? "Schedule Course" : "Archive Course"}
+                    {isCreating ? "Creating..." : publishAction === "draft" ? "Save Draft" : publishAction === "published" ? "Publish Course" : publishAction === "scheduled" ? "Schedule Course" : "Archive Course"}
                   </button>
                 )}
               </>
