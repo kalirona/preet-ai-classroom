@@ -313,6 +313,23 @@ export default function Header({
                   <Palette className="w-4 h-4 text-slate-400" />
                   Appearance
                 </button>
+
+                {(user?.platformRole === PlatformRole.SUPER_ADMIN) && (
+                  <>
+                    <div className="border-t border-slate-100 mx-3 my-1" />
+                    <button
+                      className="w-full text-left px-3 py-2.5 text-sm text-indigo-600 hover:bg-indigo-50 rounded-xl font-medium flex items-center gap-3 cursor-pointer transition"
+                      onClick={() => {
+                        if (!platformMode && onTogglePlatformMode) onTogglePlatformMode();
+                        onTabChange("superadmin");
+                        setShowProfileMenu(false);
+                      }}
+                    >
+                      <Shield className="w-4 h-4" />
+                      Platform Settings
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Logout */}
