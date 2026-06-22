@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Community, User, PlatformRole, WorkspaceRole } from "../types";
 import { 
-  MessageSquare, BookOpen, Calendar, BarChart3, Layers, X, ChevronDown,
+  MessageSquare, BookOpen, Calendar, BarChart3, X, ChevronDown,
   Users, FileText, Settings, Bookmark, Bell, UserCheck, ChevronLeft, ChevronRight, Shield,
   LayoutDashboard, ShieldCheck, ScrollText, Flag,
   Globe, DollarSign, CreditCard, Edit, ClipboardList, Award, Mail
@@ -68,8 +68,7 @@ export default function Sidebar({
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
         { id: "classroom", name: "Classroom", icon: BookOpen },
-        { id: "courses", name: "Courses", icon: Layers },
-        { id: "course-studio", name: "Course Studio", icon: Edit },
+        { id: "course-studio", name: "Course Builder", icon: Edit },
         { id: "students", name: "Students", icon: Users },
         { id: "members", name: "Members", icon: Users },
         { id: "calendar", name: "Calendar", icon: Calendar },
@@ -87,7 +86,7 @@ export default function Sidebar({
         { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
         { id: "community", name: "Community", icon: MessageSquare },
         { id: "classroom", name: "Classroom", icon: BookOpen },
-        { id: "courses", name: "Courses", icon: Layers },
+        { id: "course-studio", name: "Course Builder", icon: Edit },
         { id: "students", name: "Students", icon: Users },
         { id: "members", name: "Members", icon: Users },
         { id: "moderation", name: "Moderation", icon: ShieldCheck },
@@ -101,8 +100,7 @@ export default function Sidebar({
   const instructorNavigation = isWsInstructor
     ? [
         { id: "classroom", name: "Classroom", icon: BookOpen },
-        { id: "courses", name: "Courses", icon: Layers },
-        { id: "course-studio", name: "Course Studio", icon: Edit },
+        { id: "course-studio", name: "Course Builder", icon: Edit },
         { id: "course-analytics", name: "Course Analytics", icon: BarChart3 },
         { id: "students", name: "Students", icon: Users },
         { id: "assignments", name: "Assignments", icon: ClipboardList },

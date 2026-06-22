@@ -1992,11 +1992,32 @@ app.post("/api/courses/generate-ai-approve", authenticateUser, requireWorkspaceP
       description: curriculum.description,
       status: "draft",
       price: 0,
-      is_free: true,
       category: "AI Generated",
-      created_by: req.user.id,
-      modules,
     });
+
+    for (const mod of modules) {
+      const savedMod = await createModule({
+        id: mod.id,
+        course_id: courseId,
+        title: mod.title,
+        index: mod.index || 0,
+        description: mod.description || null,
+      });
+      for (const lesson of mod.lessons || []) {
+        await createLesson({
+          id: lesson.id,
+          module_id: savedMod.id,
+          workspace_id: communityId,
+          title: lesson.title,
+          duration_minutes: lesson.durationMinutes || 10,
+          content_type: lesson.contentType || "text",
+          video_url: lesson.videoUrl || "",
+          text_content: lesson.textContent || "",
+          index: 0,
+          is_locked: lesson.isLocked || false,
+        });
+      }
+    }
 
     res.json({ course, creditsRemaining: (parseInt((await findUserById(req.user.id))?.ai_credits || "0", 10)) });
   } catch (err) {
